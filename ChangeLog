@@ -1,3 +1,11 @@
+2002-04-22  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_SETUP_COMPILER): removed call to AC_CYGWIN so that
+	we can use autoconf 2.5x as well as 2.13.  This prevents us from
+	being able to warn against the use of cygwin gcc at configure
+	time, but allows autoconf 2.5x, which is what is shipped with most
+	newer systems.
+
 2002-04-11  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: Enabled COFF as well as CV style debug info with

@@ -2447,17 +2447,6 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
     AC_PROG_RANLIB
 
     #--------------------------------------------------------------------
-    # This macro performs additional compiler tests.
-    #--------------------------------------------------------------------
-
-    AC_CYGWIN
-
-    if test "$ac_cv_cygwin" = "yes" ; then
-	AC_MSG_ERROR([Compiling with the Cygwin version of gcc is not supported.
-	Use the Mingw version of gcc from www.mingw.org instead.])
-    fi
-
-    #--------------------------------------------------------------------
     # Determines the correct binary file extension (.o, .obj, .exe etc.)
     #--------------------------------------------------------------------
 

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.52 2004/09/08 01:17:00 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.53 2004/12/29 23:43:31 jenglish Exp $
 
 AC_PREREQ(2.50)
 
@@ -276,7 +276,6 @@ AC_DEFUN(TEA_LOAD_TCLCONFIG, [
     AC_SUBST(TCL_STUB_LIB_FLAG)
     AC_SUBST(TCL_STUB_LIB_SPEC)
 
-    #AC_SUBST(TCL_DBGX)
     AC_SUBST(TCL_LIBS)
     AC_SUBST(TCL_DEFS)
     AC_SUBST(TCL_EXTRA_CFLAGS)
@@ -543,7 +542,8 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 #				Sets to CFLAGS_OPTIMIZE if false
 #		LDFLAGS_DEFAULT	Sets to LDFLAGS_DEBUG if true
 #				Sets to LDFLAGS_OPTIMIZE if false
-#		DBGX		Debug library extension
+#		DBGX		Formerly used as debug library extension;
+#				always blank now.
 #
 #------------------------------------------------------------------------
 
@@ -551,25 +551,17 @@ AC_DEFUN(TEA_ENABLE_SYMBOLS, [
     dnl Make sure we are initialized
     AC_REQUIRE([TEA_CONFIG_CFLAGS])
 
-    if test "${TEA_PLATFORM}" = "windows" ; then
-	tcl_dbgx=d
-    else
-	tcl_dbgx=g
-    fi
+    DBGX=""
 
     AC_MSG_CHECKING([for build with symbols])
     AC_ARG_ENABLE(symbols, [  --enable-symbols        build with debugging symbols [--disable-symbols]],    [tcl_ok=$enableval], [tcl_ok=no])
     if test "$tcl_ok" = "no"; then
 	CFLAGS_DEFAULT="${CFLAGS_OPTIMIZE}"
 	LDFLAGS_DEFAULT="${LDFLAGS_OPTIMIZE}"
-	DBGX=""
-	TCL_DBGX=""
 	AC_MSG_RESULT([no])
     else
 	CFLAGS_DEFAULT="${CFLAGS_DEBUG}"
 	LDFLAGS_DEFAULT="${LDFLAGS_DEBUG}"
-	DBGX=${tcl_dbgx}
-	TCL_DBGX=${tcl_dbgx}
 	if test "$tcl_ok" = "yes"; then
 	    AC_MSG_RESULT([yes (standard debugging)])
 	fi
@@ -951,12 +943,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		CFLAGS_DEBUG="-g"
 		CFLAGS_OPTIMIZE="-O2"
 		SHLIB_LD="$CC -shared"
-		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 		LDFLAGS_CONSOLE="-wl,--subsystem,console ${lflags}"
 		LDFLAGS_WINDOW="-wl,--subsystem,windows ${lflags}"
 	    else
 		SHLIB_LD="${LINKBIN} -dll -nologo"
-		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.lib'
+		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.lib'
 		CFLAGS="$CFLAGS -YX"
 		PATHTYPE=-w
 		# For information on what debugtype is most useful, see:
@@ -975,7 +967,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dll"
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.dll'
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.dll'
 
 	    TCL_LIB_VERSIONS_OK=nodots
 	    # Bogus to avoid getting this turned off
@@ -1033,7 +1025,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		DL_LIBS="-ldl"
 		LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		TCL_NEEDS_EXP_FILE=1
-		TCL_EXPORT_FILE_SUFFIX='${PACKAGE_VERSION}\$\{DBGX\}.exp'
+		TCL_EXPORT_FILE_SUFFIX='${PACKAGE_VERSION}.exp'
 	    fi
 
 	    # On AIX <=v4 systems, libbsd.a has to be linked in to support
@@ -1161,7 +1153,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    DL_LIBS=""
 	    LDFLAGS="$LDFLAGS -Wl,-D,08000000"
 	    LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
-	    SHARED_LIB_SUFFIX='${PACKAGE_VERSION}\$\{DBGX\}.a'
+	    SHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'
 	    ;;
 	IRIX-5.*)
 	    SHLIB_CFLAGS=""
@@ -1318,9 +1310,9 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 #endif
 		],
 		    AC_MSG_RESULT([yes])
-		    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so',
+		    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so',
 		    AC_MSG_RESULT([no])
-		    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0'
+		    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'
 		)
 	    ], [
 		SHLIB_CFLAGS=""
@@ -1330,12 +1322,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		DL_OBJS="tclLoadAout.o"
 		DL_LIBS=""
 		LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    ])
 
 	    # FreeBSD doesn't handle version numbers with dots.
 
-	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	OpenBSD-*)
@@ -1352,13 +1344,13 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 #endif
 	    ],
 		[AC_MSG_RESULT(yes)
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0'],
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'],
 		[AC_MSG_RESULT(no)
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0']
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0']
 	    )
 
 	    # OpenBSD doesn't do version numbers with dots.
-	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	FreeBSD-*)
@@ -1380,8 +1372,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    case $system in
 	    FreeBSD-3.*)
 	    	# FreeBSD-3 doesn't handle version numbers with dots.
-	    	UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
-	    	SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so'
+	    	UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
+	    	SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so'
 	    	TCL_LIB_VERSIONS_OK=nodots
 		;;
 	    esac
@@ -1531,8 +1523,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    # requires an extra version number at the end of .so file names.
 	    # So, the library has to have a name like libtcl75.so.1.0
 
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0'
-	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	SunOS-5.[[0-6]]*)
@@ -1775,10 +1767,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     fi
 
     if test "$SHARED_LIB_SUFFIX" = "" ; then
-	SHARED_LIB_SUFFIX='${PACKAGE_VERSION}\$\{DBGX\}${SHLIB_SUFFIX}'
+	SHARED_LIB_SUFFIX='${PACKAGE_VERSION}${SHLIB_SUFFIX}'
     fi
     if test "$UNSHARED_LIB_SUFFIX" = "" ; then
-	UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}\$\{DBGX\}.a'
+	UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'
     fi
 
     AC_SUBST(DL_LIBS)
@@ -2994,8 +2986,8 @@ AC_DEFUN(TEA_MAKE_LIB, [
 
     #--------------------------------------------------------------------
     # Shared libraries and static libraries have different names.
-    # Use the double eval to make sure the ${DBGX} in the suffix is
-    # substituted.
+    # Use the double eval to make sure any variables in the suffix is
+    # substituted. (@@@ Might not be necessary anymore)
     #--------------------------------------------------------------------
 
     RANLIB_STUB="${RANLIB}"

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.42 2004/02/11 00:39:32 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.43 2004/02/11 01:41:52 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -1999,8 +1999,10 @@ closedir(d);
     AC_CHECK_HEADER(dlfcn.h, , [AC_DEFINE(NO_DLFCN_H)])
 
     # OS/390 lacks sys/param.h (and doesn't need it, by chance).
+    # tkUnixPort.h checks for HAVE_LIMITS_H, so do both HAVE and
+    # CHECK on limits.h
 
-    AC_HAVE_HEADERS(unistd.h sys/param.h)
+    AC_HAVE_HEADERS(limits.h unistd.h sys/param.h)
 
 ])
 

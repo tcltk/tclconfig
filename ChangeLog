@@ -5,6 +5,8 @@
 	Allow $... to TEA_ADD_SOURCES for constructs like
 	TEA_ADD_SOURCES([\$(WIN_OBJECTS)]), that allow the developer to
 	place more in the Makefile.in.
+	tkUnixPort.h checks for HAVE_LIMITS_H, so do both HAVE and
+	CHECK on limits.h
 
 2003-12-10  Jeff Hobbs  <jeffh@ActiveState.com>
 

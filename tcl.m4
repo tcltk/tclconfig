@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.40 2003/12/10 20:00:56 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.41 2003/12/10 21:29:07 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2100,7 +2100,7 @@ AC_DEFUN(TEA_PATH_UNIX_X, [
 	XLIBSW=-lX11
     fi
     if test x"${XLIBSW}" != x ; then
-	LIBS="${LIBS} ${XLIBSW}"
+	PKG_LIBS="${PKG_LIBS} ${XLIBSW}"
     fi
 ])
 

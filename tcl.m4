@@ -752,24 +752,23 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		export CC="${MSSDK}/Bin/Win64/cl.exe \
 	    -I${MSSDK}/Include/prerelease \
 	    -I${MSSDK}/Include/Win64/crt \
-	    -I${MSSDK}/Include/Win64/crt/sys \
 	    -I${MSSDK}/Include"
 		export RC="${MSSDK}/bin/rc.exe"
-		export CFLAGS_DEBUG="-nologo -Zi -Od ${runtime}d"
-		export CFLAGS_OPTIMIZE="-nologo -O2 -Gs ${runtime}"
+		export CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
+		export CFLAGS_OPTIMIZE="-nologo -O2 -Gs -W2 ${runtime}"
 		export lflags="-MACHINE:IA64 -LIBPATH:${MSSDK}/Lib/IA64 \
 	    -LIBPATH:${MSSDK}/Lib/Prerelease/IA64"
 		export STLIB_LD="${MSSDK}/bin/win64/lib.exe -nologo ${lflags}"
 		export LINKBIN="${MSSDK}/bin/win64/link.exe ${lflags}"
 	    else
 		export RC="rc"
-		export CFLAGS_DEBUG="-nologo -Z7 -Od -WX ${runtime}d"
-		export CFLAGS_OPTIMIZE="-nologo -Oti -Gs -GD ${runtime}"
+		export CFLAGS_DEBUG="-nologo -Z7 -Od -W3 -WX ${runtime}d"
+		export CFLAGS_OPTIMIZE="-nologo -Oti -Gs -GD -W2 ${runtime}"
 		export STLIB_LD="lib -nologo"
 		export LINKBIN="link -link50compat"
 	    fi
 
-	    SHLIB_LD="${LINKBIN} -dll -nologo"
+	    SHLIB_LD="${LINKBIN} -dll -nologo -warn:2"
 	    SHLIB_LD_LIBS="user32.lib advapi32.lib"
 
 	    EXTRA_CFLAGS="-YX"
@@ -2262,7 +2261,6 @@ AC_DEFUN(SC_TCL_64BIT_FLAGS, [
 #
 #	Defines and substs the following vars:
 #		CYGPATH
-#		RELPATH
 #		EXEEXT
 #	Defines only:
 #		TEA_INIT
@@ -2272,10 +2270,6 @@ AC_DEFUN(SC_TCL_64BIT_FLAGS, [
 # files. These variables should only be used with the compiler and linker
 # since they generate native path names.
 #
-# RELPATH is used to locate binary extensions relative to the lib directory.
-# It is only needed if mkIndex.tcl can't generate an installed pkgIndex.tcl
-# file for you.
-#
 # EXEEXT
 #	Select the executable extension based on the host type.  This
 #	is a lightweight replacement for AC_EXEEXT that doesn't require
@@ -2283,31 +2277,22 @@ AC_DEFUN(SC_TCL_64BIT_FLAGS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(SC_TEA_INIT, [
-    AC_MSG_CHECKING([basic TEA initialization])
     TEA_INIT=ok
     case "`uname -s`" in
 	*win32* | *WIN32* | *CYGWIN_NT* |*CYGWIN_98*|*CYGWIN_95*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
-	    RELPATH=".. .. bin"
 	    EXEEXT=".exe"
 	    TEA_PLATFORM="windows"
 	    ;;
 	*)
 	    CYGPATH=echo
-	    RELPATH=".."
 	    EXEEXT=""
 	    TEA_PLATFORM="unix"
 	    ;;
     esac
 
-    AC_MSG_RESULT([done])
-
-    AC_MSG_CHECKING([executable extension based on host type])
-    AC_MSG_RESULT([${EXEEXT}])
     AC_SUBST(EXEEXT)
-
     AC_SUBST(CYGPATH)
-    AC_SUBST(RELPATH)
 ])
 
 #------------------------------------------------------------------------
@@ -2331,16 +2316,16 @@ AC_DEFUN(SC_TEA_INIT, [
 AC_DEFUN(SC_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "${CC-cc}" = "cl"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$]@_OBJECTS) "
-	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$]@_OBJECTS) "
+	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$]@_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(\[$]@_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(\[$]@_OBJECTS) \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS}"
     fi
 
     if test "${SHARED_BUILD}" = "1" ; then
-	MAKE_LIB=${MAKE_SHARED_LIB}
+	MAKE_LIB="${MAKE_SHARED_LIB} \$(TCL_LIBS)"
     else
-	MAKE_LIB=${MAKE_STATIC_LIB}
+	MAKE_LIB="${MAKE_STATIC_LIB} \$(TCL_LIBS)"
     fi
 
     AC_SUBST(MAKE_LIB)

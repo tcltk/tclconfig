@@ -1,5 +1,8 @@
 2002-03-05  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* tcl.m4: added warnings on Windows, removed RELPATH define and
+	added TCL_LIBS to MAKE_LIB macro.
+
 	This import represents 2.0.0, or a new start at attempting to
 	make TEA much easier for C extension developers.
 

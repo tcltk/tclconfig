@@ -1,3 +1,14 @@
+2002-03-28  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: called AC_MSG_ERROR when SC_TEA_INIT wasn't called first
+	instead of calling it as that inlines it each time in shell code.
+	Changed Windows CFLAGS_OPTIMIZE to use -O2 instead of -Oti.
+	Noted TCL_LIB_VERSIONS_OK=nodots for Windows builds.
+	A few changes to support itcl (and perhaps others):
+	Added support for making your own stub libraries to SC_MAKE_LIB.
+	New SC_PATH_CONFIG and SC_LOAD_CONFIG that take a package name arg
+	and find that ${pkg}Config.sh file.  itk uses this for itcl.
+
 2002-03-27  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: made SC_LOAD_TKCONFIG recognize when working with a Tk

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.53 2004/12/29 23:43:31 jenglish Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.54 2004/12/30 00:33:19 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -795,10 +795,11 @@ AC_DEFUN(TEA_CONFIG_CFLAGS, [
     ECHO_VERSION='`echo ${PACKAGE_VERSION}`'
     TCL_LIB_VERSIONS_OK=ok
     CFLAGS_DEBUG=-g
-    CFLAGS_OPTIMIZE=-O
     if test "$GCC" = "yes" ; then
+	CFLAGS_OPTIMIZE=-O2
 	CFLAGS_WARNING="-Wall -Wno-implicit-int"
     else
+	CFLAGS_OPTIMIZE=-O
 	CFLAGS_WARNING=""
     fi
     TCL_NEEDS_EXP_FILE=0
@@ -904,7 +905,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    export STLIB_LD="${MSSDK}/bin/win64/lib.exe -nologo ${lflags}"
 		    export LINKBIN="${MSSDK}/bin/win64/link.exe ${lflags}"
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
-		    CFLAGS_OPTIMIZE="-nologo -O2 -Gs -W2 ${runtime}"
+		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
 		elif test "$doWince" != "no" ; then
 		    CEBINROOT="${WCEROOT}/EVC/${OSVERSION}/bin"
 		    if test "${TARGETCPU}" = "X86"; then
@@ -930,10 +931,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    AC_SUBST(CELIB_DIR)
 		else
 		    RC="rc"
-		    STLIB_LD="lib -nologo"
-    		    LINKBIN="link -link50compat"
+		    STLIB_LD="link -lib -nologo"
+    		    LINKBIN="link"
 		    CFLAGS_DEBUG="-nologo -Z7 -Od -W3 -WX ${runtime}d"
-		    CFLAGS_OPTIMIZE="-nologo -O2 -Gs -GD -W2 ${runtime}"
+		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
 		fi
 	    fi
 
@@ -941,7 +942,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		# mingw gcc mode
 		RC="windres"
 		CFLAGS_DEBUG="-g"
-		CFLAGS_OPTIMIZE="-O2"
+		CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 		SHLIB_LD="$CC -shared"
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 		LDFLAGS_CONSOLE="-wl,--subsystem,console ${lflags}"
@@ -949,7 +950,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    else
 		SHLIB_LD="${LINKBIN} -dll -nologo"
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.lib'
-		CFLAGS="$CFLAGS -YX"
 		PATHTYPE=-w
 		# For information on what debugtype is most useful, see:
 		# http://msdn.microsoft.com/library/en-us/dnvc60/html/gendepdebug.asp
@@ -1215,7 +1215,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
-	    CFLAGS_OPTIMIZE=-O2
+	    CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 	    # egcs-2.91.66 on Redhat Linux 6.0 generates lots of warnings 
 	    # when you inline the string and math operations.  Turn this off to
 	    # get rid of the warnings.

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.50 2004/07/23 04:08:26 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.51 2004/08/10 20:09:54 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2574,8 +2574,14 @@ TEA version not specified.])
 	    ;;
     esac
 
-    # Check if exec_prefix is set. If not use fall back to prefix
-    if test x$exec_prefix = xNONE ; then exec_prefix=$prefix ; fi
+    # Check if exec_prefix is set. If not use fall back to prefix.
+    # Note when adjusted, so that TEA_PREFIX can correct for this.
+    # This is needed for recursive configures, since autoconf propagates
+    # $prefix, but not $exec_prefix (doh!).
+    if test x$exec_prefix = xNONE ; then
+	exec_prefix_default=yes
+	exec_prefix=$prefix
+    fi
 
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
@@ -2817,21 +2823,23 @@ AC_DEFUN(TEA_ADD_CFLAGS, [
 #	configured.
 #------------------------------------------------------------------------
 AC_DEFUN(TEA_PREFIX, [
-    # Should be AC_MSG_NOTICE, but that requires autoconf 2.50
     if test "${prefix}" = "NONE"; then
 	prefix_default=yes
 	if test x"${TCL_PREFIX}" != x; then
-	    AC_MSG_WARN([--prefix defaulting to TCL_PREFIX ${TCL_PREFIX}])
+	    AC_MSG_NOTICE([--prefix defaulting to TCL_PREFIX ${TCL_PREFIX}])
 	    prefix=${TCL_PREFIX}
 	else
+	    AC_MSG_NOTICE([--prefix defaulting to /usr/local])
 	    prefix=/usr/local
 	fi
     fi
-    if test "${exec_prefix}" = "NONE" -a x"${prefix_default}" = x"yes" ; then
+    if test "${exec_prefix}" = "NONE" -a x"${prefix_default}" = x"yes" \
+	-o x"${exec_prefix_default}" = x"yes" ; then
 	if test x"${TCL_EXEC_PREFIX}" != x; then
-	    AC_MSG_WARN([--exec-prefix defaulting to TCL_EXEC_PREFIX ${TCL_EXEC_PREFIX}])
+	    AC_MSG_NOTICE([--exec-prefix defaulting to TCL_EXEC_PREFIX ${TCL_EXEC_PREFIX}])
 	    exec_prefix=${TCL_EXEC_PREFIX}
 	else
+	    AC_MSG_NOTICE([--exec-prefix defaulting to ${prefix}])
 	    exec_prefix=$prefix
 	fi
     fi

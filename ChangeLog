@@ -1,3 +1,7 @@
+2003-12-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: updated OpenBSD support based on [Patch #775246] (cassoff)
+
 2003-12-05  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* configure:

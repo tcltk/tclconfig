@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.38 2003/12/06 01:17:06 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.39 2003/12/09 21:38:23 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -681,7 +681,6 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 #                       to use shared libraries on this platform.
 #       TCL_LIB_FILE -  Name of the file that contains the Tcl library, such
 #                       as libtcl7.8.so or libtcl7.8.a.
-
 #       TCL_LIB_SUFFIX -Specifies everything that comes after the "libtcl"
 #                       in the shared library name, using the
 #                       ${PACKAGE_VERSION} variable to put the version in
@@ -694,7 +693,6 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 #                       objects for loadable extensions have a .so
 #                       extension.  Defaults to
 #                       ${PACKAGE_VERSION}${SHLIB_SUFFIX}.
-
 #       TCL_NEEDS_EXP_FILE -
 #                       1 means that an export file is needed to link to a
 #                       shared library.
@@ -1282,7 +1280,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    LDFLAGS="-Wl,-Bexport"
 	    LD_SEARCH_FLAGS=""
 	    ;;
-	NetBSD-*|FreeBSD-[[1-2]].*|OpenBSD-*)
+	NetBSD-*|FreeBSD-[[1-2]].*)
 	    # Not available on all versions:  check for include file.
 	    AC_CHECK_HEADER(dlfcn.h, [
 		# NetBSD/SPARC needs -fPIC, -fpic will not do.
@@ -1319,6 +1317,30 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 
 	    # FreeBSD doesn't handle version numbers with dots.
 
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
+	    TCL_LIB_VERSIONS_OK=nodots
+	    ;;
+	OpenBSD-*)
+	    SHLIB_LD="${CC} -shared"
+	    SHLIB_LD_LIBS='${LIBS}'
+	    SHLIB_SUFFIX=".so"
+	    DL_OBJS="tclLoadDl.o"
+	    DL_LIBS=""
+	    LDFLAGS=""
+	    LD_SEARCH_FLAGS=""
+	    AC_MSG_CHECKING(for ELF)
+	    AC_EGREP_CPP(yes, [
+#ifdef __ELF__
+	yes
+#endif
+	    ],
+		[AC_MSG_RESULT(yes)
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0'],
+		[AC_MSG_RESULT(no)
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1.0']
+	    )
+
+	    # OpenBSD doesn't do version numbers with dots.
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
@@ -1730,7 +1752,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    ;;
 		IRIX*)
 		    ;;
-		NetBSD-*|FreeBSD-*|OpenBSD-*)
+		NetBSD-*|FreeBSD-*)
 		    ;;
 		Rhapsody-*|Darwin-*)
 		    ;;
@@ -2722,7 +2744,7 @@ AC_DEFUN(TEA_PREFIX, [
 ])
 
 #------------------------------------------------------------------------
-# TEA_SETUP_COMPILER --
+# TEA_SETUP_COMPILER_CC --
 #
 #	Do compiler checks the way we want.  This is just a replacement
 #	for AC_PROG_CC in TEA configure.in files to make them cleaner.
@@ -2736,7 +2758,7 @@ AC_DEFUN(TEA_PREFIX, [
 #------------------------------------------------------------------------
 AC_DEFUN(TEA_SETUP_COMPILER_CC, [
     # Don't put any macros that use the compiler (e.g. AC_TRY_COMPILE)
-    # in this macro, they need to go into TEA_SETUP_COMPILER_FLAGS instead.
+    # in this macro, they need to go into TEA_SETUP_COMPILER instead.
 
     # If the user did not set CFLAGS, set it now to keep
     # the AC_PROG_CC macro from adding "-g -O2".

@@ -307,9 +307,46 @@ AC_DEFUN(SC_LOAD_TKCONFIG, [
         AC_MSG_RESULT([could not find ${TK_BIN_DIR}/tkConfig.sh])
     fi
 
+    #
+    # If the TK_BIN_DIR is the build directory (not the install directory),
+    # then set the common variable name to the value of the build variables.
+    # For example, the variable TK_LIB_SPEC will be set to the value
+    # of TK_BUILD_LIB_SPEC. An extension should make use of TK_LIB_SPEC
+    # instead of TK_BUILD_LIB_SPEC since it will work with both an
+    # installed and uninstalled version of Tcl.
+    #
+
+    if test -f $TK_BIN_DIR/Makefile ; then
+        TK_LIB_SPEC=${TK_BUILD_LIB_SPEC}
+        TK_STUB_LIB_SPEC=${TK_BUILD_STUB_LIB_SPEC}
+        TK_STUB_LIB_PATH=${TK_BUILD_STUB_LIB_PATH}
+    fi
+
+    #
+    # eval is required to do the TK_DBGX substitution
+    #
+
+    eval "TK_LIB_FILE=\"${TK_LIB_FILE}\""
+    eval "TK_LIB_FLAG=\"${TK_LIB_FLAG}\""
+    eval "TK_LIB_SPEC=\"${TK_LIB_SPEC}\""
+
+    eval "TK_STUB_LIB_FILE=\"${TK_STUB_LIB_FILE}\""
+    eval "TK_STUB_LIB_FLAG=\"${TK_STUB_LIB_FLAG}\""
+    eval "TK_STUB_LIB_SPEC=\"${TK_STUB_LIB_SPEC}\""
+
+    AC_SUBST(TK_VERSION)
     AC_SUBST(TK_BIN_DIR)
     AC_SUBST(TK_SRC_DIR)
+
     AC_SUBST(TK_LIB_FILE)
+    AC_SUBST(TK_LIB_FLAG)
+    AC_SUBST(TK_LIB_SPEC)
+
+    AC_SUBST(TK_STUB_LIB_FILE)
+    AC_SUBST(TK_STUB_LIB_FLAG)
+    AC_SUBST(TK_STUB_LIB_SPEC)
+
+    AC_SUBST(TK_LIBS)
     AC_SUBST(TK_XINCLUDES)
 ])
 
@@ -625,8 +662,8 @@ AC_DEFUN(SC_ENABLE_LANGINFO, [
 #			Flags used when running the compiler in debug mode
 #	CFLAGS_OPTIMIZE -
 #			Flags used when running the compiler in optimize mode
-#
-#	EXTRA_CFLAGS
+#	EXTRA_CFLAGS -
+#			Extra CFLAGS to pass to the compiler
 #
 #	Subst's the following vars:
 #		DL_LIBS
@@ -1541,11 +1578,13 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     AC_SUBST(CFLAGS_DEBUG)
     AC_SUBST(CFLAGS_OPTIMIZE)
     AC_SUBST(CFLAGS_WARNING)
+    AC_SUBST(EXTRA_CFLAGS)
 
     AC_SUBST(STLIB_LD)
     AC_SUBST(SHLIB_LD)
     AC_SUBST(SHLIB_CFLAGS)
     AC_SUBST(SHLIB_LDFLAGS)
+    AC_SUBST(SHLIB_LD_LIBS)
     AC_SUBST(LDFLAGS_DEBUG)
     AC_SUBST(LDFLAGS_OPTIMIZE)
 ])
@@ -1850,6 +1889,9 @@ AC_DEFUN(SC_PATH_UNIX_X, [
     if test "$XLIBSW" = nope ; then
 	AC_MSG_RESULT([could not find any!  Using -lX11.])
 	XLIBSW=-lX11
+    fi
+    if test x"${XLIBSW}" != x ; then
+	LIBS="${LIBS} ${XLIBSW}"
     fi
 ])
 
@@ -2329,14 +2371,48 @@ AC_DEFUN(SC_MAKE_LIB, [
     fi
 
     if test "${SHARED_BUILD}" = "1" ; then
-	MAKE_LIB="${MAKE_SHARED_LIB} \$(TCL_LIBS) "
+	MAKE_LIB="${MAKE_SHARED_LIB} "
     else
-	MAKE_LIB="${MAKE_STATIC_LIB} \$(TCL_LIBS) "
+	MAKE_LIB="${MAKE_STATIC_LIB} "
+    fi
+
+    #--------------------------------------------------------------------
+    # Shared libraries and static libraries have different names.
+    # Use the double eval to make sure the ${DBGX} in the suffix is
+    # substituted.
+    #--------------------------------------------------------------------
+
+    if test "${TEA_PLATFORM}" = "windows" ; then
+	if test "${SHARED_BUILD}" = "1" ; then
+	    # We force the unresolved linking of symbols that are really in
+	    # the private libraries of Tcl and Tk.
+	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} \"`${CYGPATH} ${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}`\""
+	    if test x"${TK_BIN_DIR}" != x ; then
+		SHLIB_LD_LIBS="${SHLIB_LD_LIBS} \"`${CYGPATH} ${TK_BIN_DIR}/${TK_STUB_LIB_FILE}`\""
+	    fi
+	    eval eval "${PACKAGE}_LIB_FILE=${PACKAGE}${SHARED_LIB_SUFFIX}"
+	    RANLIB=:
+	else
+	    eval eval "${PACKAGE}_LIB_FILE=${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	fi
+    else
+	if test "${SHARED_BUILD}" = "1" ; then
+	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} ${TCL_STUB_LIB_SPEC}"
+	    if test x"${TK_BIN_DIR}" != x ; then
+		SHLIB_LD_LIBS="${SHLIB_LD_LIBS} ${TK_STUB_LIB_SPEC}"
+	    fi
+	    eval eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${SHARED_LIB_SUFFIX}"
+	    RANLIB=:
+	else
+	    eval eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	fi
     fi
 
     AC_SUBST(MAKE_LIB)
     AC_SUBST(MAKE_SHARED_LIB)
     AC_SUBST(MAKE_STATIC_LIB)
+    # This needs the \$ to work with the double-substitute of AC_SUBST
+    AC_SUBST(\${PACKAGE}_LIB_FILE)
 ])
 
 #------------------------------------------------------------------------
@@ -2743,7 +2819,7 @@ AC_DEFUN(SC_PROG_WISH, [
     AC_MSG_CHECKING([for wish])
 
     AC_CACHE_VAL(ac_cv_path_wish, [
-	search_path=`echo ${exec_prefix}/bin:${prefix}/bin:${TCL_BIN_DIR}:${TCL_BIN_DIR}/../bin:${PATH} | sed -e 's/:/ /g'`
+	search_path=`echo ${exec_prefix}/bin:${prefix}/bin:${TK_BIN_DIR}:${TK_BIN_DIR}/../bin:${TCL_BIN_DIR}:${TCL_BIN_DIR}/../bin:${PATH} | sed -e 's/:/ /g'`
 	for dir in $search_path ; do
 	    for j in `ls -r $dir/wish[[8-9]]*${EXEEXT} 2> /dev/null` \
 		    `ls -r $dir/wish*${EXEEXT} 2> /dev/null` ; do

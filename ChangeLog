@@ -1,3 +1,9 @@
+2004-07-22  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_PATH_X): check in TK_DEFS for MAC_OSX_TK to see if
+	we are compiling on Aqua.  Add TEA_WINDOWINGSYSTEM var that
+	reflects 'tk windowingsystem' value.
+
 2004-07-16  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_ENABLE_THREADS): force a threaded build when

@@ -1,3 +1,7 @@
+2003-02-14  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: correct HP-UX ia64 --enable-64bit build flags
+
 2003-01-29  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: check $prefix/lib as well as $exec_prefix/lib when

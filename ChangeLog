@@ -1,3 +1,11 @@
+2004-02-10  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: don't require TK_INCLUDES and TCL_INCLUDES to have the
+	DIR_NATIVE vars defined when using private headers on unix.
+	Allow $... to TEA_ADD_SOURCES for constructs like
+	TEA_ADD_SOURCES([\$(WIN_OBJECTS)]), that allow the developer to
+	place more in the Makefile.in.
+
 2003-12-10  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* Makefile.in:      added TEA_ADD_LIBS, TEA_ADD_INCLUDES and

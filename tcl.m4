@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.41 2003/12/10 21:29:07 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.42 2004/02/11 00:39:32 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2604,22 +2604,31 @@ TEA version not specified.])
 AC_DEFUN(TEA_ADD_SOURCES, [
     vars="$@"
     for i in $vars; do
-	# check for existence - allows for generic/win/unix VPATH
-	if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-	    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-	    ; then
-	    AC_MSG_ERROR([could not find source file '$i'])
-	fi
-	PKG_SOURCES="$PKG_SOURCES $i"
-	# this assumes it is in a VPATH dir
-	i=`basename $i`
-	# handle user calling this before or after TEA_SETUP_COMPILER
-	if test x"${OBJEXT}" != x ; then
-	    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.${OBJEXT}"
-	else
-	    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.\${OBJEXT}"
-	fi
-	PKG_OBJECTS="$PKG_OBJECTS $j"
+	case $i in
+	    [\$]*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    ; then
+		    AC_MSG_ERROR([could not find source file '$i'])
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
     done
     AC_SUBST(PKG_SOURCES)
     AC_SUBST(PKG_OBJECTS)
@@ -3112,12 +3121,12 @@ AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
 	TCL_PLATFORM_DIR_NATIVE=${TCL_WIN_DIR_NATIVE}
     else
 	TCL_TOP_DIR_NATIVE='$(TCL_SRC_DIR)'
-	TCL_GENERIC_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/generic'
-	TCL_UNIX_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/unix'
-	TCL_WIN_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/win'
-	TCL_BMAP_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/bitmaps'
-	TCL_TOOL_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/tools'
-	TCL_COMPAT_DIR_NATIVE='$(TCL_TOP_DIR_NATIVE)/compat'
+	TCL_GENERIC_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/generic'
+	TCL_UNIX_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/unix'
+	TCL_WIN_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/win'
+	TCL_BMAP_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/bitmaps'
+	TCL_TOOL_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/tools'
+	TCL_COMPAT_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/compat'
 	TCL_PLATFORM_DIR_NATIVE=${TCL_UNIX_DIR_NATIVE}
     fi
 
@@ -3129,7 +3138,9 @@ AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
     AC_SUBST(TCL_TOOL_DIR_NATIVE)
     AC_SUBST(TCL_PLATFORM_DIR_NATIVE)
 
-    TCL_INCLUDES="-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}"
+    # substitute these in "relaxed" so that TCL_INCLUDES still works
+    # without requiring the other vars to be defined in the Makefile
+    eval "TCL_INCLUDES=\"-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}\""
     AC_SUBST(TCL_INCLUDES)
     AC_MSG_RESULT([Using srcdir found in tclConfig.sh: ${TCL_SRC_DIR}])
 ])
@@ -3237,13 +3248,15 @@ AC_DEFUN(TEA_PRIVATE_TK_HEADERS, [
 
 	TK_INCLUDES="-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE} -I${TK_XLIB_DIR_NATIVE}"
     else
-	TK_TOP_DIR_NATIVE='$(TK_SRC_DIR)'
-	TK_GENERIC_DIR_NATIVE='$(TK_TOP_DIR_NATIVE)/generic'
-	TK_UNIX_DIR_NATIVE='$(TK_TOP_DIR_NATIVE)/unix'
-	TK_WIN_DIR_NATIVE='$(TK_TOP_DIR_NATIVE)/win'
+	TK_TOP_DIR_NATIVE='${TK_SRC_DIR}'
+	TK_GENERIC_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/generic'
+	TK_UNIX_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/unix'
+	TK_WIN_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/win'
 	TK_PLATFORM_DIR_NATIVE=${TK_UNIX_DIR_NATIVE}
 
-	TK_INCLUDES="-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}"
+	# substitute these in "relaxed" so that TK_INCLUDES still works
+	# without requiring the other vars to be defined in the Makefile
+	eval "TK_INCLUDES=\"-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}\""
     fi
 
     AC_SUBST(TK_TOP_DIR_NATIVE)

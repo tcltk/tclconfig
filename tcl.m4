@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.45 2004/03/20 00:46:55 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.46 2004/04/26 16:24:05 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2454,12 +2454,18 @@ AC_DEFUN(TEA_TCL_EARLY_FLAGS,[
 AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
     AC_MSG_CHECKING([for 64-bit integer type])
     AC_CACHE_VAL(tcl_cv_type_64bit,[
+	tcl_cv_type_64bit=none
+	# See if the compiler knows natively about __int64
 	AC_TRY_COMPILE(,[__int64 value = (__int64) 0;],
-           tcl_cv_type_64bit=__int64,tcl_cv_type_64bit=none
-           AC_TRY_RUN([#include <unistd.h>
-		int main() {exit(!(sizeof(long long) > sizeof(long)));}
-		], tcl_cv_type_64bit="long long"))])
+	    tcl_type_64bit=__int64, tcl_type_64bit="long long")
+	# See if we should use long anyway  Note that we substitute in the
+	# type that is our current guess for a 64-bit type inside this check
+	# program, so it should be modified only carefully...
+	AC_TRY_RUN([#include <unistd.h>
+	    int main() {exit(!(sizeof(]${tcl_type_64bit}[) > sizeof(long)));}
+	    ], tcl_cv_type_64bit=${tcl_type_64bit},:,:)])
     if test "${tcl_cv_type_64bit}" = none ; then
+	AC_DEFINE(TCL_WIDE_INT_IS_LONG)
 	AC_MSG_RESULT([using long])
     elif test "${tcl_cv_type_64bit}" = "__int64" ; then
 	# We actually want to use the default tcl.h checks in this

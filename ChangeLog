@@ -1,3 +1,8 @@
+2004-04-26  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_TCL_64BIT_FLAGS): update against core tcl.m4 to
+	define TCL_WIDE_INT_IS_LONG if 'using long'.
+
 2004-03-19  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correct Windows builds getting LDFLAGS info in MAKE_LIB

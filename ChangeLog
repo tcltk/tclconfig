@@ -1,3 +1,8 @@
+2002-03-06  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: don't check /usr(/local)/include for includes on Windows
+	when not using gcc
+
 2002-03-05  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: added warnings on Windows, removed RELPATH define and

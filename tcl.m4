@@ -2277,6 +2277,12 @@ AC_DEFUN(SC_TCL_64BIT_FLAGS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(SC_TEA_INIT, [
+    AC_MSG_CHECKING([for correct TEA configuration])
+    if test x"${PACKAGE}" = x ; then
+	AC_MSG_ERROR([
+The PACKAGE variable must be defined by your TEA configure.in])
+    fi
+    AC_MSG_RESULT([ok])
     TEA_INIT=ok
     case "`uname -s`" in
 	*win32* | *WIN32* | *CYGWIN_NT* |*CYGWIN_98*|*CYGWIN_95*)
@@ -2315,17 +2321,17 @@ AC_DEFUN(SC_TEA_INIT, [
 
 AC_DEFUN(SC_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "${CC-cc}" = "cl"; then
-	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$]@_OBJECTS) "
-	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$]@_OBJECTS)"
+	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
+	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
     else
-	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(\[$]@_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(\[$]@_OBJECTS) \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS}"
+	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(\[$](PACKAGE)_OBJECTS)"
+	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(\[$](PACKAGE)_OBJECTS) \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS}"
     fi
 
     if test "${SHARED_BUILD}" = "1" ; then
-	MAKE_LIB="${MAKE_SHARED_LIB} \$(TCL_LIBS)"
+	MAKE_LIB="${MAKE_SHARED_LIB} \$(TCL_LIBS) "
     else
-	MAKE_LIB="${MAKE_STATIC_LIB} \$(TCL_LIBS)"
+	MAKE_LIB="${MAKE_STATIC_LIB} \$(TCL_LIBS) "
     fi
 
     AC_SUBST(MAKE_LIB)

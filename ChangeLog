@@ -2,7 +2,8 @@
 
 	* tcl.m4: move the CFLAGS definition from TEA_ENABLE_SHARED to
 	TEA_MAKE_LIB because setting too early confuses other AC_* macros.
-
+	Correct the HP-11 SHLIB_LD_LIBS setting.
+	
 	* tcl.m4: add the CFLAGS definition into TEA_ENABLE_SHARED and
 	make it pick up the env CFLAGS at configure time.
 

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.55 2005/01/25 06:55:28 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.56 2005/01/28 01:10:54 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -820,7 +820,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		fi
 		# In order to work in the tortured autoconf environment,
 		# we need to ensure that this path has no spaces
-		MSSDK=`cygpath -w -s "$MSSDK" | sed -e 's!\\\!/!g'`
+		MSSDK=`echo "$MSSDK" | sed -e 's!\\\!/!g'`
 		if test ! -d "${MSSDK}/bin/win64" ; then
 		    AC_MSG_WARN("could not find 64-bit SDK to enable 64bit mode")
 		    do64bit="no"
@@ -837,25 +837,28 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    AC_MSG_ERROR([Windows/CE and GCC builds incompatible])
 		fi
 		TEA_PATH_CELIB
-		# set defaults
-		# Currently Tcl requires 300+
-		CEVERSION=300;	  # could be 211 300 301 ...
-		TARGETCPU=ARM;	  # could be ARM MIPS SH3 X86 ...
-		PLATFORM="Pocket PC 2002"
-		if test "$doWince" = "yes"; then
-		    doWince="300,ARM,ARM,Pocket PC 2002"
-		fi
-		eval `echo $doWince | awk -F "," '{ \
-		    if (length([$]1)) { printf "CEVERSION=\"%s\"\n", [$]1; \
-		      if ([$]1 >= 400) { printf "PLATFORM=\"Pocket PC 2003\"\n" } }; \
-		    if (length([$]2)) { printf "TARGETCPU=\"%s\"\n", toupper([$]2) }; \
-		    if (length([$]3)) { printf "ARCH=\"%s\"\n", toupper([$]3) }; \
-		    if (length([$]4)) { printf "PLATFORM=\"%s\"\n", [$]4 }; \
+		# Set defaults for common evc4/PPC2003 setup
+		# Currently Tcl requires 300+, possibly 420+ for sockets
+		CEVERSION=420; 		# could be 211 300 301 400 420 ...
+		TARGETCPU=ARMV4;	# could be ARMV4 ARM MIPS SH3 X86 ...
+		ARCH=ARM;		# could be ARM MIPS X86EM ...
+		PLATFORM="Pocket PC 2003"; # or "Pocket PC 2002"
+		if test "$doWince" != "yes"; then
+		    # If !yes then the user specified something
+		    # Reset ARCH to allow user to skip specifying it
+		    ARCH=
+		    eval `echo $doWince | awk -F "," '{ \
+	    if (length([$]1)) { printf "CEVERSION=\"%s\"\n", [$]1; \
+	    if ([$]1 < 400)   { printf "PLATFORM=\"Pocket PC 2002\"\n" } }; \
+	    if (length([$]2)) { printf "TARGETCPU=\"%s\"\n", toupper([$]2) }; \
+	    if (length([$]3)) { printf "ARCH=\"%s\"\n", toupper([$]3) }; \
+	    if (length([$]4)) { printf "PLATFORM=\"%s\"\n", [$]4 }; \
 		    }'`
-		OSVERSION=WCE$CEVERSION;
-		if test "x${ARCH}" = "x" ; then
-	            ARCH=$TARGETCPU;  # could be ARM MIPS SH3 X86 X86EM ...
+		    if test "x${ARCH}" = "x" ; then
+			ARCH=$TARGETCPU;
+		    fi
 		fi
+		OSVERSION=WCE$CEVERSION;
 	    	if test "x${WCEROOT}" = "x" ; then
 			WCEROOT="C:/Program Files/Microsoft eMbedded C++ 4.0"
 		    if test ! -d "${WCEROOT}" ; then
@@ -868,21 +871,23 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 			SDKROOT="C:/Windows CE Tools"
 		    fi
 		fi
-		# In order to work in the tortured autoconf environment,
-		# we need to ensure that this path has no spaces
-		WCEROOT=`cygpath -w -s "$WCEROOT" | sed -e 's!\\\!/!g'`
-		SDKROOT=`cygpath -w -s "$SDKROOT" | sed -e 's!\\\!/!g'`
-		CELIB_DIR=`cygpath -w -s "$CELIB_DIR" | sed -e 's!\\\!/!g'`
+		# Ensure all / slashes
+		WCEROOT=`echo "$WCEROOT" | sed -e 's!\\\!/!g'`
+		SDKROOT=`echo "$SDKROOT" | sed -e 's!\\\!/!g'`
+		CELIB_DIR=`echo "$CELIB_DIR" | sed -e 's!\\\!/!g'`
+		if test ! -d "${CELIB_DIR}/inc"; then
+		    AC_MSG_ERROR([Invalid celib directory "${CELIB_DIR}"])
+		fi
 		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" \
 		    -o ! -d "${WCEROOT}/EVC/${OSVERSION}/bin"; then
 		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode [$CEVERSION,$TARGETCPU,$ARCH,$PLATFORM]])
 		    doWince="no"
 		else
-		    CEINCLUDE=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\\!/!g'`
+		    CEINCLUDE="${SDKROOT}/${OSVERSION}/${PLATFORM}/include"
 		    if test -d "${CEINCLUDE}/${TARGETCPU}" ; then
 			CEINCLUDE="${CEINCLUDE}/${TARGETCPU}"
 		    fi
-		    CELIBPATH=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\\!/!g'`
+		    CELIBPATH="${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}"
     		fi
 	    fi
 
@@ -895,15 +900,14 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 
                 if test "$do64bit" = "yes" ; then
 		    # All this magic is necessary for the Win64 SDK RC1 - hobbs
-		    export CC="${MSSDK}/Bin/Win64/cl.exe \
-	                -I${MSSDK}/Include/prerelease \
-                        -I${MSSDK}/Include/Win64/crt \
-	                -I${MSSDK}/Include"
-		    export RC="${MSSDK}/bin/rc.exe"
-		    export lflags="-MACHINE:IA64 -LIBPATH:${MSSDK}/Lib/IA64 \
-	                -LIBPATH:${MSSDK}/Lib/Prerelease/IA64"
-		    export STLIB_LD="${MSSDK}/bin/win64/lib.exe -nologo ${lflags}"
-		    export LINKBIN="${MSSDK}/bin/win64/link.exe ${lflags}"
+		    CC="\"${MSSDK}/Bin/Win64/cl.exe\" \
+	                -I\"${MSSDK}/Include/prerelease\" \
+                        -I\"${MSSDK}/Include/Win64/crt\" \
+	                -I\"${MSSDK}/Include\""
+		    RC="\"${MSSDK}/bin/rc.exe\""
+		    lflags="-MACHINE:IA64 -LIBPATH:\"${MSSDK}/Lib/IA64\" \
+	                -LIBPATH:\"${MSSDK}/Lib/Prerelease/IA64\" -nologo"
+		    LINKBIN="\"${MSSDK}/bin/win64/link.exe\""
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
 		elif test "$doWince" != "no" ; then
@@ -913,8 +917,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    else
 			CC="${CEBINROOT}/cl${ARCH}.exe"
 		    fi
-		    CC="${CC} -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
-		    RC="${WCEROOT}/Common/EVC/bin/rc.exe"
+		    CC="\"${CC}\" -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
+		    RC="\"${WCEROOT}/Common/EVC/bin/rc.exe\""
 		    arch=`echo ${ARCH} | awk '{print tolower([$]0)}'`
 		    defs="${ARCH} _${ARCH}_ ${arch} PALM_SIZE _MT _DLL _WINDOWS"
 		    for i in $defs ; do
@@ -925,13 +929,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    CFLAGS_DEBUG="-nologo -Zi -Od"
 		    CFLAGS_OPTIMIZE="-nologo -Ox"
 		    lversion=`echo ${CEVERSION} | sed -e 's/\(.\)\(..\)/\1\.\2/'`
-		    lflags="-MACHINE:${ARCH} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,${lversion}"
-		    STLIB_LD="${CEBINROOT}/lib.exe -nologo ${lflags}"
-		    LINKBIN="${CEBINROOT}/link.exe ${lflags}"
+		    lflags="-MACHINE:${ARCH} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,${lversion} -nologo"
+		    LINKBIN="\"${CEBINROOT}/link.exe\""
 		    AC_SUBST(CELIB_DIR)
 		else
 		    RC="rc"
-		    STLIB_LD="link -lib -nologo"
+		    lflags="-nologo"
     		    LINKBIN="link"
 		    CFLAGS_DEBUG="-nologo -Z7 -Od -W3 -WX ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
@@ -948,7 +951,9 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		LDFLAGS_CONSOLE="-wl,--subsystem,console ${lflags}"
 		LDFLAGS_WINDOW="-wl,--subsystem,windows ${lflags}"
 	    else
-		SHLIB_LD="${LINKBIN} -dll -nologo"
+		SHLIB_LD="${LINKBIN} -dll ${lflags}"
+		# link -lib only works when -lib is the first arg
+		STLIB_LD="${LINKBIN} -lib ${lflags}"
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.lib'
 		PATHTYPE=-w
 		# For information on what debugtype is most useful, see:

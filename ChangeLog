@@ -1,3 +1,9 @@
+2005-01-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: remove cygpath calls to support msys.
+	Update base CE build assumption to "420,ARMV4,ARM,Pocket PC 2003".
+	Make STLIB_LD use $LINKBIN -lib.
+
 2005-01-25  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): fixed bug with static build linking to dynamic

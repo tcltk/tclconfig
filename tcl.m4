@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.48 2004/07/17 02:02:57 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.49 2004/07/22 18:17:27 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2022,12 +2022,24 @@ closedir(d);
 #		XINCLUDES
 #		XLIBSW
 #		LIBS (appends to)
+#		TEA_WINDOWINGSYSTEM
 #
 #--------------------------------------------------------------------
 
 AC_DEFUN(TEA_PATH_X, [
     if test "${TEA_PLATFORM}" = "unix" ; then
-	TEA_PATH_UNIX_X
+	case ${TK_DEFS} in
+	    *MAC_OSX_TK*)
+		AC_DEFINE(MAC_OSX_TK)
+		TEA_WINDOWINGSYSTEM="aqua"
+		;;
+	    *)
+		TEA_PATH_UNIX_X
+		TEA_WINDOWINGSYSTEM="x11"
+		;;
+	esac
+    elif test "${TEA_PLATFORM}" = "windows" ; then
+	TEA_WINDOWINGSYSTEM="windows"
     fi
 ])
 

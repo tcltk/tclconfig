@@ -1,3 +1,8 @@
+2005-03-24  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_TCL_64BIT_FLAGS): use Tcl header defaults for wide
+	int type only on Windows when __int64 is detected as valid.
+
 2005-03-24  Don Porter  <dgp@users.sf.net>
 
 	* README.txt:	Update reference to "SC_* macros" to "TEA_* macros".

@@ -1,3 +1,12 @@
+2003-12-10  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* Makefile.in:      added TEA_ADD_LIBS, TEA_ADD_INCLUDES and
+	* configure:        TEA_ADD_CFLAGS to configurable parameters with
+	* configure.in:     PKG_* equivs in the Makefile.  This allows the
+	* tclconfig/tcl.m4: user to worry less about actual magic VAR names.
+	Corrected Makefile.in to note that TEA_ADD_TCL_SOURCES requires
+	exact file names.
+
 2003-12-09  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: updated OpenBSD support based on [Patch #775246] (cassoff)

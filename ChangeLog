@@ -1,3 +1,9 @@
+2003-02-18  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_SETUP_COMPILER): added default calls to
+	TEA_TCL_EARLY_FLAGS, TEA_TCL_64BIT_FLAGS,
+	TEA_MISSING_POSIX_HEADERS and TEA_BUGGY_STRTOD.
+
 2003-02-14  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correct HP-UX ia64 --enable-64bit build flags

@@ -2523,6 +2523,18 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 
     AC_OBJEXT
     AC_EXEEXT
+
+    #--------------------------------------------------------------------
+    # Common compiler flag setup
+    #--------------------------------------------------------------------
+
+    TEA_TCL_EARLY_FLAGS
+    TEA_TCL_64BIT_FLAGS
+    #TEA_C_BIGENDIAN
+    if test "${TEA_PLATFORM}" = "unix" ; then
+	TEA_MISSING_POSIX_HEADERS
+	TEA_BUGGY_STRTOD
+    fi
 ])
 
 #------------------------------------------------------------------------

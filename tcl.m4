@@ -1887,14 +1887,18 @@ closedir(d);
 #	autoconf macro will return an include directory that contains
 #	no include files, so double-check its result just to be safe.
 #
+#	This should be called after TEA_CONFIG_CFLAGS as setting the
+#	LIBS line can confuse some configure macro magic.
+#
 # Arguments:
 #	none
 #	
 # Results:
 #
-#	Sets the the following vars:
+#	Sets the following vars:
 #		XINCLUDES
 #		XLIBSW
+#		LIBS (appends to)
 #
 #--------------------------------------------------------------------
 

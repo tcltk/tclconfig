@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.57 2005/02/02 04:25:10 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.58 2005/02/02 07:01:27 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -714,7 +714,6 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 #		STLIB_LD
 #		SHLIB_LD
 #		SHLIB_CFLAGS
-#		SHLIB_LD_FLAGS
 #		LDFLAGS_DEBUG
 #		LDFLAGS_OPTIMIZE
 #--------------------------------------------------------------------
@@ -1023,7 +1022,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    LD_SEARCH_FLAGS='-R${LIB_RUNTIME_DIR}'
 		fi
 	    else
-		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry ${SHLIB_LD_FLAGS}"
+		if test "$GCC" = "yes" ; then
+		    SHLIB_LD="gcc -shared"
+		else
+		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
+		fi
+		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix ${SHLIB_LD} ${SHLIB_LD_FLAGS}"
 		DL_LIBS="-ldl"
 		LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		TCL_NEEDS_EXP_FILE=1
@@ -1576,7 +1580,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 				CFLAGS="$CFLAGS -m64 -mcpu=v9"
 				LDFLAGS="$LDFLAGS -m64 -mcpu=v9"
 				SHLIB_CFLAGS="-fPIC"
-				SHLIB_LD_FLAGS=""
 			    fi
 			else
 			    do64bit_ok=yes
@@ -1802,7 +1805,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     AC_SUBST(STLIB_LD)
     AC_SUBST(SHLIB_LD)
     AC_SUBST(SHLIB_CFLAGS)
-    AC_SUBST(SHLIB_LD_FLAGS)
     AC_SUBST(SHLIB_LD_LIBS)
     AC_SUBST(LDFLAGS_DEBUG)
     AC_SUBST(LDFLAGS_OPTIMIZE)
@@ -2999,11 +3001,11 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 AC_DEFUN(TEA_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS} \${LDFLAGS_DEFAULT} -out:\[$]@ \$(PKG_OBJECTS)"
+	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_LIBS} \${LDFLAGS_DEFAULT} -out:\[$]@ \$(PKG_OBJECTS)"
 	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_STUB_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(PKG_OBJECTS) \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS}"
+	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(PKG_OBJECTS) \${SHLIB_LD_LIBS}"
 	MAKE_STUB_LIB="\${STLIB_LD} \[$]@ \$(PKG_STUB_OBJECTS)"
     fi
 

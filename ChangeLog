@@ -11,6 +11,7 @@
 	(TEA_ADD_LIBS): On Windows using GCC (mingw), convert foo.lib
 	args to -lfoo, for use with mingw.
 		*** POTENTIAL INCOMPATABILITY ***
+	(TEA_CONFIG_CFLAGS): Fix AIX gcc builds to work out-of-box.
 	Bumped TEA to 3.2.
 
 2005-01-27  Jeff Hobbs  <jeffh@ActiveState.com>

@@ -1,3 +1,9 @@
+2005-02-08  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_ADD_LIBS): don't touch lib args starting with -.
+	(TEA_CONFIG_CFLAGS): only define _DLL for CE in shared build.
+	(TEA_MAKE_LIB): set RANLIB* to : on Windows (it's not needed).
+
 2005-02-01  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: redo of 2005-01-27 changes to correctly handle paths

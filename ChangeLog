@@ -1,3 +1,9 @@
+2002-03-19  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: corrected forgotten (UN)SHARED_LIB_SUFFIX and
+	SHLIB_SUFFIX defines for Win.
+	(SC_PATH_X): made this only do the check on unix platforms. 
+
 2002-03-12  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* README.txt: updated to reflect fewer files

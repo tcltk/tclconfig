@@ -761,6 +761,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    SHLIB_LD="${LINKBIN} -dll -nologo -warn:2"
 	    SHLIB_LD_LIBS='${LIBS}'
 
+	    SHLIB_SUFFIX=".dll"
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.dll'
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.lib'
+
 	    EXTRA_CFLAGS="-YX"
 	    LDFLAGS_DEBUG="-debug:full -debugtype:cv"
 	    LDFLAGS_OPTIMIZE="-release"
@@ -1778,6 +1782,12 @@ closedir(d);
 #--------------------------------------------------------------------
 
 AC_DEFUN(SC_PATH_X, [
+    if test "${TEA_PLATFORM}" = "unix" ; then
+	SC_PATH_UNIX_X
+    fi
+])
+
+AC_DEFUN(SC_PATH_UNIX_X, [
     AC_PATH_X
     not_really_there=""
     if test "$no_x" = ""; then

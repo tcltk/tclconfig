@@ -838,7 +838,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		# Currently Tcl requires 300+
 		CEVERSION=300;	  # could be 211 300 301 ...
 		TARGETCPU=ARM;	  # could be ARM MIPS SH3 X86 ...
-		ARCH=$TARGETCPU;  # could be ARM MIPS SH3 X86 X86EM ...
 		PLATFORM="Pocket PC 2002"
 		if test "$doWince" = "yes"; then
 		    doWince="300,ARM,ARM,Pocket PC 2002"
@@ -846,11 +845,13 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		eval `echo $doWince | awk -F "," '{ \
 		    if (length([$]1)) { printf "CEVERSION=%s\n", [$]1 }; \
 		    if (length([$]2)) { printf "TARGETCPU=%s\n", toupper([$]2) }; \
-		    if (length([$]3)) { printf "ARCH=%s\n", toupper([$]3) } \
-		    else { printf "ARCH=[$]TARGETCPU" }; \
+		    if (length([$]3)) { printf "ARCH=%s\n", toupper([$]3) }; \
 		    if (length([$]4)) { printf "PLATFORM=%s\n", [$]4 }; \
 		    }'`
 		OSVERSION=WCE$CEVERSION;
+		if test "x${ARCH}" = "x" ; then
+	            ARCH=$TARGETCPU;  # could be ARM MIPS SH3 X86 X86EM ...
+		fi
 		if test "x${WCEROOT}" = "x" ; then
 		    WCEROOT="C:/Program Files/Microsoft eMbedded Tools"
 		fi
@@ -859,16 +860,16 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		fi
 		# In order to work in the tortured autoconf environment,
 		# we need to ensure that this path has no spaces
-		WCEROOT=`cygpath -w -s "$WCEROOT" | sed -e 's!\\!/!g'`
-		SDKROOT=`cygpath -w -s "$SDKROOT" | sed -e 's!\\!/!g'`
-		CELIB_DIR=`cygpath -w -s "$CELIB_DIR" | sed -e 's!\\!/!g'`
-		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}" \
-		    -o ! -e "${WCEROOT}/EVC/${OSVERSION}/bin/cl${TARGETCPU}.exe"; then
-		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode])
+		WCEROOT=`cygpath -w -s "$WCEROOT" | sed -e 's!\\\!/!g'`
+		SDKROOT=`cygpath -w -s "$SDKROOT" | sed -e 's!\\\!/!g'`
+		CELIB_DIR=`cygpath -w -s "$CELIB_DIR" | sed -e 's!\\\!/!g'`
+		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" \
+		    -o ! -d "${WCEROOT}/EVC/${OSVERSION}/bin"; then
+		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode [$CEVERSION,$TARGETCPU,$ARCH,$PLATFORM]])
 		    doWince="no"
 		else
-		    CEINCLUDE=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\!/!g'`
-		    CELIBPATH=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\!/!g'`
+		    CEINCLUDE=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\\!/!g'`
+		    CELIBPATH=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\\!/!g'`
     		fi
 	    fi
 

@@ -1,5 +1,8 @@
 2002-03-06  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* config.guess (removed):
+	* config.sub (removed): removed unnecessary files
+
 	* installFile.tcl (removed):
 	* mkinstalldirs (removed): these aren't really necessary for
 	making TEA work
@@ -33,16 +36,16 @@
 
 2001-01-15    <brent.welch@interwoven.com>
 
-        * tcl.m4: Added FreeBSD clause.
+	* tcl.m4: Added FreeBSD clause.
 
 2001-01-03    <brent.welch@interwoven.com>
 
-        * tcl.m4: Fixed typo in SC_LIB_SPEC where it is checking
+	* tcl.m4: Fixed typo in SC_LIB_SPEC where it is checking
 	for exec-prefix.
 
 2000-12-01    <brent.welch@interwoven.com>
 
-        * tcl.m4: Concatenated most of the Ajuba acsite.m4 file
+	* tcl.m4: Concatenated most of the Ajuba acsite.m4 file
 	so we don't need to modify the autoconf installation.
 	* config.guess:
 	* config.sub:
@@ -52,6 +55,6 @@
 
 2000-7-29    <welch@ajubasolutions.com>
 
-        * Fixed the use of TCL_SRC_DIR and TK_SRC_DIR within TCL_PRIVATE_INCLUDES
-	and TK_PRIVATE_INCLUDES to match their recent change from $(srcdir)
-	to $(srcdir)/..
+	* Fixed the use of TCL_SRC_DIR and TK_SRC_DIR within
+	TCL_PRIVATE_INCLUDES and TK_PRIVATE_INCLUDES to match their recent
+	change from $(srcdir) to $(srcdir)/..

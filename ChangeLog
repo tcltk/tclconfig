@@ -1,3 +1,13 @@
+2004-07-16  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_ENABLE_THREADS): force a threaded build when
+	building against a threaded core.
+	(CFLAGS_WARNING): Remove -Wconversion for gcc builds
+	(TEA_CONFIG_CFLAGS): Reorder configure.in for better 64-bit build
+	configuration, replacing EXTRA_CFLAGS with CFLAGS.  [Bug #874058]
+	Update to latest Tcl 8.5 head config settings.
+	Call this TEA version 3.1.
+
 2004-04-29  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_TCL_64BIT_FLAGS): replace AC_TRY_RUN test with

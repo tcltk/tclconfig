@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.34 2003/10/07 00:14:50 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.35 2003/10/15 16:52:53 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2562,7 +2562,7 @@ AC_DEFUN(TEA_PREFIX, [
 ])
 
 #------------------------------------------------------------------------
-# TEA_PROG_CC --
+# TEA_SETUP_COMPILER --
 #
 #	Do compiler checks the way we want.  This is just a replacement
 #	for AC_PROG_CC in TEA configure.in files to make them cleaner.
@@ -2574,7 +2574,10 @@ AC_DEFUN(TEA_PREFIX, [
 #
 #	Sets up CC var and other standard bits we need to make executables.
 #------------------------------------------------------------------------
-AC_DEFUN(TEA_SETUP_COMPILER, [
+AC_DEFUN(TEA_SETUP_COMPILER_CC, [
+    # Don't put any macros that use the compiler (e.g. AC_TRY_COMPILE)
+    # in this macro, they need to go into TEA_SETUP_COMPILER_FLAGS instead.
+
     # If the user did not set CFLAGS, set it now to keep
     # the AC_PROG_CC macro from adding "-g -O2".
     if test "${CFLAGS+set}" != "set" ; then
@@ -2582,19 +2585,7 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
     fi
 
     AC_PROG_CC
-
-    #------------------------------------------------------------------------
-    # If we're using GCC, see if the compiler understands -pipe. If so, use it.
-    # It makes compiling go faster.  (This is only a performance feature.)
-    #------------------------------------------------------------------------
-
-    if test -z "$no_pipe" -a -n "$GCC"; then
-	AC_MSG_CHECKING([if the compiler understands -pipe])
-	OLDCC="$CC"
-	CC="$CC -pipe"
-	AC_TRY_COMPILE(,, AC_MSG_RESULT([yes]), CC="$OLDCC"
-	    AC_MSG_RESULT([no]))
-    fi
+    AC_PROG_CPP
 
     AC_PROG_INSTALL
 
@@ -2616,6 +2607,37 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 
     AC_OBJEXT
     AC_EXEEXT
+])
+
+#------------------------------------------------------------------------
+# TEA_SETUP_COMPILER --
+#
+#	Do compiler checks that use the compiler.  This must go after
+#	TEA_SETUP_COMPILER_CC, which does the actual compiler check.
+#
+# Arguments:
+#	none
+#
+# Results:
+#
+#	Sets up CC var and other standard bits we need to make executables.
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_SETUP_COMPILER, [
+    # Any macros that use the compiler (e.g. AC_TRY_COMPILE) have to go here.
+    AC_REQUIRE([TEA_SETUP_COMPILER_CC])
+
+    #------------------------------------------------------------------------
+    # If we're using GCC, see if the compiler understands -pipe. If so, use it.
+    # It makes compiling go faster.  (This is only a performance feature.)
+    #------------------------------------------------------------------------
+
+    if test -z "$no_pipe" -a -n "$GCC"; then
+	AC_MSG_CHECKING([if the compiler understands -pipe])
+	OLDCC="$CC"
+	CC="$CC -pipe"
+	AC_TRY_COMPILE(,, AC_MSG_RESULT([yes]), CC="$OLDCC"
+	    AC_MSG_RESULT([no]))
+    fi
 
     #--------------------------------------------------------------------
     # Common compiler flag setup

@@ -1,3 +1,10 @@
+2003-10-15  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: create a TEA_SETUP_COMPILER_CC the precedes the
+	TEA_SETUP_COMPILER macro.  They are split so the check for CC
+	occurs before any use of CC.  Also add AC_PROG_CPP to the compiler
+	checks.
+
 2003-10-06  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: Updated for autoconf 2.5x prereq.

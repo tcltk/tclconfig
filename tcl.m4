@@ -2691,7 +2691,7 @@ AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
 AC_DEFUN(TEA_PUBLIC_TCL_HEADERS, [
     AC_MSG_CHECKING([for Tcl public headers])
 
-    AC_ARG_WITH(tclinclude, [ --with-tclinclude      directory containing the public Tcl header files], with_tclinclude=${withval})
+    AC_ARG_WITH(tclinclude, [  --with-tclinclude      directory containing the public Tcl header files], with_tclinclude=${withval})
 
     AC_CACHE_VAL(ac_cv_c_tclh, [
 	# Use the value from --with-tclinclude, if it was given
@@ -2814,7 +2814,7 @@ AC_DEFUN(TEA_PRIVATE_TK_HEADERS, [
 AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
     AC_MSG_CHECKING([for Tk public headers])
 
-    AC_ARG_WITH(tkinclude, [ --with-tkinclude      directory containing the public Tk header files.], with_tkinclude=${withval})
+    AC_ARG_WITH(tkinclude, [  --with-tkinclude      directory containing the public Tk header files.], with_tkinclude=${withval})
 
     AC_CACHE_VAL(ac_cv_c_tkh, [
 	# Use the value from --with-tkinclude, if it was given

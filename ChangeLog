@@ -1,3 +1,10 @@
+2002-03-29  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: made sure that SHLIB_LDFLAGS was set to LDFLAGS_DEFAULT.
+	Removed --enable-64bit support for AIX-4 because it wasn't correct.
+	Added -MT or -MD Windows linker switches to properly support
+	symbols-enabled builds.
+
 2002-03-28  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: called AC_MSG_ERROR when SC_TEA_INIT wasn't called first

@@ -1,3 +1,8 @@
+2002-07-20  Zoran Vasiljevic  <zoran@archiware.com>
+
+	* tcl.m4: Added MINGW32 to list of systems checked for Windows build.
+	Also, fixes some indentation issues with "--with-XXX" options.
+
 2002-04-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_ENABLE_THREADS): added USE_THREAD_ALLOC define to

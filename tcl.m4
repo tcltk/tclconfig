@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.39 2003/12/09 21:38:23 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.40 2003/12/10 20:00:56 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2572,6 +2572,16 @@ TEA version not specified.])
     AC_SUBST(PKG_LIB_FILE)
     # Substitute STUB_LIB_FILE in case package creates a stub library too.
     AC_SUBST(PKG_STUB_LIB_FILE)
+
+    # We AC_SUBST these here to ensure they are subst'ed,
+    # in case the user doesn't call TEA_ADD_...
+    AC_SUBST(PKG_STUB_SOURCES)
+    AC_SUBST(PKG_STUB_OBJECTS)
+    AC_SUBST(PKG_TCL_SOURCES)
+    AC_SUBST(PKG_HEADERS)
+    AC_SUBST(PKG_INCLUDES)
+    AC_SUBST(PKG_LIBS)
+    AC_SUBST(PKG_CFLAGS)
 ])
 
 #------------------------------------------------------------------------
@@ -2706,6 +2716,69 @@ AC_DEFUN(TEA_ADD_HEADERS, [
 	PKG_HEADERS="$PKG_HEADERS $i"
     done
     AC_SUBST(PKG_HEADERS)
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_INCLUDES --
+#
+#	Specify one or more include dirs.  Users should check for
+#	the right platform before adding to their list.
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_INCLUDES
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_ADD_INCLUDES, [
+    vars="$@"
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+    AC_SUBST(PKG_INCLUDES)
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_LIBS --
+#
+#	Specify one or more libraries.  Users should check for
+#	the right platform before adding to their list.
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_LIBS
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_ADD_LIBS, [
+    vars="$@"
+    for i in $vars; do
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+    AC_SUBST(PKG_LIBS)
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_CFLAGS --
+#
+#	Specify one or more CFLAGS.  Users should check for
+#	the right platform before adding to their list.
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_CFLAGS
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_ADD_CFLAGS, [
+    PKG_CFLAGS="$PKG_CFLAGS $@"
+    AC_SUBST(PKG_CFLAGS)
 ])
 
 #------------------------------------------------------------------------

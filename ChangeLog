@@ -1,3 +1,8 @@
+2004-12-29  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: Updates for VC7 compatibility, fixing CFLAGS and LDFLAGS
+	options, using better default -O levels. [Bug 1092952, 1091967]
+
 2004-12-29  Joe English  <jenglish@users.sourceforge.net>
 
 	* tcl.m4: Do not use ${DBGX} suffix when building

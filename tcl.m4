@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.56 2005/01/28 01:10:54 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.57 2005/02/02 04:25:10 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -818,11 +818,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		if test "x${MSSDK}x" = "xx" ; then
 		    MSSDK="C:/Progra~1/Microsoft SDK"
 		fi
-		# In order to work in the tortured autoconf environment,
-		# we need to ensure that this path has no spaces
-		MSSDK=`echo "$MSSDK" | sed -e 's!\\\!/!g'`
+		# Ensure that this path has no spaces to work in autoconf
+		TEA_PATH_NOSPACE(MSSDK, ${MSSDK})
 		if test ! -d "${MSSDK}/bin/win64" ; then
-		    AC_MSG_WARN("could not find 64-bit SDK to enable 64bit mode")
+		    AC_MSG_WARN([could not find 64-bit SDK to enable 64bit mode])
 		    do64bit="no"
 		else
 		    do64bit_ok="yes"
@@ -847,7 +846,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    # If !yes then the user specified something
 		    # Reset ARCH to allow user to skip specifying it
 		    ARCH=
-		    eval `echo $doWince | awk -F "," '{ \
+		    eval `echo $doWince | awk -F, '{ \
 	    if (length([$]1)) { printf "CEVERSION=\"%s\"\n", [$]1; \
 	    if ([$]1 < 400)   { printf "PLATFORM=\"Pocket PC 2002\"\n" } }; \
 	    if (length([$]2)) { printf "TARGETCPU=\"%s\"\n", toupper([$]2) }; \
@@ -871,18 +870,16 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 			SDKROOT="C:/Windows CE Tools"
 		    fi
 		fi
-		# Ensure all / slashes
-		WCEROOT=`echo "$WCEROOT" | sed -e 's!\\\!/!g'`
-		SDKROOT=`echo "$SDKROOT" | sed -e 's!\\\!/!g'`
-		CELIB_DIR=`echo "$CELIB_DIR" | sed -e 's!\\\!/!g'`
-		if test ! -d "${CELIB_DIR}/inc"; then
-		    AC_MSG_ERROR([Invalid celib directory "${CELIB_DIR}"])
-		fi
+		# Ensure that this path has no spaces to work in autoconf
+		TEA_PATH_NOSPACE(WCEROOT, ${WCEROOT})
+		TEA_PATH_NOSPACE(SDKROOT, ${SDKROOT})
 		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" \
 		    -o ! -d "${WCEROOT}/EVC/${OSVERSION}/bin"; then
 		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode [$CEVERSION,$TARGETCPU,$ARCH,$PLATFORM]])
 		    doWince="no"
 		else
+		    # We could PATH_NOSPACE these, but that's not important,
+		    # as long as we quote them when used.
 		    CEINCLUDE="${SDKROOT}/${OSVERSION}/${PLATFORM}/include"
 		    if test -d "${CEINCLUDE}/${TARGETCPU}" ; then
 			CEINCLUDE="${CEINCLUDE}/${TARGETCPU}"
@@ -900,14 +897,14 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 
                 if test "$do64bit" = "yes" ; then
 		    # All this magic is necessary for the Win64 SDK RC1 - hobbs
-		    CC="\"${MSSDK}/Bin/Win64/cl.exe\" \
-	                -I\"${MSSDK}/Include/prerelease\" \
-                        -I\"${MSSDK}/Include/Win64/crt\" \
-	                -I\"${MSSDK}/Include\""
-		    RC="\"${MSSDK}/bin/rc.exe\""
-		    lflags="-MACHINE:IA64 -LIBPATH:\"${MSSDK}/Lib/IA64\" \
-	                -LIBPATH:\"${MSSDK}/Lib/Prerelease/IA64\" -nologo"
-		    LINKBIN="\"${MSSDK}/bin/win64/link.exe\""
+		    CC="${MSSDK}/Bin/Win64/cl.exe"
+		    CFLAGS="${CFLAGS} -I${MSSDK}/Include/prerelease \
+			-I${MSSDK}/Include/Win64/crt \
+			-I${MSSDK}/Include"
+		    RC="${MSSDK}/bin/rc.exe"
+		    lflags="-MACHINE:IA64 -LIBPATH:${MSSDK}/Lib/IA64 \
+			-LIBPATH:${MSSDK}/Lib/Prerelease/IA64 -nologo"
+		    LINKBIN="${MSSDK}/bin/win64/link.exe"
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
 		elif test "$doWince" != "no" ; then
@@ -917,8 +914,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    else
 			CC="${CEBINROOT}/cl${ARCH}.exe"
 		    fi
-		    CC="\"${CC}\" -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
-		    RC="\"${WCEROOT}/Common/EVC/bin/rc.exe\""
+		    CFLAGS="$CFLAGS -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
+		    RC="${WCEROOT}/Common/EVC/bin/rc.exe"
 		    arch=`echo ${ARCH} | awk '{print tolower([$]0)}'`
 		    defs="${ARCH} _${ARCH}_ ${arch} PALM_SIZE _MT _DLL _WINDOWS"
 		    for i in $defs ; do
@@ -930,7 +927,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    CFLAGS_OPTIMIZE="-nologo -Ox"
 		    lversion=`echo ${CEVERSION} | sed -e 's/\(.\)\(..\)/\1\.\2/'`
 		    lflags="-MACHINE:${ARCH} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,${lversion} -nologo"
-		    LINKBIN="\"${CEBINROOT}/link.exe\""
+		    LINKBIN="${CEBINROOT}/link.exe"
 		    AC_SUBST(CELIB_DIR)
 		else
 		    RC="rc"
@@ -1572,7 +1569,15 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		arch=`isainfo`
 		if test "$arch" = "sparcv9 sparc" ; then
 			if test "$GCC" = "yes" ; then
-			    AC_MSG_WARN("64bit mode not supported with GCC on $system")
+			    if test "`gcc -dumpversion` | awk -F. '{print $1}'" -lt "3" ; then
+				AC_MSG_WARN([64bit mode not supported with GCC < 3.2 on $system])
+			    else
+				do64bit_ok=yes
+				CFLAGS="$CFLAGS -m64 -mcpu=v9"
+				LDFLAGS="$LDFLAGS -m64 -mcpu=v9"
+				SHLIB_CFLAGS="-fPIC"
+				SHLIB_LD_FLAGS=""
+			    fi
 			else
 			    do64bit_ok=yes
 			    if test "$do64bitVIS" = "yes" ; then
@@ -1598,6 +1603,17 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    if test "$GCC" = "yes" ; then
 		SHLIB_LD="$CC -shared"
 		LD_SEARCH_FLAGS='-Wl,-R,${LIB_RUNTIME_DIR}'
+		if test "$do64bit" = "yes" ; then
+		    # We need to specify -static-libgcc or we need to
+		    # add the path to the sparv9 libgcc.
+		    # JH: static-libgcc is necessary for core Tcl, but may
+		    # not be necessary for extensions.
+		    SHLIB_LD="$SHLIB_LD -m64 -mcpu=v9 -static-libgcc"
+		    # for finding sparcv9 libgcc, get the regular libgcc
+		    # path, remove so name and append 'sparcv9'
+		    #v9gcclibdir="`gcc -print-file-name=libgcc_s.so` | ..."
+		    #LD_SEARCH_FLAGS="${LD_SEARCH_FLAGS},-R,$v9gcclibdir"
+		fi
 	    else
 		SHLIB_LD="/usr/ccs/bin/ld -G -z text"
 		LD_SEARCH_FLAGS='-R ${LIB_RUNTIME_DIR}'
@@ -2557,7 +2573,9 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(TEA_INIT, [
-    TEA_VERSION="3.1"
+    # TEA extensions pass this us the version of TEA they think they
+    # are compatible with.
+    TEA_VERSION="3.2"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -2782,7 +2800,9 @@ AC_DEFUN(TEA_ADD_INCLUDES, [
 # TEA_ADD_LIBS --
 #
 #	Specify one or more libraries.  Users should check for
-#	the right platform before adding to their list.
+#	the right platform before adding to their list.  For Windows,
+#	libraries provided in "foo.lib" format will be converted to
+#	"-lfoo" when using GCC (mingw).
 #
 # Arguments:
 #	one or more file names
@@ -2795,6 +2815,10 @@ AC_DEFUN(TEA_ADD_INCLUDES, [
 AC_DEFUN(TEA_ADD_LIBS, [
     vars="$@"
     for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/\(.*\)\.lib[$]/-l\1/i'`
+	fi
 	PKG_LIBS="$PKG_LIBS $i"
     done
     AC_SUBST(PKG_LIBS)
@@ -3403,12 +3427,15 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(TEA_PROG_TCLSH, [
-    AC_MSG_CHECKING([for tclsh])
+    # Allow the user to provide this setting in the env
+    if test "x${TCLSH_PROG}" = "x" ; then
+	AC_MSG_CHECKING([for tclsh])
 
-    AC_CACHE_VAL(ac_cv_path_tclsh, [
-	if test "x${CELIB_DIR}" != "x" ; then
-	    # If CELIB_DIR is defined, assume Windows/CE target is requested
-	    # which means target tclsh cannot be run (cross-compile)
+	AC_CACHE_VAL(ac_cv_path_tclsh, [
+	if test "${TEA_PLATFORM}" = "windows" -a "$do64bit_ok" = "yes" \
+		-o "$doWince" != "no" ; then
+	    # A Windows cross-compile build - restrict target tclsh
+	    # as we need one we can run on this system
 	    search_path=`echo ${PATH} | sed -e 's/:/ /g'`
 	else
 	    search_path=`echo ${TCL_BIN_DIR}:${TCL_BIN_DIR}/../bin:${exec_prefix}/bin:${prefix}/bin:${PATH} | sed -e 's/:/ /g'`
@@ -3424,13 +3451,14 @@ AC_DEFUN(TEA_PROG_TCLSH, [
 		fi
 	    done
 	done
-    ])
+	])
 
-    if test -f "$ac_cv_path_tclsh" ; then
-	TCLSH_PROG=$ac_cv_path_tclsh
-	AC_MSG_RESULT([$TCLSH_PROG])
-    else
-	AC_MSG_ERROR([No tclsh found in PATH:  $search_path])
+	if test -f "$ac_cv_path_tclsh" ; then
+	    TCLSH_PROG=$ac_cv_path_tclsh
+	    AC_MSG_RESULT([$TCLSH_PROG])
+	else
+	    AC_MSG_ERROR([No tclsh found in PATH: $search_path])
+	fi
     fi
     AC_SUBST(TCLSH_PROG)
 ])
@@ -3452,12 +3480,15 @@ AC_DEFUN(TEA_PROG_TCLSH, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(TEA_PROG_WISH, [
-    AC_MSG_CHECKING([for wish])
+    # Allow the user to provide this setting in the env
+    if test "x${WISH_PROG}" = "x" ; then
+	AC_MSG_CHECKING([for wish])
 
-    AC_CACHE_VAL(ac_cv_path_wish, [
-	if test "x${CELIB_DIR}" != "x" ; then
-	    # If CELIB_DIR is defined, assume Windows/CE target is requested
-	    # which means target wish cannot be run (cross-compile)
+	AC_CACHE_VAL(ac_cv_path_wish, [
+	if test "${TEA_PLATFORM}" = "windows" -a "$do64bit_ok" = "yes" \
+		-o "$doWince" != "no" ; then
+	    # A Windows cross-compile build - restrict target tclsh
+	    # as we need one we can run on this system
 	    search_path=`echo ${PATH} | sed -e 's/:/ /g'`
 	else
 	    search_path=`echo ${TK_BIN_DIR}:${TK_BIN_DIR}/../bin:${TCL_BIN_DIR}:${TCL_BIN_DIR}/../bin:${exec_prefix}/bin:${prefix}/bin:${PATH} | sed -e 's/:/ /g'`
@@ -3473,13 +3504,14 @@ AC_DEFUN(TEA_PROG_WISH, [
 		fi
 	    done
 	done
-    ])
+	])
 
-    if test -f "$ac_cv_path_wish" ; then
+	if test -f "$ac_cv_path_wish" ; then
 	WISH_PROG=$ac_cv_path_wish
-	AC_MSG_RESULT([$WISH_PROG])
-    else
-	AC_MSG_ERROR([No wish found in PATH:  $search_path])
+	    AC_MSG_RESULT([$WISH_PROG])
+	else
+	    AC_MSG_ERROR([No wish found in PATH: $search_path])
+	fi
     fi
     AC_SUBST(WISH_PROG)
 ])
@@ -3691,12 +3723,49 @@ AC_DEFUN(TEA_PATH_CELIB, [
 	    fi
 	])
 	if test x"${ac_cv_c_celibconfig}" = x ; then
-	    CELIB_DIR="# no Celib configs found"
 	    AC_MSG_ERROR([Cannot find celib support library directory])
 	else
 	    no_celib=
 	    CELIB_DIR=${ac_cv_c_celibconfig}
 	    AC_MSG_RESULT([found $CELIB_DIR])
+	    TEA_PATH_NOSPACE(CELIB_DIR, ${ac_cv_c_celibconfig})
+	fi
+    fi
+])
+
+#------------------------------------------------------------------------
+# TEA_PATH_NOSPACE
+#	Ensure that the given path has no spaces.  This is necessary for
+#	CC (and consitutuent vars that build it up) to work in the
+#	tortured autoconf environment.  Currently only for Windows use.
+#
+# Arguments
+#	VAR  - name of the variable to set
+#	PATH - path to ensure no spaces in
+#
+# Results
+#	Sets $VAR to short path of $PATH if it can be found.
+#------------------------------------------------------------------------
+
+AC_DEFUN([TEA_PATH_NOSPACE], [
+    if test "${TEA_PLATFORM}" = "windows" ; then
+	# we need TCLSH_PROG defined to get Windows short pathnames
+	AC_REQUIRE([TEA_PROG_TCLSH])
+
+	AC_MSG_CHECKING([short pathname for $1 ($2)])
+
+	shortpath=
+	case "$2" in
+	    *\ *)
+		# Only do this if we need to.
+		shortpath=`echo "puts [[file attributes {$2} -shortname]] ; exit" | ${TCLSH_PROG} 2>/dev/null`
+		;;
+	esac
+	if test "x${shortpath}" = "x" ; then
+	    AC_MSG_RESULT([not changed])
+	else
+	    $1=$shortpath
+	    AC_MSG_RESULT([${$1}])
 	fi
     fi
 ])

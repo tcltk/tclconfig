@@ -1,3 +1,18 @@
+2005-02-01  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: redo of 2005-01-27 changes to correctly handle paths
+	with spaces.  Win/CE and Win/64 builds now require a prebuilt
+	tclsh to handle conversion to short pathnames.  This is done in
+	the new TEA_PATH_NOSPACE macro.  For Win/CE|64, make CC just the
+	compiler and move the necessary includes to CFLAGS.
+	(TEA_CONFIG_CFLAGS): Add Solaris 64-bit gcc build support.
+	(TEA_PROG_TCLSH, TEA_PROG_WISH): Allow TCLSH_PROG and WISH_PROG to
+	be set in the env and prevent resetting.
+	(TEA_ADD_LIBS): On Windows using GCC (mingw), convert foo.lib
+	args to -lfoo, for use with mingw.
+		*** POTENTIAL INCOMPATABILITY ***
+	Bumped TEA to 3.2.
+
 2005-01-27  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: remove cygpath calls to support msys.

@@ -1,3 +1,14 @@
+2003-12-05  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* configure:
+	* configure.in:
+	* Makefile.in (VPATH): readd $(srcdir) to front of VPATH as the
+	first part of VPATH can get chopped off.
+	Change .c.$(OBJEXT) rule to .c.@OBJEXT@ to support more makes.
+	* tclconfig/tcl.m4: add TEA_ADD_STUB_SOURCES to support libstub
+	generation and TEA_ADD_TCL_SOURCES to replace RUNTIME_SOURCES as
+	the way the user specifies library files.
+
 2003-12-03  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* configure:           Update of TEA spec to (hopefully) simplify

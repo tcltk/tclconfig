@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.37 2003/12/03 09:14:41 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.38 2003/12/06 01:17:06 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -812,6 +812,7 @@ dnl FIXME: Replace AC_CHECK_PROG with AC_CHECK_TOOL once cross compiling is fixe
 dnl AC_CHECK_TOOL(AR, ar, :)
     AC_CHECK_PROG(AR, ar, ar)
     STLIB_LD='${AR} cr'
+    LD_LIBRARY_PATH_VAR="LD_LIBRARY_PATH"
     case $system in
 	windows)
 	    # This is a 2-stage check to make sure we have the 64-bit SDK
@@ -977,6 +978,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 
 	    DL_OBJS="tclLoadDl.o"
 	    LDFLAGS=""
+	    LD_LIBRARY_PATH_VAR="LIBPATH"
 
 	    # AIX v<=4.1 has some different flags than 4.2+
 	    if test "$system" = "AIX-4.1" -o "`uname -v`" -lt "4" ; then
@@ -1080,6 +1082,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		LDFLAGS="-Wl,-E"
 		LD_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 	    fi
+	    LD_LIBRARY_PATH_VAR="SHLIB_PATH"
 
 	    # Users may want PA-RISC 1.1/2.0 portable code - needs HP cc
 	    #EXTRA_CFLAGS="+DAportable"
@@ -1124,6 +1127,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		LDFLAGS="-Wl,-E"
 		LD_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 	    fi
+	    LD_LIBRARY_PATH_VAR="SHLIB_PATH"
 	    ;;
 	IRIX-4.*)
 	    SHLIB_CFLAGS="-G 0"
@@ -1353,6 +1357,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    DL_LIBS=""
 	    LDFLAGS="-prebind"
 	    LD_SEARCH_FLAGS=""
+	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
 	    CFLAGS_OPTIMIZE="-O3"
 	    EXTRA_CFLAGS="-arch ppc -pipe"
 	    ;;
@@ -1764,6 +1769,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     AC_SUBST(SHLIB_LD_LIBS)
     AC_SUBST(LDFLAGS_DEBUG)
     AC_SUBST(LDFLAGS_OPTIMIZE)
+    AC_SUBST(LD_LIBRARY_PATH_VAR)
 ])
 
 #--------------------------------------------------------------------
@@ -2564,10 +2570,13 @@ TEA version not specified.])
 #		PKG_OBJECTS
 #------------------------------------------------------------------------
 AC_DEFUN(TEA_ADD_SOURCES, [
-    for i in $@; do
-	# check for existence - may allow for generic/win/unix VPATH
-	if test ! -f "${srcdir}/$i" ; then
-	    AC_MSG_ERROR([source file '${srcdir}/$i' does not exist])
+    vars="$@"
+    for i in $vars; do
+	# check for existence - allows for generic/win/unix VPATH
+	if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+	    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+	    ; then
+	    AC_MSG_ERROR([could not find source file '$i'])
 	fi
 	PKG_SOURCES="$PKG_SOURCES $i"
 	# this assumes it is in a VPATH dir
@@ -2585,6 +2594,73 @@ AC_DEFUN(TEA_ADD_SOURCES, [
 ])
 
 #------------------------------------------------------------------------
+# TEA_ADD_STUB_SOURCES --
+#
+#	Specify one or more source files.  Users should check for
+#	the right platform before adding to their list.
+#	It is not important to specify the directory, as long as it is
+#	in the generic, win or unix subdirectory of $(srcdir).
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_STUB_SOURCES
+#		PKG_STUB_OBJECTS
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_ADD_STUB_SOURCES, [
+    vars="$@"
+    for i in $vars; do
+	# check for existence - allows for generic/win/unix VPATH
+	if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+	    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+	    ; then
+	    AC_MSG_ERROR([could not find stub source file '$i'])
+	fi
+	PKG_STUB_SOURCES="$PKG_STUB_SOURCES $i"
+	# this assumes it is in a VPATH dir
+	i=`basename $i`
+	# handle user calling this before or after TEA_SETUP_COMPILER
+	if test x"${OBJEXT}" != x ; then
+	    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.${OBJEXT}"
+	else
+	    j="`echo $i | sed -e 's/\.[[^.]]*$//'`.\${OBJEXT}"
+	fi
+	PKG_STUB_OBJECTS="$PKG_STUB_OBJECTS $j"
+    done
+    AC_SUBST(PKG_STUB_SOURCES)
+    AC_SUBST(PKG_STUB_OBJECTS)
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_TCL_SOURCES --
+#
+#	Specify one or more Tcl source files.  These should be platform
+#	independent runtime files.
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_TCL_SOURCES
+#------------------------------------------------------------------------
+AC_DEFUN(TEA_ADD_TCL_SOURCES, [
+    vars="$@"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    AC_MSG_ERROR([could not find tcl source file '${srcdir}/$i'])
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+    AC_SUBST(PKG_TCL_SOURCES)
+])
+
+#------------------------------------------------------------------------
 # TEA_ADD_HEADERS --
 #
 #	Specify one or more source headers.  Users should check for
@@ -2599,10 +2675,11 @@ AC_DEFUN(TEA_ADD_SOURCES, [
 #		PKG_HEADERS
 #------------------------------------------------------------------------
 AC_DEFUN(TEA_ADD_HEADERS, [
-    for i in $@; do
-	# check for existence - may allow for generic/win/unix VPATH
+    vars="$@"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
 	if test ! -f "${srcdir}/$i" ; then
-	    AC_MSG_ERROR([source file '${srcdir}/$i' does not exist])
+	    AC_MSG_ERROR([could not find header file '${srcdir}/$i'])
 	fi
 	PKG_HEADERS="$PKG_HEADERS $i"
     done
@@ -2785,6 +2862,7 @@ AC_DEFUN(TEA_MAKE_LIB, [
     # substituted.
     #--------------------------------------------------------------------
 
+    RANLIB_STUB="${RANLIB}"
     if test "${TEA_PLATFORM}" = "windows" ; then
 	if test "${SHARED_BUILD}" = "1" ; then
 	    # We force the unresolved linking of symbols that are really in
@@ -2826,6 +2904,7 @@ AC_DEFUN(TEA_MAKE_LIB, [
     AC_SUBST(MAKE_SHARED_LIB)
     AC_SUBST(MAKE_STATIC_LIB)
     AC_SUBST(MAKE_STUB_LIB)
+    AC_SUBST(RANLIB_STUB)
 ])
 
 #------------------------------------------------------------------------

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.36 2003/12/03 08:15:27 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.37 2003/12/03 09:14:41 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -545,7 +545,7 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 
 AC_DEFUN(TEA_ENABLE_SYMBOLS, [
     dnl Make sure we are initialized
-    AC_REQUIRE([TEA_INIT])
+    AC_REQUIRE([TEA_CONFIG_CFLAGS])
 
     if test "${TEA_PLATFORM}" = "windows" ; then
 	tcl_dbgx=d
@@ -556,19 +556,22 @@ AC_DEFUN(TEA_ENABLE_SYMBOLS, [
     AC_MSG_CHECKING([for build with symbols])
     AC_ARG_ENABLE(symbols, [  --enable-symbols        build with debugging symbols [--disable-symbols]],    [tcl_ok=$enableval], [tcl_ok=no])
     if test "$tcl_ok" = "no"; then
-	CFLAGS_DEFAULT='$(CFLAGS_OPTIMIZE)'
-	LDFLAGS_DEFAULT='$(LDFLAGS_OPTIMIZE)'
+	CFLAGS_DEFAULT="${CFLAGS_OPTIMIZE}"
+	LDFLAGS_DEFAULT="${LDFLAGS_OPTIMIZE}"
 	DBGX=""
 	TCL_DBGX=""
 	AC_MSG_RESULT([no])
     else
-	CFLAGS_DEFAULT='$(CFLAGS_DEBUG)'
-	LDFLAGS_DEFAULT='$(LDFLAGS_DEBUG)'
+	CFLAGS_DEFAULT="${CFLAGS_DEBUG}"
+	LDFLAGS_DEFAULT="${LDFLAGS_DEBUG}"
 	DBGX=${tcl_dbgx}
 	TCL_DBGX=${tcl_dbgx}
 	if test "$tcl_ok" = "yes"; then
 	    AC_MSG_RESULT([yes (standard debugging)])
 	fi
+    fi
+    if test "${TEA_PLATFORM}" != "windows" ; then
+	LDFLAGS_DEFAULT="${LDFLAGS}"
     fi
 
     AC_SUBST(TCL_DBGX)
@@ -718,7 +721,7 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 #		STLIB_LD
 #		SHLIB_LD
 #		SHLIB_CFLAGS
-#		SHLIB_LDFLAGS
+#		SHLIB_LD_FLAGS
 #		LDFLAGS_DEBUG
 #		LDFLAGS_OPTIMIZE
 #--------------------------------------------------------------------
@@ -992,7 +995,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    LDFLAGS="-q64"
 		    RANLIB="${RANLIB} -X64"
 		    AR="${AR} -X64"
-		    SHLIB_LDFLAGS="-b64"
+		    SHLIB_LD_FLAGS="-b64"
 		fi
 	    fi
 
@@ -1754,11 +1757,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     AC_SUBST(CFLAGS_WARNING)
     AC_SUBST(EXTRA_CFLAGS)
 
-    SHLIB_LDFLAGS='$(LDFLAGS_DEFAULT)'
     AC_SUBST(STLIB_LD)
     AC_SUBST(SHLIB_LD)
     AC_SUBST(SHLIB_CFLAGS)
-    AC_SUBST(SHLIB_LDFLAGS)
+    AC_SUBST(SHLIB_LD_FLAGS)
     AC_SUBST(SHLIB_LD_LIBS)
     AC_SUBST(LDFLAGS_DEBUG)
     AC_SUBST(LDFLAGS_OPTIMIZE)
@@ -2511,7 +2513,7 @@ AC_DEFUN(TEA_INIT, [
 	AC_MSG_ERROR([
 The PACKAGE_NAME variable must be defined by your TEA configure.in])
     fi
-    if test x"$1" == x ; then
+    if test x"$1" = x ; then
 	AC_MSG_ERROR([
 TEA version not specified.])
     elif test "$1" != "${TEA_VERSION}" ; then
@@ -2763,11 +2765,11 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 AC_DEFUN(TEA_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(PKG_OBJECTS)"
+	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(PKG_OBJECTS)"
 	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_STUB_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(PKG_OBJECTS) \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS}"
+	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(PKG_OBJECTS) \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS}"
 	MAKE_STUB_LIB="\${STLIB_LD} \[$]@ \$(PKG_STUB_OBJECTS)"
     fi
 

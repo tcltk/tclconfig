@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.49 2004/07/22 18:17:27 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.50 2004/07/23 04:08:26 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -1375,7 +1375,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	Rhapsody-*|Darwin-*)
 	    SHLIB_CFLAGS="-fno-common"
 	    SHLIB_LD="cc -dynamiclib \${LDFLAGS}"
-	    TCL_SHLIB_LD_EXTRAS="-compatibility_version ${TCL_MAJOR_VERSION} -current_version \${PACKAGE_VERSION} -install_name \${LIB_RUNTIME_DIR}/\${TCL_LIB_FILE} -prebind -seg1addr 0xa000000"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dylib"
 	    DL_OBJS="tclLoadDyld.o"
@@ -1383,8 +1382,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    LDFLAGS="$LDFLAGS -prebind"
 	    LD_SEARCH_FLAGS=""
 	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
-	    CFLAGS_OPTIMIZE="-O3"
-	    CFLAGS="$CFLAGS -arch ppc -pipe"
+	    CFLAGS_OPTIMIZE="-Os"
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""

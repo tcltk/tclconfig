@@ -1,3 +1,7 @@
+2004-03-19  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: correct Windows builds getting LDFLAGS info in MAKE_LIB
+
 2004-02-11  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correct TCL_INCLUDES for private headers on Windows - it

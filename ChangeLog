@@ -11,6 +11,9 @@
 	executables.  This greatly simplifies user's configure.in files.
 	Collapsed AIX-5 defines into AIX-* with extra checks for doing the
 	ELF stuff on AIX-5-ia64.
+	Updated TEA_ENABLE_THREADS to take an optional arg to allow
+	switching it on by default (for Thread) and add sanity checking to
+	warn the user if configuring threads incompatibly.
 
 2002-03-29  Jeff Hobbs  <jeffh@ActiveState.com>
 

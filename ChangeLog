@@ -1,7 +1,12 @@
 2002-03-06  Jeff Hobbs  <jeffh@ActiveState.com>
 
-	* tcl.m4: don't check /usr(/local)/include for includes on Windows
-	when not using gcc
+	* installFile.tcl (removed):
+	* mkinstalldirs (removed): these aren't really necessary for
+	making TEA work
+
+	* tcl.m4 (SC_PUBLIC_TCL_HEADERS, SC_PUBLIC_TK_HEADERS): don't
+	check /usr(/local)/include for includes on Windows when not using
+	gcc
 
 2002-03-05  Jeff Hobbs  <jeffh@ActiveState.com>
 

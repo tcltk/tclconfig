@@ -2494,39 +2494,38 @@ AC_DEFUN(SC_PRIVATE_TCL_HEADERS, [
 AC_DEFUN(SC_PUBLIC_TCL_HEADERS, [
     AC_MSG_CHECKING([for Tcl public headers])
 
-    AC_ARG_WITH(tclinclude, [ --with-tclinclude      directory containing the public Tcl header files.], with_tclinclude=${withval})
+    AC_ARG_WITH(tclinclude, [ --with-tclinclude      directory containing the public Tcl header files], with_tclinclude=${withval})
 
-    if test x"${with_tclinclude}" != x ; then
-	if test -f "${with_tclinclude}/tcl.h" ; then
-	    ac_cv_c_tclh=${with_tclinclude}
-	else
-	    AC_MSG_ERROR([${with_tclinclude} directory does not contain Tcl public header file tcl.h])
-	fi
-    else
-	AC_CACHE_VAL(ac_cv_c_tclh, [
-	    # Use the value from --with-tclinclude, if it was given
+    AC_CACHE_VAL(ac_cv_c_tclh, [
+	# Use the value from --with-tclinclude, if it was given
 
-	    if test x"${with_tclinclude}" != x ; then
+	if test x"${with_tclinclude}" != x ; then
+	    if test -f "${with_tclinclude}/tcl.h" ; then
 		ac_cv_c_tclh=${with_tclinclude}
 	    else
-		# Check in the includedir, if --prefix was specified
-
-		eval "temp_includedir=${includedir}"
-		list="`ls -d ${TCL_PREFIX}/include 2>/dev/null`" \
-			"`ls -d ${temp_includedir} 2>/dev/null`" \
-			"`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
-		if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
-		    list=$list /usr/local/include /usr/include
-		fi
-		for i in $list ; do
-		    if test -f "$i/tcl.h" ; then
-			ac_cv_c_tclh=$i
-			break
-		    fi
-		done
+		AC_MSG_ERROR([${with_tclinclude} directory does not contain tcl.h])
 	    fi
-	])
-    fi
+	else
+	    # Check order: pkg --prefix location, Tcl's --prefix location,
+	    # directory of tclConfig.sh, and Tcl source directory.
+	    # Looking in the source dir is not ideal, but OK.
+
+	    eval "temp_includedir=${includedir}"
+	    list="`ls -d ${temp_includedir}      2>/dev/null` \
+		`ls -d ${TCL_PREFIX}/include     2>/dev/null` \
+		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
+		`ls -d ${TCL_SRC_DIR}/generic    2>/dev/null`"
+	    if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
+		list="$list /usr/local/include /usr/include"
+	    fi
+	    for i in $list ; do
+		if test -f "$i/tcl.h" ; then
+		    ac_cv_c_tclh=$i
+		    break
+		fi
+	    done
+	fi
+    ])
 
     # Print a message based on how we determined the include path
 
@@ -2620,38 +2619,37 @@ AC_DEFUN(SC_PUBLIC_TK_HEADERS, [
 
     AC_ARG_WITH(tkinclude, [ --with-tkinclude      directory containing the public Tk header files.], with_tkinclude=${withval})
 
-    if test x"${with_tkinclude}" != x ; then
-	if test -f "${with_tkinclude}/tk.h" ; then
-	    ac_cv_c_tkh=${with_tkinclude}
-	else
-	    AC_MSG_ERROR([${with_tkinclude} directory does not contain Tk public header file tk.h])
-	fi
-    else
-	AC_CACHE_VAL(ac_cv_c_tkh, [
-	    # Use the value from --with-tkinclude, if it was given
+    AC_CACHE_VAL(ac_cv_c_tkh, [
+	# Use the value from --with-tkinclude, if it was given
 
-	    if test x"${with_tkinclude}" != x ; then
+	if test x"${with_tkinclude}" != x ; then
+	    if test -f "${with_tkinclude}/tk.h" ; then
 		ac_cv_c_tkh=${with_tkinclude}
 	    else
-		# Check in the includedir, if --prefix was specified
-
-		eval "temp_includedir=${includedir}"
-		list="`ls -d ${TCL_PREFIX}/include 2>/dev/null`" \
-			"`ls -d ${TK_PREFIX}/include 2>/dev/null`" \
-			"`ls -d ${temp_includedir} 2>/dev/null`" \
-			"`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
-		if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
-		    list=$list /usr/local/include /usr/include
-		fi
-		for i in $list ; do
-		    if test -f "$i/tk.h" ; then
-			ac_cv_c_tkh=$i
-			break
-		    fi
-		done
+		AC_MSG_ERROR([${with_tkinclude} directory does not contain tk.h])
 	    fi
-	])
-    fi
+	else
+	    # Check order: pkg --prefix location, Tcl's --prefix location,
+	    # directory of tclConfig.sh, and Tcl source directory.
+	    # Looking in the source dir is not ideal, but OK.
+
+	    eval "temp_includedir=${includedir}"
+	    list="`ls -d ${temp_includedir}      2>/dev/null` \
+		`ls -d ${TK_PREFIX}/include      2>/dev/null` \
+		`ls -d ${TCL_PREFIX}/include     2>/dev/null` \
+		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
+		`ls -d ${TK_SRC_DIR}/generic     2>/dev/null`"
+	    if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
+		list="$list /usr/local/include /usr/include"
+	    fi
+	    for i in $list ; do
+		if test -f "$i/tk.h" ; then
+		    ac_cv_c_tkh=$i
+		    break
+		fi
+	    done
+	fi
+    ])
 
     # Print a message based on how we determined the include path
 

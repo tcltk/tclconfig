@@ -8,6 +8,10 @@
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: tcl.m4,v 1.34 2003/10/07 00:14:50 hobbs Exp $
+
+AC_PREREQ(2.50)
 
 #------------------------------------------------------------------------
 # TEA_PATH_TCLCONFIG --
@@ -29,10 +33,8 @@
 #------------------------------------------------------------------------
 
 AC_DEFUN(TEA_PATH_TCLCONFIG, [
-    if test x"${TEA_INITED}" = x ; then
-	# Can't refer to exact macro name or it will be substituted
-	AC_MSG_ERROR([Must call TEA INIT before PATH_TCLCONFIG])
-    fi
+    dnl Make sure we are initialized
+    AC_REQUIRE([TEA_INIT])
     #
     # Ok, lets find the tcl configuration
     # First, look for one uninstalled.
@@ -542,10 +544,8 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(TEA_ENABLE_SYMBOLS, [
-    if test x"${TEA_INITED}" = x ; then
-	# Can't refer to exact macro name or it will be substituted
-	AC_MSG_ERROR([Must call TEA INIT before ENABLE_SYMBOLS])
-    fi
+    dnl Make sure we are initialized
+    AC_REQUIRE([TEA_INIT])
 
     if test "${TEA_PLATFORM}" = "windows" ; then
 	tcl_dbgx=d
@@ -720,10 +720,8 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 #--------------------------------------------------------------------
 
 AC_DEFUN(TEA_CONFIG_CFLAGS, [
-    if test x"${TEA_INITED}" = x ; then
-	# Can't refer to exact macro name or it will be substituted
-	AC_MSG_ERROR([Must call TEA INIT before CONFIG_CFLAGS])
-    fi
+    dnl Make sure we are initialized
+    AC_REQUIRE([TEA_INIT])
 
     # Step 0: Enable 64 bit support?
 
@@ -969,6 +967,31 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    SHLIB_CFLAGS=""
 	    SHLIB_SUFFIX=".so"
 	    SHLIB_LD_LIBS='${LIBS}'
+
+	    DL_OBJS="tclLoadDl.o"
+	    LDFLAGS=""
+
+	    # AIX v<=4.1 has some different flags than 4.2+
+	    if test "$system" = "AIX-4.1" -o "`uname -v`" -lt "4" ; then
+		#LIBOBJS="$LIBOBJS tclLoadAix.o"
+		AC_LIBOBJ([tclLoadAix])
+		DL_LIBS="-lld"
+	    fi
+
+	    # Check to enable 64-bit flags for compiler/linker on AIX 4+
+	    if test "$do64bit" = "yes" -a "`uname -v`" -gt "3" ; then
+		if test "$GCC" = "yes" ; then
+		    AC_MSG_WARN("64bit mode not supported with GCC on $system")
+		else 
+		    do64bit_ok=yes
+		    EXTRA_CFLAGS="-q64"
+		    LDFLAGS="-q64"
+		    RANLIB="${RANLIB} -X64"
+		    AR="${AR} -X64"
+		    SHLIB_LDFLAGS="-b64"
+		fi
+	    fi
+
 	    if test "`uname -m`" = "ia64" ; then
 		# AIX-5 uses ELF style dynamic libraries on IA-64, but not PPC
 		SHLIB_LD="/usr/ccs/bin/ld -G -z text"
@@ -980,19 +1003,11 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    LD_SEARCH_FLAGS='-R${LIB_RUNTIME_DIR}'
 		fi
 	    else
-		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
+		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry ${SHLIB_LD_FLAGS}"
 		DL_LIBS="-ldl"
 		LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		TCL_NEEDS_EXP_FILE=1
 		TCL_EXPORT_FILE_SUFFIX='${VERSION}\$\{DBGX\}.exp'
-	    fi
-	    DL_OBJS="tclLoadDl.o"
-	    LDFLAGS=""
-
-	    # AIX v<=4.1 has some different flags than 4.2+
-	    if test "$system" = "AIX-4.1" -o "`uname -v`" -lt "4" ; then
-		LIBOBJS="$LIBOBJS tclLoadAix.o"
-		DL_LIBS="-lld"
 	    fi
 
 	    # On AIX <=v4 systems, libbsd.a has to be linked in to support
@@ -1011,20 +1026,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    if test $libbsd = yes; then
 	    	MATH_LIBS="$MATH_LIBS -lbsd"
 	    	AC_DEFINE(USE_DELTA_FOR_TZ)
-	    fi
-
-	    # Check to enable 64-bit flags for compiler/linker on AIX 4+
-	    if test "$do64bit" = "yes" -a "`uname -v`" -gt "3" ; then
-		if test "$GCC" = "yes" ; then
-		    AC_MSG_WARN("64bit mode not supported with GCC on $system")
-		else 
-		    do64bit_ok=yes
-		    EXTRA_CFLAGS="-q64"
-		    LDFLAGS="-q64"
-		    RANLIB="${RANLIB} -X64"
-		    AR="${AR} -X64"
-		    SHLIB_LDFLAGS="-b64"
-		fi
 	    fi
 	    ;;
 	BSD/OS-2.1*|BSD/OS-3*)
@@ -1195,7 +1196,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    # when you inline the string and math operations.  Turn this off to
 	    # get rid of the warnings.
 
-	    CFLAGS_OPTIMIZE="${CFLAGS_OPTIMIZE} -D__NO_STRING_INLINES -D__NO_MATH_INLINES"
+	    #CFLAGS_OPTIMIZE="${CFLAGS_OPTIMIZE} -D__NO_STRING_INLINES -D__NO_MATH_INLINES"
 
 	    if test "$have_dl" = yes; then
 		SHLIB_LD="${CC} -shared"
@@ -1222,7 +1223,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    # is kind of overkill but it works.
 	    # Disable inlining only when one of the
 	    # files in compat/*.c is being linked in.
-	    if test x"${LIBOBJS}" != x ; then
+	    if test x"${USE_COMPAT}" != x ; then
 	        EXTRA_CFLAGS="${EXTRA_CFLAGS} -fno-inline"
 	    fi
 
@@ -2257,7 +2258,9 @@ AC_DEFUN(TEA_BUGGY_STRTOD, [
 	    AC_MSG_RESULT([ok])
 	else
 	    AC_MSG_RESULT([buggy])
-	    LIBOBJS="$LIBOBJS fixstrtod.o"
+	    #LIBOBJS="$LIBOBJS fixstrtod.o"
+	    AC_LIBOBJ([fixstrtod])
+	    USE_COMPAT=1
 	    AC_DEFINE(strtod, fixstrtod)
 	fi
     fi
@@ -2422,6 +2425,10 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 		], tcl_cv_type_64bit="long long"))])
     if test "${tcl_cv_type_64bit}" = none ; then
 	AC_MSG_RESULT([using long])
+    elif test "${tcl_cv_type_64bit}" = "__int64" ; then
+	# We actually want to use the default tcl.h checks in this
+	# case to handle both TCL_WIDE_INT_TYPE and TCL_LL_MODIFIER*
+	AC_MSG_RESULT([using Tcl header defaults])
     else
 	AC_DEFINE_UNQUOTED(TCL_WIDE_INT_TYPE,${tcl_cv_type_64bit})
 	AC_MSG_RESULT([${tcl_cv_type_64bit}])
@@ -2499,7 +2506,6 @@ AC_DEFUN(TEA_INIT, [
 The PACKAGE variable must be defined by your TEA configure.in])
     fi
     AC_MSG_RESULT([ok])
-    TEA_INITED=ok
     case "`uname -s`" in
 	*win32*|*WIN32*|*CYGWIN_NT*|*CYGWIN_9*|*CYGWIN_ME*|*MINGW32_*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
@@ -2617,8 +2623,9 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 
     TEA_TCL_EARLY_FLAGS
     TEA_TCL_64BIT_FLAGS
-    #TEA_C_BIGENDIAN
+    AC_C_BIGENDIAN
     if test "${TEA_PLATFORM}" = "unix" ; then
+	TEA_TCL_LINK_LIBS
 	TEA_MISSING_POSIX_HEADERS
 	TEA_BUGGY_STRTOD
     fi
@@ -3040,6 +3047,17 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
     TK_INCLUDES=-I\"${INCLUDE_DIR_NATIVE}\"
 
     AC_SUBST(TK_INCLUDES)
+
+    if test "${TEA_PLATFORM}" = "windows" ; then
+	# On Windows, we need the X compat headers
+	AC_MSG_CHECKING([for X11 header files])
+	if test ! -r "${INCLUDE_DIR_NATIVE}/X11/Xlib.h"; then
+	    INCLUDE_DIR_NATIVE="`${CYGPATH} ${TK_SRC_DIR}/xlib`"
+	    TK_XINCLUDES=-I\"${INCLUDE_DIR_NATIVE}\"
+	    AC_SUBST(TK_XINCLUDES)
+	fi
+	AC_MSG_RESULT([${INCLUDE_DIR_NATIVE}])
+    fi
 ])
 
 #------------------------------------------------------------------------

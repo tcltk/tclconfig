@@ -516,14 +516,16 @@ AC_DEFUN(SC_ENABLE_THREADS, [
 #------------------------------------------------------------------------
 
 AC_DEFUN(SC_ENABLE_SYMBOLS, [
-    case "`uname -s`" in
-	*win32* | *WIN32* | *CYGWIN_NT* | *CYGWIN_98* | *CYGWIN_95*)
-	    tcl_dbgx=d
-	;;
-	*)
-	    tcl_dbgx=g
-	;;
-    esac
+    if test x"${TEA_INIT}" = x ; then
+	# Can't refer to exact macro name or it will be substituted
+	AC_MSG_ERROR([Must call TEA_INIT before ENABLE_SYMBOLS])
+    fi
+
+    if test "${TEA_PLATFORM}" = "windows" ; then
+	tcl_dbgx=d
+    else
+	tcl_dbgx=g
+    fi
 
     AC_MSG_CHECKING([for build with symbols])
     AC_ARG_ENABLE(symbols, [  --enable-symbols        build with debugging symbols [--disable-symbols]],    [tcl_ok=$enableval], [tcl_ok=no])
@@ -773,6 +775,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		fi
 	    fi
 
+	    if test "${SHARED_BUILD}" = "0" ; then
+		runtime=-MT
+	    else
+		runtime=-MD
+	    fi
+
 	    if test "$do64bit" = "yes" ; then
 		# All this magic is necessary for the Win64 SDK RC1 - hobbs
 		export CC="${MSSDK}/Bin/Win64/cl.exe \
@@ -893,17 +901,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    	MATH_LIBS="$MATH_LIBS -lbsd"
 	    	AC_DEFINE(USE_DELTA_FOR_TZ)
 	    fi
-
-	    # Check to enable 64-bit flags for compiler/linker
-	    if test "$do64bit" = "yes" ; then
-		if test "$GCC" = "yes" ; then
-		    AC_MSG_WARN("64bit mode not supported with GCC on $system")
-		else 
-		    do64bit_ok=yes
-		    EXTRA_CFLAGS="-q64"
-		    LDFLAGS="-q64"
-		fi
-	    fi
 	    ;;
 	BSD/OS-2.1*|BSD/OS-3*)
 	    SHLIB_CFLAGS=""
@@ -955,7 +952,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    if test "$do64bit" = "yes" ; then
 		if test "$GCC" = "yes" ; then
 		    AC_MSG_WARN("64bit mode not supported with GCC on $system")
-		else 
+		else
 		    do64bit_ok=yes
 		    EXTRA_CFLAGS="+DA2.0W"
 		    LDFLAGS="+DA2.0W $LDFLAGS"
@@ -1580,6 +1577,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
     AC_SUBST(CFLAGS_WARNING)
     AC_SUBST(EXTRA_CFLAGS)
 
+    SHLIB_LDFLAGS='$(LDFLAGS_DEFAULT)'
     AC_SUBST(STLIB_LD)
     AC_SUBST(SHLIB_LD)
     AC_SUBST(SHLIB_CFLAGS)

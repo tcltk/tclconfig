@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.59 2005/02/09 00:46:55 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.60 2005/03/18 00:44:21 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -1111,7 +1111,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    if test "$GCC" = "yes" ; then
 		SHLIB_LD="gcc -shared"
 		SHLIB_LD_LIBS='${LIBS}'
-		LD_SEARCH_FLAGS=''
 	    fi
 
 	    # Users may want PA-RISC 1.1/2.0 portable code - needs HP cc
@@ -1127,7 +1126,6 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 			    do64bit_ok=yes
 			    SHLIB_LD="${CC} -shared"
 			    SHLIB_LD_LIBS='${LIBS}'
-			    LD_SEARCH_FLAGS=''
 			    ;;
 			*)
 			    AC_MSG_WARN("64bit mode not supported with GCC on $system")

@@ -1,3 +1,22 @@
+2003-12-03  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* configure:           Update of TEA spec to (hopefully) simplify
+	* configure.in:        some aspects of TEA by making use of more
+	* Makefile.in:         AC 2.5x features.  Use PACKAGE_NAME (instead
+	* generic/tclsample.c: of PACKAGE) and PACKAGE_VERSION (instead of
+	* tclconfig/tcl.m4:    VERSION) arguments to AC_INIT as the TEA
+	package name and version.
+	Provide a version argument to TEA_INIT - starting with 3.0.
+	Drop all use of interior shell substs that older makefiles didn't
+	like.  Use PKG_* naming convention instead.
+	Move specification of source files and public headers into
+	configure.in with TEA_ADD_SOURCES and TEA_ADD_HEADERS.  These will
+	be munged during ./configure into the right obj file names (no
+	$(SOURCES:.c=.obj) needed).
+	There is almost nothing that should be touched in Makefile.in now
+	for the developer.  May want to add a TEA_ADD_TCL_SOURCES for the
+	RUNTIME_SOURCES that remains.
+
 2003-10-15  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: create a TEA_SETUP_COMPILER_CC the precedes the

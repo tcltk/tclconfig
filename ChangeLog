@@ -16,6 +16,9 @@
 	There is almost nothing that should be touched in Makefile.in now
 	for the developer.  May want to add a TEA_ADD_TCL_SOURCES for the
 	RUNTIME_SOURCES that remains.
+	Use SHLID_LD_FLAGS (instead of SHLID_LDFLAGS) as Tcl does.
+	Only specify the user requested LDFLAGS/CFLAGS in the Makefile,
+	don't mention the _OPTIMIZE/_DEBUG variants.
 
 2003-10-15  Jeff Hobbs  <jeffh@ActiveState.com>
 

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.46 2004/04/26 16:24:05 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.47 2004/04/30 01:05:12 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2461,9 +2461,9 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 	# See if we should use long anyway  Note that we substitute in the
 	# type that is our current guess for a 64-bit type inside this check
 	# program, so it should be modified only carefully...
-	AC_TRY_RUN([#include <unistd.h>
-	    int main() {exit(!(sizeof(]${tcl_type_64bit}[) > sizeof(long)));}
-	    ], tcl_cv_type_64bit=${tcl_type_64bit},:,:)])
+        AC_TRY_COMPILE(,[switch (0) { 
+            case 1: case (sizeof(]${tcl_type_64bit}[)==sizeof(long)): ; 
+        }],tcl_cv_type_64bit=${tcl_type_64bit})])
     if test "${tcl_cv_type_64bit}" = none ; then
 	AC_DEFINE(TCL_WIDE_INT_IS_LONG)
 	AC_MSG_RESULT([using long])

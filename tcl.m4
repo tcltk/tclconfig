@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.44 2004/02/11 18:27:35 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.45 2004/03/20 00:46:55 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2948,7 +2948,7 @@ AC_DEFUN(TEA_SETUP_COMPILER, [
 AC_DEFUN(TEA_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_OBJECTS)"
-	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(PKG_OBJECTS)"
+	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_FLAGS} \${SHLIB_LD_LIBS} \${LDFLAGS_DEFAULT} -out:\[$]@ \$(PKG_OBJECTS)"
 	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_STUB_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"

@@ -1,5 +1,8 @@
 2005-03-18  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	* tcl.m4 (TEA_CONFIG_CFLAGS): correct 2005-03-17 change to have
+	variant LD_SEARCH_FLAGS for gcc and cc builds.
+
 	* tcl.m4 (TEA_PROG_TCLSH, TEA_PROG_WISH): correct x-compile check.
 
 2005-03-17  Jeff Hobbs  <jeffh@ActiveState.com>

@@ -1,3 +1,7 @@
+2005-03-18  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_PROG_TCLSH, TEA_PROG_WISH): correct x-compile check.
+
 2005-03-17  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: Correct gcc build and HP-UX-11.

@@ -1,3 +1,13 @@
+2002-10-09  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: add --enable-symbols=mem option to enable TCL_MEM_DEBUG.
+	Improved AIX 64-bit build support, allow it on AIX-4 as well.
+	Enable 64-bit HP-11 compilation with gcc.
+	Enable 64-bit IRIX64-6 cc build support.
+	Correct FreeBSD thread library linkage.
+	Add OSF1 static build support.
+	Improve SunOS-5 shared build SHLIB_LD macro.
+
 2002-07-20  Zoran Vasiljevic  <zoran@archiware.com>
 
 	* tcl.m4: Added MINGW32 to list of systems checked for Windows build.

@@ -1,3 +1,9 @@
+2003-10-06  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: Updated for autoconf 2.5x prereq.
+	Where TCL_WIDE_INT_TYPE would be __int64, defer to the code checks
+	in tcl.h, which also handles TCL_LL_MODIFIER* properly.
+
 2003-04-22  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correct default setting of ARCH for WinCE builds.

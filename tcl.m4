@@ -2320,7 +2320,7 @@ The PACKAGE variable must be defined by your TEA configure.in])
 #------------------------------------------------------------------------
 
 AC_DEFUN(SC_MAKE_LIB, [
-    if test "${TEA_PLATFORM}" = "windows" -a "${CC-cc}" = "cl"; then
+    if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
     else

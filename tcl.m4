@@ -2434,6 +2434,9 @@ The PACKAGE variable must be defined by your TEA configure.in])
 	    ;;
     esac
 
+    # Check if exec_prefix is set. If not use fall back to prefix
+    if test x$exec_prefix = xNONE ; then exec_prefix=$prefix ; fi
+
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
 ])

@@ -393,6 +393,14 @@ AC_DEFUN(TEA_ENABLE_SHARED, [
 	SHARED_BUILD=0
 	AC_DEFINE(STATIC_BUILD)
     fi
+
+    # These are escaped so that only CFLAGS is picked up at configure time.
+    # The other values will be substituted at make time.
+    CFLAGS="${CFLAGS} \${CFLAGS_DEFAULT} \${CFLAGS_WARNING}"
+    if test "${SHARED_BUILD}" = "1" ; then
+	CFLAGS="${CFLAGS} \${SHLIB_CFLAGS}"
+    fi
+    AC_SUBST(SHARED_BUILD)
 ])
 
 #------------------------------------------------------------------------

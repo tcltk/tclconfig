@@ -2411,8 +2411,6 @@ AC_DEFUN(SC_MAKE_LIB, [
     AC_SUBST(MAKE_LIB)
     AC_SUBST(MAKE_SHARED_LIB)
     AC_SUBST(MAKE_STATIC_LIB)
-    # This needs the \$ to work with the double-substitute of AC_SUBST
-    AC_SUBST(\${PACKAGE}_LIB_FILE)
 ])
 
 #------------------------------------------------------------------------

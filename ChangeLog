@@ -6,7 +6,6 @@
 	Added XLIBSW onto LIBS when it is defined.
 	Remove TCL_LIBS from MAKE_LIB and correctly use SHLIB_LD_LIBS
 	instead to not rely as much on tclConfig.sh cached info.
-	Moved subst of ${PACKAGE}_LIB_FILE into SC_MAKE_LIB.
 	Add TK_BIN_DIR to paths to find wish in SC_PROG_WISH.
 	These move towards making TEA much more independent of *Config.sh.
 

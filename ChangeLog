@@ -1,3 +1,8 @@
+2004-02-11  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: correct TCL_INCLUDES for private headers on Windows - it
+	doesn't need the eval.
+
 2004-02-10  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: don't require TK_INCLUDES and TCL_INCLUDES to have the

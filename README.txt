@@ -3,6 +3,11 @@ Architecture (TEA) extension.  For more information on TEA see:
 
 	http://www.tcl.tk/doc/tea/
 
+This package is part of the Tcl project at SourceForge, and latest
+sources should be available there:
+
+	http://tcl.sourceforge.net/
+
 This package is a freely available open source package.  You can do
 virtually anything you like with it, such as modifying it, redistributing
 it, and selling it either in whole or in part.
@@ -14,16 +19,8 @@ the sample extension.
 
 README.txt	This file
 
-config.sub
-config.guess	Basic autoconf configure pieces.
-
 install-sh	Program used for copying binaries and script files
 		to their install locations.
-
-installFile.tcl	Same as above, in Tcl.
-
-mkinstalldirs	Program used to create a directory hierarchy
-		(because mkdir -p is not portable)
 
 tcl.m4		Collection of Tcl autoconf macros.  Included by a package's
 		aclocal.m4 to define SC_* macros.

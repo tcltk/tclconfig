@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.51 2004/08/10 20:09:54 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.52 2004/09/08 01:17:00 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -853,20 +853,27 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    doWince="300,ARM,ARM,Pocket PC 2002"
 		fi
 		eval `echo $doWince | awk -F "," '{ \
-		    if (length([$]1)) { printf "CEVERSION=%s\n", [$]1 }; \
-		    if (length([$]2)) { printf "TARGETCPU=%s\n", toupper([$]2) }; \
-		    if (length([$]3)) { printf "ARCH=%s\n", toupper([$]3) }; \
-		    if (length([$]4)) { printf "PLATFORM=%s\n", [$]4 }; \
+		    if (length([$]1)) { printf "CEVERSION=\"%s\"\n", [$]1; \
+		      if ([$]1 >= 400) { printf "PLATFORM=\"Pocket PC 2003\"\n" } }; \
+		    if (length([$]2)) { printf "TARGETCPU=\"%s\"\n", toupper([$]2) }; \
+		    if (length([$]3)) { printf "ARCH=\"%s\"\n", toupper([$]3) }; \
+		    if (length([$]4)) { printf "PLATFORM=\"%s\"\n", [$]4 }; \
 		    }'`
 		OSVERSION=WCE$CEVERSION;
 		if test "x${ARCH}" = "x" ; then
 	            ARCH=$TARGETCPU;  # could be ARM MIPS SH3 X86 X86EM ...
 		fi
-		if test "x${WCEROOT}" = "x" ; then
-		    WCEROOT="C:/Program Files/Microsoft eMbedded Tools"
+	    	if test "x${WCEROOT}" = "x" ; then
+			WCEROOT="C:/Program Files/Microsoft eMbedded C++ 4.0"
+		    if test ! -d "${WCEROOT}" ; then
+			WCEROOT="C:/Program Files/Microsoft eMbedded Tools"
+		    fi
 		fi
 		if test "x${SDKROOT}" = "x" ; then
-		    SDKROOT="C:/Windows CE Tools"
+		    SDKROOT="C:/Program Files/Windows CE Tools"
+		    if test ! -d "${SDKROOT}" ; then
+			SDKROOT="C:/Windows CE Tools"
+		    fi
 		fi
 		# In order to work in the tortured autoconf environment,
 		# we need to ensure that this path has no spaces
@@ -879,6 +886,9 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    doWince="no"
 		else
 		    CEINCLUDE=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\\!/!g'`
+		    if test -d "${CEINCLUDE}/${TARGETCPU}" ; then
+			CEINCLUDE="${CEINCLUDE}/${TARGETCPU}"
+		    fi
 		    CELIBPATH=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\\!/!g'`
     		fi
 	    fi
@@ -904,14 +914,16 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -Gs -W2 ${runtime}"
 		elif test "$doWince" != "no" ; then
+		    CEBINROOT="${WCEROOT}/EVC/${OSVERSION}/bin"
 		    if test "${TARGETCPU}" = "X86"; then
-			CC="${WCEROOT}/EVC/${OSVERSION}/bin/cl.exe -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
+			CC="${CEBINROOT}/cl.exe"
 		    else
-			CC="${WCEROOT}/EVC/${OSVERSION}/bin/cl${TARGETCPU}.exe -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
+			CC="${CEBINROOT}/cl${ARCH}.exe"
 		    fi
+		    CC="${CC} -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
 		    RC="${WCEROOT}/Common/EVC/bin/rc.exe"
-		    cpulower=`echo ${TARGETCPU} | awk '{print tolower([$]0)}'`
-		    defs="${TARGETCPU} _${TARGETCPU}_ ${cpulower} _${cpulower}_ POCKET_SIZE PALM_SIZE _MT _DLL _WINDOWS"
+		    arch=`echo ${ARCH} | awk '{print tolower([$]0)}'`
+		    defs="${ARCH} _${ARCH}_ ${arch} PALM_SIZE _MT _DLL _WINDOWS"
 		    for i in $defs ; do
 			AC_DEFINE_UNQUOTED($i)
 		    done
@@ -919,9 +931,11 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    AC_DEFINE_UNQUOTED(UNDER_CE, $CEVERSION)
 		    CFLAGS_DEBUG="-nologo -Zi -Od"
 		    CFLAGS_OPTIMIZE="-nologo -Ox"
-		    lflags="-MACHINE:${TARGETCPU} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,3.00"
-		    STLIB_LD="${WCEROOT}/EVC/${OSVERSION}/bin/lib.exe -nologo ${lflags}"
-		    LINKBIN="${WCEROOT}/EVC/${OSVERSION}/bin/link.exe ${lflags}"
+		    lversion=`echo ${CEVERSION} | sed -e 's/\(.\)\(..\)/\1\.\2/'`
+		    lflags="-MACHINE:${ARCH} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,${lversion}"
+		    STLIB_LD="${CEBINROOT}/lib.exe -nologo ${lflags}"
+		    LINKBIN="${CEBINROOT}/link.exe ${lflags}"
+		    AC_SUBST(CELIB_DIR)
 		else
 		    RC="rc"
 		    STLIB_LD="lib -nologo"

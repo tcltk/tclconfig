@@ -833,7 +833,10 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		SHLIB_LD="${LINKBIN} -dll -nologo"
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.lib'
 		EXTRA_CFLAGS="-YX"
-		LDFLAGS_DEBUG="-debug:full -debugtype:cv -warn:2"
+		# For information on what debugtype is most useful, see:
+		# http://msdn.microsoft.com/library/en-us/dnvc60/html/gendepdebug.asp
+		# This essentially turns it all on.
+		LDFLAGS_DEBUG="-debug:full -debugtype:both -warn:2"
 		LDFLAGS_OPTIMIZE="-release"
 		LDFLAGS_CONSOLE="-link -subsystem:console ${lflags}"
 		LDFLAGS_WINDOW="-link -subsystem:windows ${lflags}"

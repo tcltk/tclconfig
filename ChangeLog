@@ -1,3 +1,13 @@
+2005-03-24  Don Porter  <dgp@users.sf.net>
+
+	* README.txt:	Update reference to "SC_* macros" to "TEA_* macros".
+	* tcl.m4:	Incorporated recent improvements in SC_PATH_TCLCONFIG
+	and SC_PATH_TKCONFIG into TEA_PATH_TCLCONFIG and TEA_PATH_TKCONFIG.
+	Corrected search path in TEA_PATH_CONFIG and added
+	AC_SUBST($1_BIN_DIR) to TEA_LOAD_CONFIG so that packages that load
+	the configuration of another package can know where they loaded
+	it from.
+
 2005-03-18  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_CONFIG_CFLAGS): correct 2005-03-17 change to have

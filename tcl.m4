@@ -4,12 +4,12 @@
 #	a Tcl extension.
 #
 # Copyright (c) 1999-2000 Ajuba Solutions.
-# Copyright (c) 2002-2003 ActiveState Corporation.
+# Copyright (c) 2002-2005 ActiveState Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.63 2005/03/24 19:25:14 dgp Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.64 2005/03/24 21:48:04 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2533,7 +2533,8 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
     if test "${tcl_cv_type_64bit}" = none ; then
 	AC_DEFINE(TCL_WIDE_INT_IS_LONG)
 	AC_MSG_RESULT([using long])
-    elif test "${tcl_cv_type_64bit}" = "__int64" ; then
+    elif test "${tcl_cv_type_64bit}" = "__int64" \
+		-a "${TEA_PLATFORM}" = "windows" ; then
 	# We actually want to use the default tcl.h checks in this
 	# case to handle both TCL_WIDE_INT_TYPE and TCL_LL_MODIFIER*
 	AC_MSG_RESULT([using Tcl header defaults])

@@ -650,29 +650,19 @@ AC_DEFUN(SC_CONFIG_CFLAGS, [
     # Step 0: Enable 64 bit support?
 
     AC_MSG_CHECKING([if 64bit support is enabled])
-    AC_ARG_ENABLE(64bit,[  --enable-64bit          enable 64bit support],,enableval="no")
-
-    if test "$enableval" = "yes"; then
-	AC_MSG_RESULT([Will compile with 64bit support])
-	do64bit=yes
-    else
-	do64bit=no
-    fi
+    AC_ARG_ENABLE(64bit,[  --enable-64bit          enable 64bit support (where applicable)], [do64bit=$enableval], [do64bit=no])
     AC_MSG_RESULT([$do64bit])
  
     # Step 0.b: Enable Solaris 64 bit VIS support?
 
     AC_MSG_CHECKING([if 64bit Sparc VIS support is requested])
-    AC_ARG_ENABLE(64bit-vis,[  --enable-64bit-vis      enable 64bit Sparc VIS support],,enableval="no")
+    AC_ARG_ENABLE(64bit-vis,[  --enable-64bit-vis      enable 64bit Sparc VIS support], [do64bitVIS=$enableval], [do64bitVIS=no])
+    AC_MSG_RESULT([$do64bitVIS])
 
-    if test "$enableval" = "yes"; then
+    if test "$do64bitVIS" = "yes"; then
 	# Force 64bit on with VIS
 	do64bit=yes
-	do64bitVIS=yes
-    else
-	do64bitVIS=no
     fi
-    AC_MSG_RESULT([$do64bitVIS])
 
     # Step 1: set the variable "system" to hold the name and version number
     # for the system.  This can usually be done via the "uname" command, but
@@ -769,7 +759,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    fi
 
 	    SHLIB_LD="${LINKBIN} -dll -nologo -warn:2"
-	    SHLIB_LD_LIBS="user32.lib advapi32.lib"
+	    SHLIB_LD_LIBS='${LIBS}'
 
 	    EXTRA_CFLAGS="-YX"
 	    LDFLAGS_DEBUG="-debug:full -debugtype:cv"
@@ -2522,11 +2512,13 @@ AC_DEFUN(SC_PUBLIC_TCL_HEADERS, [
 		# Check in the includedir, if --prefix was specified
 
 		eval "temp_includedir=${includedir}"
-		for i in \
-			`ls -d ${TCL_PREFIX}/include 2>/dev/null` \
-			`ls -d ${temp_includedir} 2>/dev/null` \
-			`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
-			/usr/local/include /usr/include ; do
+		list="`ls -d ${TCL_PREFIX}/include 2>/dev/null`" \
+			"`ls -d ${temp_includedir} 2>/dev/null`" \
+			"`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
+		if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
+		    list=$list /usr/local/include /usr/include
+		fi
+		for i in $list ; do
 		    if test -f "$i/tcl.h" ; then
 			ac_cv_c_tclh=$i
 			break
@@ -2644,12 +2636,14 @@ AC_DEFUN(SC_PUBLIC_TK_HEADERS, [
 		# Check in the includedir, if --prefix was specified
 
 		eval "temp_includedir=${includedir}"
-		for i in \
-			`ls -d ${TCL_PREFIX}/include 2>/dev/null` \
-			`ls -d ${TK_PREFIX}/include 2>/dev/null` \
-			`ls -d ${temp_includedir} 2>/dev/null` \
-			`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
-			/usr/local/include /usr/include ; do
+		list="`ls -d ${TCL_PREFIX}/include 2>/dev/null`" \
+			"`ls -d ${TK_PREFIX}/include 2>/dev/null`" \
+			"`ls -d ${temp_includedir} 2>/dev/null`" \
+			"`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
+		if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
+		    list=$list /usr/local/include /usr/include
+		fi
+		for i in $list ; do
 		    if test -f "$i/tk.h" ; then
 			ac_cv_c_tkh=$i
 			break

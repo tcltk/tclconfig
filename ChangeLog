@@ -1,6 +1,11 @@
+2003-04-10  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: replace $(syscal) construct with older `syscall` for
+	systems where sh != bash.
+
 2003-04-09  Jeff Hobbs  <jeffh@ActiveState.com>
 
-	* tcl.m4: (TEA_WITH_CELIB): add --enable-wince and --with-celib
+	* tcl.m4 (TEA_WITH_CELIB): add --enable-wince and --with-celib
 	options for Windows/CE compilation support.  Requires the
 	Microsoft eMbedded SDK and Keuchel's celib emulation layer.
 

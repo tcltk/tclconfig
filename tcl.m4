@@ -859,16 +859,16 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		fi
 		# In order to work in the tortured autoconf environment,
 		# we need to ensure that this path has no spaces
-		WCEROOT=$(cygpath -w -s "$WCEROOT" | sed -e 's!\\!/!g')
-		SDKROOT=$(cygpath -w -s "$SDKROOT" | sed -e 's!\\!/!g')
-		CELIB_DIR=$(cygpath -w -s "$CELIB_DIR" | sed -e 's!\\!/!g')
+		WCEROOT=`cygpath -w -s "$WCEROOT" | sed -e 's!\\!/!g'`
+		SDKROOT=`cygpath -w -s "$SDKROOT" | sed -e 's!\\!/!g'`
+		CELIB_DIR=`cygpath -w -s "$CELIB_DIR" | sed -e 's!\\!/!g'`
 		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}" \
 		    -o ! -e "${WCEROOT}/EVC/${OSVERSION}/bin/cl${TARGETCPU}.exe"; then
 		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode])
 		    doWince="no"
 		else
-		    CEINCLUDE=$(cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\!/!g')
-		    CELIBPATH=$(cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\!/!g')
+		    CEINCLUDE=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/include" | sed -e 's!\\!/!g'`
+		    CELIBPATH=`cygpath -w -s "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" | sed -e 's!\\!/!g'`
     		fi
 	    fi
 

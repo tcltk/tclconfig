@@ -4,7 +4,7 @@
 #	a Tcl extension.
 #
 # Copyright (c) 1999-2000 Ajuba Solutions.
-# Copyright (c) 2002 ActiveState SRL.
+# Copyright (c) 2002 ActiveState Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -30,7 +30,8 @@
 
 AC_DEFUN(SC_PATH_TCLCONFIG, [
     if test x"${TEA_INIT}" = x ; then
-        SC_TEA_INIT
+	# Can't refer to exact macro name or it will be substituted
+	AC_MSG_ERROR([Must call TEA_INIT before PATH_TCLCONFIG])
     fi
     #
     # Ok, lets find the tcl configuration
@@ -614,9 +615,6 @@ AC_DEFUN(SC_ENABLE_LANGINFO, [
 #                       that tell the run-time dynamic linker where to look
 #                       for shared libraries such as libtcl.so.  Depends on
 #                       the variable LIB_RUNTIME_DIR in the Makefile.
-#       MAKE_LIB -      Command to execute to build the Tcl library;
-#                       differs depending on whether or not Tcl is being
-#                       compiled as a shared library.
 #       SHLIB_CFLAGS -  Flags to pass to cc when compiling the components
 #                       of a shared library (may request position-independent
 #                       code, among other things).
@@ -681,7 +679,8 @@ AC_DEFUN(SC_ENABLE_LANGINFO, [
 
 AC_DEFUN(SC_CONFIG_CFLAGS, [
     if test x"${TEA_INIT}" = x ; then
-        SC_TEA_INIT
+	# Can't refer to exact macro name or it will be substituted
+	AC_MSG_ERROR([Must call TEA_INIT before CONFIG_CFLAGS])
     fi
 
     # Step 0: Enable 64 bit support?
@@ -790,7 +789,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    else
 		export RC="rc"
 		export CFLAGS_DEBUG="-nologo -Z7 -Od -W3 -WX ${runtime}d"
-		export CFLAGS_OPTIMIZE="-nologo -Oti -Gs -GD -W2 ${runtime}"
+		export CFLAGS_OPTIMIZE="-nologo -O2 -Gs -GD -W2 ${runtime}"
 		export STLIB_LD="lib -nologo"
 		export LINKBIN="link -link50compat"
 	    fi
@@ -810,7 +809,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    PATHTYPE=-w
 	    # Bogus to avoid getting this turned off
 	    DL_OBJS="tclLoadNone.obj"
-	    ;;
+	    TCL_LIB_VERSIONS_OK=nodots
+    	    ;;
 	AIX-5.*)
 	    if test "${TCL_THREADS}" = "1" -a "$GCC" != "yes" ; then
 		# AIX requires the _r compiler when gcc isn't being used
@@ -2357,17 +2357,23 @@ The PACKAGE variable must be defined by your TEA configure.in])
 # Results:
 #
 #	Defines the following vars:
-#		MAKE_LIB	Makefile rule for building a library
-#		MAKE_SHARED_LIB	Makefile rule for building a shared library
+#       MAKE_LIB -      Command to execute to build the Tcl library;
+#                       differs depending on whether or not Tcl is being
+#                       compiled as a shared library.
+#	MAKE_SHARED_LIB	Makefile rule for building a shared library
+#	MAKE_STATIC_LIB	Makefile rule for building a static library
+#	MAKE_STUB_LIB	Makefile rule for building a stub library
 #------------------------------------------------------------------------
 
 AC_DEFUN(SC_MAKE_LIB, [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS} \$(LDFLAGS) -out:\[$]@ \$(\[$](PACKAGE)_OBJECTS)"
+	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(\[$](PACKAGE)stub_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(\[$](PACKAGE)_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(\[$](PACKAGE)_OBJECTS) \${SHLIB_LDFLAGS} \${SHLIB_LD_LIBS}"
+	MAKE_STUB_LIB="\${STLIB_LD} \[$]@ \$(\[$](PACKAGE)stub_OBJECTS)"
     fi
 
     if test "${SHARED_BUILD}" = "1" ; then
@@ -2395,6 +2401,8 @@ AC_DEFUN(SC_MAKE_LIB, [
 	else
 	    eval eval "${PACKAGE}_LIB_FILE=${PACKAGE}${UNSHARED_LIB_SUFFIX}"
 	fi
+	# Some packages build there own stubs libraries
+	eval eval "${PACKAGE}stub_LIB_FILE=${PACKAGE}stub${UNSHARED_LIB_SUFFIX}"
     else
 	if test "${SHARED_BUILD}" = "1" ; then
 	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} ${TCL_STUB_LIB_SPEC}"
@@ -2406,11 +2414,14 @@ AC_DEFUN(SC_MAKE_LIB, [
 	else
 	    eval eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${UNSHARED_LIB_SUFFIX}"
 	fi
+	# Some packages build there own stubs libraries
+	eval eval "${PACKAGE}stub_LIB_FILE=lib${PACKAGE}stub${UNSHARED_LIB_SUFFIX}"
     fi
 
     AC_SUBST(MAKE_LIB)
     AC_SUBST(MAKE_SHARED_LIB)
     AC_SUBST(MAKE_STATIC_LIB)
+    AC_SUBST(MAKE_STUB_LIB)
 ])
 
 #------------------------------------------------------------------------
@@ -2477,7 +2488,7 @@ AC_DEFUN(SC_LIB_SPEC, [
 
     case "`uname -s`" in
 	*win32* | *WIN32* | *CYGWIN_NT* |*CYGWIN_98*|*CYGWIN_95*)
-	    $1_LIB_SPEC=\"`${CYGPATH} ${$1_LIB_PATH_NAME}`\"
+	    $1_LIB_SPEC=\"`${CYGPATH} ${$1_LIB_PATH_NAME} 2>/dev/null`\"
 	    ;;
 	*)
 	    # Strip off the leading "lib" and trailing ".a" or ".so"
@@ -2755,10 +2766,8 @@ AC_DEFUN(SC_PUBLIC_TK_HEADERS, [
 #------------------------------------------------------------------------
 # SC_PROG_TCLSH
 #	Locate a tclsh shell in the following directories:
-#		${exec_prefix}/bin
-#		${prefix}/bin
-#		${TCL_BIN_DIR}
-#		${TCL_BIN_DIR}/../bin
+#		${exec_prefix}/bin	${prefix}/bin
+#		${TCL_BIN_DIR}		${TCL_BIN_DIR}/../bin
 #		${PATH}
 #
 # Arguments
@@ -2799,10 +2808,9 @@ AC_DEFUN(SC_PROG_TCLSH, [
 #------------------------------------------------------------------------
 # SC_PROG_WISH
 #	Locate a wish shell in the following directories:
-#		${exec_prefix}/bin
-#		${prefix}/bin
-#		${TCL_BIN_DIR}
-#		${TCL_BIN_DIR}/../bin
+#		${exec_prefix}/bin	${prefix}/bin
+#		${TK_BIN_DIR}		${TK_BIN_DIR}/../bin
+#		${TCL_BIN_DIR}		${TCL_BIN_DIR}/../bin
 #		${PATH}
 #
 # Arguments
@@ -2838,4 +2846,153 @@ AC_DEFUN(SC_PROG_WISH, [
 	AC_MSG_ERROR([No wish found in PATH:  $search_path])
     fi
     AC_SUBST(WISH_PROG)
+])
+
+#------------------------------------------------------------------------
+# SC_PATH_CONFIG --
+#
+#	Locate the ${1}Config.sh file and perform a sanity check on
+#	the ${1} compile flags.  These are used by packages like
+#	[incr Tk] that load *Config.sh files from more than Tcl and Tk.
+#
+# Arguments:
+#	none
+#
+# Results:
+#
+#	Adds the following arguments to configure:
+#		--with-$1=...
+#
+#	Defines the following vars:
+#		$1_BIN_DIR	Full path to the directory containing
+#				the $1Config.sh file
+#------------------------------------------------------------------------
+
+AC_DEFUN(SC_PATH_CONFIG, [
+    #
+    # Ok, lets find the $1 configuration
+    # First, look for one uninstalled.
+    # the alternative search directory is invoked by --with-$1
+    #
+
+    if test x"${no_$1}" = x ; then
+	# we reset no_$1 in case something fails here
+	no_$1=true
+	AC_ARG_WITH($1, [  --with-$1              directory containing $1 configuration ($1Config.sh)], with_$1config=${withval})
+	AC_MSG_CHECKING([for $1 configuration])
+	AC_CACHE_VAL(ac_cv_c_$1config,[
+
+	    # First check to see if --with-$1 was specified.
+	    if test x"${with_$1config}" != x ; then
+		if test -f "${with_$1config}/$1Config.sh" ; then
+		    ac_cv_c_$1config=`(cd ${with_$1config}; pwd)`
+		else
+		    AC_MSG_ERROR([${with_$1config} directory doesn't contain $1Config.sh])
+		fi
+	    fi
+
+	    # then check for a private $1 installation
+	    if test x"${ac_cv_c_$1config}" = x ; then
+		for i in \
+			../$1 \
+			`ls -dr ../$1[[8-9]].[[0-9]]* 2>/dev/null` \
+			../../$1 \
+			`ls -dr ../../$1[[8-9]].[[0-9]]* 2>/dev/null` \
+			../../../$1 \
+			`ls -dr ../../../$1[[8-9]].[[0-9]]* 2>/dev/null` \
+			${srcdir}/../$1 \
+			`ls -dr ${srcdir}/../$1[[8-9]].[[0-9]]* 2>/dev/null` \
+			; do
+		    if test -f "$i/$1Config.sh" ; then
+			ac_cv_c_$1config=`(cd $i; pwd)`
+			break
+		    fi
+		    if test -f "$i/unix/$1Config.sh" ; then
+			ac_cv_c_$1config=`(cd $i/unix; pwd)`
+			break
+		    fi
+		done
+	    fi
+
+	    # check in a few common install locations
+	    if test x"${ac_cv_c_$1config}" = x ; then
+		for i in `ls -d ${exec_prefix}/lib 2>/dev/null` \
+			`ls -d /usr/local/lib 2>/dev/null` \
+			`ls -d /usr/contrib/lib 2>/dev/null` \
+			`ls -d /usr/lib 2>/dev/null` \
+			; do
+		    if test -f "$i/$1Config.sh" ; then
+			ac_cv_c_$1config=`(cd $i; pwd)`
+			break
+		    fi
+		done
+	    fi
+	])
+
+	if test x"${ac_cv_c_$1config}" = x ; then
+	    $1_BIN_DIR="# no $1 configs found"
+	    AC_MSG_WARN("Cannot find $1 configuration definitions")
+	    exit 0
+	else
+	    no_$1=
+	    $1_BIN_DIR=${ac_cv_c_$1config}
+	    AC_MSG_RESULT([found $$1_BIN_DIR/$1Config.sh])
+	fi
+    fi
+])
+
+#------------------------------------------------------------------------
+# SC_LOAD_CONFIG --
+#
+#	Load the $1Config.sh file
+#
+# Arguments:
+#	
+#	Requires the following vars to be set:
+#		$1_BIN_DIR
+#
+# Results:
+#
+#	Subst the following vars:
+#		$1_SRC_DIR
+#		$1_LIB_FILE
+#		$1_LIB_SPEC
+#
+#------------------------------------------------------------------------
+
+AC_DEFUN(SC_LOAD_CONFIG, [
+    AC_MSG_CHECKING([for existence of ${$1_BIN_DIR}/$1Config.sh])
+
+    if test -f "${$1_BIN_DIR}/$1Config.sh" ; then
+        AC_MSG_RESULT([loading])
+	. ${$1_BIN_DIR}/$1Config.sh
+    else
+        AC_MSG_RESULT([file not found])
+    fi
+
+    #
+    # If the $1_BIN_DIR is the build directory (not the install directory),
+    # then set the common variable name to the value of the build variables.
+    # For example, the variable $1_LIB_SPEC will be set to the value
+    # of $1_BUILD_LIB_SPEC. An extension should make use of $1_LIB_SPEC
+    # instead of $1_BUILD_LIB_SPEC since it will work with both an
+    # installed and uninstalled version of Tcl.
+    #
+
+    if test -f ${$1_BIN_DIR}/Makefile ; then
+	AC_MSG_WARN([Found Makefile - using build library specs for $1])
+        $1_LIB_SPEC=${$1_BUILD_LIB_SPEC}
+        $1_STUB_LIB_SPEC=${$1_BUILD_STUB_LIB_SPEC}
+        $1_STUB_LIB_PATH=${$1_BUILD_STUB_LIB_PATH}
+    fi
+
+    AC_SUBST($1_VERSION)
+    AC_SUBST($1_SRC_DIR)
+
+    AC_SUBST($1_LIB_FILE)
+    AC_SUBST($1_LIB_SPEC)
+
+    AC_SUBST($1_STUB_LIB_FILE)
+    AC_SUBST($1_STUB_LIB_SPEC)
+    AC_SUBST($1_STUB_LIB_PATH)
 ])

@@ -1,3 +1,13 @@
+2005-04-25  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4: added AC_DEFINE* descriptions (from core tcl.m4) to allow
+	use with autoheader.
+	(Darwin): added configure checks for recently added linker flags
+	-single_module and -search_paths_first to allow building with older
+	tools (and on Mac OS X 10.1), use -single_module in SHLIB_LD.
+	(TEA_MISSING_POSIX_HEADERS): added caching of dirent.h check.
+	(TEA_BUGGY_STRTOD): added caching (sync with core tcl.m4).
+
 2005-03-24  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_TCL_64BIT_FLAGS): use Tcl header defaults for wide

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.65 2005/04/26 00:51:25 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.66 2005/06/04 10:43:17 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -2117,6 +2117,9 @@ AC_DEFUN(TEA_PATH_X, [
 	    *MAC_OSX_TK*)
 		AC_DEFINE(MAC_OSX_TK, 1 [Are we building against Mac OS X TkAqua?])
 		TEA_WINDOWINGSYSTEM="aqua"
+                if test -z "${ac_cv_c_tkh}" -o ! -r "${ac_cv_c_tkh}/X11/Xlib.h"; then
+                    TK_XINCLUDES='-I${TK_SRC_DIR}/xlib'
+                fi
 		;;
 	    *)
 		TEA_PATH_UNIX_X

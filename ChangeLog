@@ -1,3 +1,8 @@
+2005-06-18  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): add -headerpad_max_install_names to LDFLAGS to
+	ensure we can always relocate binaries with install_name_tool.
+
 2005-06-04  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (TEA_PATH_X): for TEA_WINDOWINGSYSTEM == aqua, check if xlib

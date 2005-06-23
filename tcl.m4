@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.68 2005/06/23 09:58:46 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.69 2005/06/23 20:43:02 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -2144,7 +2144,7 @@ AC_DEFUN(TEA_PATH_X, [
     if test "${TEA_PLATFORM}" = "unix" ; then
 	case ${TK_DEFS} in
 	    *MAC_OSX_TK*)
-		AC_DEFINE(MAC_OSX_TK, 1 [Are we building against Mac OS X TkAqua?])
+		AC_DEFINE(MAC_OSX_TK, 1, [Are we building against Mac OS X TkAqua?])
 		TEA_WINDOWINGSYSTEM="aqua"
                 if test -z "${ac_cv_c_tkh}" -o ! -r "${ac_cv_c_tkh}/X11/Xlib.h"; then
                     TK_XINCLUDES='-I${TK_SRC_DIR}/xlib'
@@ -3437,6 +3437,12 @@ AC_DEFUN(TEA_PRIVATE_TK_HEADERS, [
 	# without requiring the other vars to be defined in the Makefile
 	eval "TK_INCLUDES=\"-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}\""
 
+        # If building aginst TkAqua, add macosx source dir to TK_INCLUDES
+        case ${TK_DEFS} in
+	    *MAC_OSX_TK*)
+	        TK_INCLUDES="${TK_INCLUDES} -I\${TK_SRC_DIR}/macosx"
+	        ;;
+	esac
         # If Tk was built as a framework, attempt to use
         # the framework's Headers and PrivateHeaders directories
         case ${TK_DEFS} in

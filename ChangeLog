@@ -1,5 +1,10 @@
 2005-06-23  Daniel Steffen  <das@users.sourceforge.net>
 
+	* tcl.m4 (TEA_PRIVATE_TK_HEADERS): add ${TK_SRC_DIR}/macosx to
+	TK_INCLUDES when building against TkAqua.
+
+	* tcl.m4 (TEA_PATH_X): fixed missing comma in AC_DEFINE
+
 	* tcl.m4: changes to better support framework builds of Tcl and Tk out
 	of the box: search framework install locations for *Config.sh, and if in
 	presence of a framework build, use the framework's Headers and

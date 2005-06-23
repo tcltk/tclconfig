@@ -1,3 +1,10 @@
+2005-06-23  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4: changes to better support framework builds of Tcl and Tk out
+	of the box: search framework install locations for *Config.sh, and if in
+	presence of a framework build, use the framework's Headers and
+	PrivateHeaders directories for public and private includes. [FR 947735]
+
 2005-06-18  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): add -headerpad_max_install_names to LDFLAGS to

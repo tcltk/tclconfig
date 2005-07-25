@@ -1,3 +1,18 @@
+2005-07-24  Mo DeJong  <mdejong@users.sourceforge.net>
+
+	* tcl.m4 (TEA_PROG_TCLSH, TEA_BUILD_TCLSH,
+	TEA_PROG_WISH, TEA_BUILD_WISH):
+	Split confused search for tclsh on PATH and
+	build and install locations into two macros.
+	TEA_PROG_TCLSH and TEA_PROG_WISH search the
+	system PATH for an installed tclsh or wish.
+	The TEA_BUILD_TCLSH and TEA_BUILD_WISH
+	macros determine the name of tclsh or
+	wish in the Tcl or Tk build directory even
+	if tclsh or wish has not yet been built.
+	[Tcl bug 1160114]
+	[Tcl patch 1244153]
+
 2005-06-23  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (TEA_PRIVATE_TK_HEADERS): add ${TK_SRC_DIR}/macosx to

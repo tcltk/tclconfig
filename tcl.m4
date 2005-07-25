@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.69 2005/06/23 20:43:02 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.70 2005/07/25 02:38:43 mdejong Exp $
 
 AC_PREREQ(2.50)
 
@@ -3562,10 +3562,15 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
 
 #------------------------------------------------------------------------
 # TEA_PROG_TCLSH
-#	Locate a tclsh shell in the following directories:
-#		${TCL_BIN_DIR}		${TCL_BIN_DIR}/../bin
-#		${exec_prefix}/bin	${prefix}/bin
-#		${PATH}
+#	Locate a tclsh shell installed on the system path. This macro
+#	will only find a Tcl shell that already exists on the system.
+#	It will not find a Tcl shell in the Tcl build directory or
+#	a Tcl shell that has been installed from the Tcl build directory.
+#	If a Tcl shell can't be located on the PATH, then TCLSH_PROG will
+#	be set to "". Extensions should take care not to create Makefile
+#	rules that are run by default and depend on TCLSH_PROG. An
+#	extension can't assume that an executable Tcl shell exists at
+#	build time.
 #
 # Arguments
 #	none
@@ -3582,12 +3587,6 @@ AC_DEFUN(TEA_PROG_TCLSH, [
 
 	AC_CACHE_VAL(ac_cv_path_tclsh, [
 	search_path=`echo ${PATH} | sed -e 's/:/ /g'`
-	if test "${TEA_PLATFORM}" != "windows" -o \
-		\( "$do64bit_ok" = "no" -a "$doWince" = "no" \) ; then
-	    # Do not allow target tclsh in known cross-compile builds,
-	    # as we need one we can run on this system
-	    search_path="${TCL_BIN_DIR} ${TCL_BIN_DIR}/../bin ${exec_prefix}/bin ${prefix}/bin ${search_path}"
-	fi
 	for dir in $search_path ; do
 	    for j in `ls -r $dir/tclsh[[8-9]]*${EXEEXT} 2> /dev/null` \
 		    `ls -r $dir/tclsh*${EXEEXT} 2> /dev/null` ; do
@@ -3602,22 +3601,56 @@ AC_DEFUN(TEA_PROG_TCLSH, [
 	])
 
 	if test -f "$ac_cv_path_tclsh" ; then
-	    TCLSH_PROG=$ac_cv_path_tclsh
-	    AC_MSG_RESULT([$TCLSH_PROG])
+	    TCLSH_PROG="$ac_cv_path_tclsh"
+	    AC_MSG_RESULT($TCLSH_PROG)
 	else
-	    AC_MSG_ERROR([No tclsh found in PATH: $search_path])
+	    # It is not an error if an installed version of Tcl can't be located.
+	    TCLSH_PROG=""
+	    AC_MSG_RESULT([No tclsh found on PATH])
 	fi
     fi
     AC_SUBST(TCLSH_PROG)
 ])
 
 #------------------------------------------------------------------------
+# TEA_BUILD_TCLSH
+#	Determine the fully qualified path name of the tclsh executable
+#	in the Tcl build directory. This macro will correctly determine
+#	the name of the tclsh executable even if tclsh has not yet
+#	been built in the build directory. The build tclsh must be used
+#	when running tests from an extension build directory. It is not
+#	correct to use the TCLSH_PROG in cases like this.
+#
+# Arguments
+#	none
+#
+# Results
+#	Subst's the following values:
+#		BUILD_TCLSH
+#------------------------------------------------------------------------
+
+AC_DEFUN(TEA_BUILD_TCLSH, [
+    AC_MSG_CHECKING([for tclsh in Tcl build directory])
+    if test "$TEA_PLATFORM" = "windows"; then
+        BUILD_TCLSH=${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}
+    else
+        BUILD_TCLSH=${TCL_BIN_DIR}/tclsh
+    fi
+    AC_MSG_RESULT($BUILD_TCLSH)
+    AC_SUBST(BUILD_TCLSH)
+])
+
+#------------------------------------------------------------------------
 # TEA_PROG_WISH
-#	Locate a wish shell in the following directories:
-#		${TK_BIN_DIR}		${TK_BIN_DIR}/../bin
-#		${TCL_BIN_DIR}		${TCL_BIN_DIR}/../bin
-#		${exec_prefix}/bin	${prefix}/bin
-#		${PATH}
+#	Locate a wish shell installed on the system path. This macro
+#	will only find a Wish shell that already exists on the system.
+#	It will not find a Wish shell in the Tk build directory or
+#	a Tk shell that has been installed from the Tk build directory.
+#	If a Tk shell can't be located on the PATH, then WISH_PROG will
+#	be set to "". Extensions should take care not to create Makefile
+#	rules that are run by default and depend on WISH_PROG. An
+#	extension can't assume that an executable Tk shell exists at
+#	build time.
 #
 # Arguments
 #	none
@@ -3634,12 +3667,6 @@ AC_DEFUN(TEA_PROG_WISH, [
 
 	AC_CACHE_VAL(ac_cv_path_wish, [
 	search_path=`echo ${PATH} | sed -e 's/:/ /g'`
-	if test "${TEA_PLATFORM}" != "windows" -o \
-		\( "$do64bit_ok" = "no" -a "$doWince" = "no" \) ; then
-	    # Do not allow target wish in known cross-compile builds,
-	    # as we need one we can run on this system
-	    search_path="${TK_BIN_DIR} ${TK_BIN_DIR}/../bin ${TCL_BIN_DIR} ${TCL_BIN_DIR}/../bin ${exec_prefix}/bin ${prefix}/bin ${search_path}"
-	fi
 	for dir in $search_path ; do
 	    for j in `ls -r $dir/wish[[8-9]]*${EXEEXT} 2> /dev/null` \
 		    `ls -r $dir/wish*${EXEEXT} 2> /dev/null` ; do
@@ -3654,13 +3681,43 @@ AC_DEFUN(TEA_PROG_WISH, [
 	])
 
 	if test -f "$ac_cv_path_wish" ; then
-	WISH_PROG=$ac_cv_path_wish
-	    AC_MSG_RESULT([$WISH_PROG])
+	    WISH_PROG="$ac_cv_path_wish"
+	    AC_MSG_RESULT($WISH_PROG)
 	else
-	    AC_MSG_ERROR([No wish found in PATH: $search_path])
+	    # It is not an error if an installed version of Tk can't be located.
+	    WISH_PROG=""
+	    AC_MSG_RESULT([No wish found on PATH])
 	fi
     fi
     AC_SUBST(WISH_PROG)
+])
+
+#------------------------------------------------------------------------
+# TEA_BUILD_WISH
+#	Determine the fully qualified path name of the wish executable
+#	in the Tk build directory. This macro will correctly determine
+#	the name of the wish executable even if wish has not yet
+#	been built in the build directory. The build wish must be used
+#	when running tests from an extension build directory. It is not
+#	correct to use the WISH_PROG in cases like this.
+#
+# Arguments
+#	none
+#
+# Results
+#	Subst's the following values:
+#		BUILD_WISH
+#------------------------------------------------------------------------
+
+AC_DEFUN(TEA_BUILD_WISH, [
+    AC_MSG_CHECKING([for wish in Tk build directory])
+    if test "$TEA_PLATFORM" = "windows"; then
+        BUILD_WISH=${TK_BIN_DIR}/wish${TK_MAJOR_VERSION}${TK_MINOR_VERSION}${TCL_DBGX}${EXEEXT}
+    else
+        BUILD_WISH=${TK_BIN_DIR}/wish
+    fi
+    AC_MSG_RESULT($BUILD_WISH)
+    AC_SUBST(BUILD_WISH)
 ])
 
 #------------------------------------------------------------------------

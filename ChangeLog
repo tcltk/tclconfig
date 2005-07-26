@@ -1,3 +1,15 @@
+2005-07-26  Mo DeJong  <mdejong@users.sourceforge.net>
+
+	* tcl.m4 (TEA_PROG_TCLSH, TEA_BUILD_TCLSH,
+	TEA_PROG_WISH, TEA_BUILD_WISH): Remove
+	TEA_BUILD_TCLSH and TEA_BUILD_WISH because
+	of complaints that it broke the build when
+	only an installed version of Tcl was available
+	at extension build time. The TEA_PROG_TCLSH and
+	TEA_PROG_WISH macros will no longer search the
+	path at all. The build tclsh or installed
+	tclsh shell will now be found by TEA_PROG_TCLSH.
+
 2005-07-24  Mo DeJong  <mdejong@users.sourceforge.net>
 
 	* tcl.m4 (TEA_PROG_TCLSH, TEA_BUILD_TCLSH,

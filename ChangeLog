@@ -1,3 +1,13 @@
+2005-09-13  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: *** Update to TEA version 3.3 ***
+	define TEA_WINDOWINGSYSTEM in TEA_LOAD_TKCONFIG.
+	Make --enable-threads the default (users can --disable-threads).
+	Improve AIX ${CC}_r fix to better check existing ${CC} value.
+	Do the appropriate evals to not require the *TOP_DIR_NATIVE vars
+	be set for extensions that use private headers.
+	Make aqua check for Xlib compat headers the same as win32.
+
 2005-07-26  Mo DeJong  <mdejong@users.sourceforge.net>
 
 	* tcl.m4 (TEA_PROG_TCLSH, TEA_BUILD_TCLSH,

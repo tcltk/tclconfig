@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.71 2005/07/26 19:09:23 mdejong Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.72 2005/09/13 22:05:43 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -385,6 +385,21 @@ AC_DEFUN(TEA_LOAD_TKCONFIG, [
         TK_STUB_LIB_PATH=${TK_BUILD_STUB_LIB_PATH}
     fi
 
+    # Ensure windowingsystem is defined
+    if test "${TEA_PLATFORM}" = "unix" ; then
+	case ${TK_DEFS} in
+	    *MAC_OSX_TK*)
+		AC_DEFINE(MAC_OSX_TK, 1, [Are we building against Mac OS X TkAqua?])
+		TEA_WINDOWINGSYSTEM="aqua"
+		;;
+	    *)
+		TEA_WINDOWINGSYSTEM="x11"
+		;;
+	esac
+    elif test "${TEA_PLATFORM}" = "windows" ; then
+	TEA_WINDOWINGSYSTEM="win32"
+    fi
+
     #
     # eval is required to do the TK_DBGX substitution
     #
@@ -461,11 +476,17 @@ AC_DEFUN(TEA_ENABLE_SHARED, [
 #------------------------------------------------------------------------
 # TEA_ENABLE_THREADS --
 #
-#	Specify if thread support should be enabled.  If "yes" is
-#	specified as an arg (optional), threads are enabled by default.
+#	Specify if thread support should be enabled.  If "yes" is specified
+#	as an arg (optional), threads are enabled by default, "no" means
+#	threads are disabled.  "yes" is the default.
+#
 #	TCL_THREADS is checked so that if you are compiling an extension
 #	against a threaded core, your extension must be compiled threaded
 #	as well.
+#
+#	Note that it is legal to have a thread enabled extension run in a
+#	threaded or non-threaded Tcl core, but a non-threaded extension may
+#	only run in a non-threaded Tcl core.
 #
 # Arguments:
 #	none
@@ -486,7 +507,14 @@ AC_DEFUN(TEA_ENABLE_SHARED, [
 
 AC_DEFUN(TEA_ENABLE_THREADS, [
     AC_ARG_ENABLE(threads, [  --enable-threads        build with threads],
-	[tcl_ok=$enableval], [tcl_ok=$1])
+	[tcl_ok=$enableval], [tcl_ok=yes])
+
+    if test "${enable_threads+set}" = set; then
+	enableval="$enable_threads"
+	tcl_ok=$enableval
+    else
+	tcl_ok=yes
+    fi
 
     if test "$tcl_ok" = "yes" -o "${TCL_THREADS}" = 1; then
 	TCL_THREADS=1
@@ -542,7 +570,6 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 	    LIBS="$LIBS $THREADS_LIBS"
 	    AC_CHECK_FUNCS(pthread_attr_setstacksize)
 	    LIBS=$ac_saved_libs
-	    AC_CHECK_FUNCS(readdir_r)
 	fi
     else
 	TCL_THREADS=0
@@ -552,9 +579,9 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
     if test "${TCL_THREADS}" = "1"; then
 	AC_DEFINE(TCL_THREADS, 1, [Are we building with threads enabled?])
 	#LIBS="$LIBS $THREADS_LIBS"
-	AC_MSG_RESULT([yes])
+	AC_MSG_RESULT([yes (default)])
     else
-	AC_MSG_RESULT([no (default)])
+	AC_MSG_RESULT([no])
     fi
     # TCL_THREADS sanity checking.  See if our request for building with
     # threads is the same as the way Tcl was built.  If not, warn the user.
@@ -562,15 +589,16 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 	*THREADS=1*)
 	    if test "${TCL_THREADS}" = "0"; then
 		AC_MSG_WARN([
-    Building ${PACKAGE_NAME} without threads enabled, but building against a Tcl
-    that IS thread-enabled.])
+    Building ${PACKAGE_NAME} without threads enabled, but building against Tcl
+    that IS thread-enabled.  It is recommended to use --enable-threads.])
 	    fi
 	    ;;
 	*)
 	    if test "${TCL_THREADS}" = "1"; then
 		AC_MSG_WARN([
-    --enable-threads requested, but attempting building against a Tcl
-    that is NOT thread-enabled.])
+    --enable-threads requested, but building against a Tcl that is NOT
+    thread-enabled.  This is an OK configuration that will also run in
+    a thread-enabled core.])
 	    fi
 	    ;;
     esac
@@ -1041,9 +1069,14 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	AIX-*)
 	    if test "${TCL_THREADS}" = "1" -a "$GCC" != "yes" ; then
 		# AIX requires the _r compiler when gcc isn't being used
-		if test "${CC}" != "cc_r" ; then
-		    CC=${CC}_r
-		fi
+		case "${CC}" in
+		    *_r)
+			# ok ...
+			;;
+		    *)
+			CC=${CC}_r
+			;;
+		esac
 		AC_MSG_RESULT([Using $CC for compiling with threads])
 	    fi
 	    LIBS="$LIBS -lc"
@@ -2141,22 +2174,8 @@ closedir(d);
 #--------------------------------------------------------------------
 
 AC_DEFUN(TEA_PATH_X, [
-    if test "${TEA_PLATFORM}" = "unix" ; then
-	case ${TK_DEFS} in
-	    *MAC_OSX_TK*)
-		AC_DEFINE(MAC_OSX_TK, 1, [Are we building against Mac OS X TkAqua?])
-		TEA_WINDOWINGSYSTEM="aqua"
-                if test -z "${ac_cv_c_tkh}" -o ! -r "${ac_cv_c_tkh}/X11/Xlib.h"; then
-                    TK_XINCLUDES='-I${TK_SRC_DIR}/xlib'
-                fi
-		;;
-	    *)
-		TEA_PATH_UNIX_X
-		TEA_WINDOWINGSYSTEM="x11"
-		;;
-	esac
-    elif test "${TEA_PLATFORM}" = "windows" ; then
-	TEA_WINDOWINGSYSTEM="windows"
+    if test "${TEA_WINDOWINGSYSTEM}" = "x11" ; then
+	TEA_PATH_UNIX_X
     fi
 ])
 
@@ -2671,7 +2690,7 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 AC_DEFUN(TEA_INIT, [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.2"
+    TEA_VERSION="3.3"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -3261,31 +3280,24 @@ AC_DEFUN(TEA_LIB_SPEC, [
 AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
     AC_MSG_CHECKING([for Tcl private include files])
 
+    TCL_SRC_DIR_NATIVE=`${CYGPATH} ${TCL_SRC_DIR}`
+    TCL_TOP_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}\"
+    TCL_GENERIC_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/generic\"
+    TCL_UNIX_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/unix\"
+    TCL_WIN_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/win\"
+    TCL_BMAP_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/bitmaps\"
+    TCL_TOOL_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/tools\"
+    TCL_COMPAT_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/compat\"
+
     if test "${TEA_PLATFORM}" = "windows"; then
-	TCL_TOP_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}`\"
-	TCL_GENERIC_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/generic`\"
-	TCL_UNIX_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/unix`\"
-	TCL_WIN_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/win`\"
-	TCL_BMAP_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/bitmaps`\"
-	TCL_TOOL_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/tools`\"
-	TCL_COMPAT_DIR_NATIVE=\"`${CYGPATH} ${TCL_SRC_DIR}/compat`\"
 	TCL_PLATFORM_DIR_NATIVE=${TCL_WIN_DIR_NATIVE}
-
-	TCL_INCLUDES="-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}"
     else
-	TCL_TOP_DIR_NATIVE='$(TCL_SRC_DIR)'
-	TCL_GENERIC_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/generic'
-	TCL_UNIX_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/unix'
-	TCL_WIN_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/win'
-	TCL_BMAP_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/bitmaps'
-	TCL_TOOL_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/tools'
-	TCL_COMPAT_DIR_NATIVE='${TCL_TOP_DIR_NATIVE}/compat'
 	TCL_PLATFORM_DIR_NATIVE=${TCL_UNIX_DIR_NATIVE}
-
-	# substitute these in "relaxed" so that TCL_INCLUDES still works
-	# without requiring the other vars to be defined in the Makefile
-	eval "TCL_INCLUDES=\"-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}\""
-
+    fi
+    # We want to ensure these are substituted so as not to require
+    # any *_NATIVE vars be defined in the Makefile
+    TCL_INCLUDES="-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}"
+    if test "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
         # If Tcl was built as a framework, attempt to use
         # the framework's Headers and PrivateHeaders directories
         case ${TCL_DEFS} in
@@ -3417,32 +3429,27 @@ AC_DEFUN(TEA_PUBLIC_TCL_HEADERS, [
 AC_DEFUN(TEA_PRIVATE_TK_HEADERS, [
     AC_MSG_CHECKING([for Tk private include files])
 
+    TK_SRC_DIR_NATIVE=`${CYGPATH} ${TK_SRC_DIR}`
+    TK_TOP_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}\"
+    TK_UNIX_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}/unix\"
+    TK_WIN_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}/win\"
+    TK_GENERIC_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}/generic\"
+    TK_XLIB_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}/xlib\"
     if test "${TEA_PLATFORM}" = "windows"; then
-	TK_TOP_DIR_NATIVE=\"`${CYGPATH} ${TK_SRC_DIR}`\"
-	TK_UNIX_DIR_NATIVE=\"`${CYGPATH} ${TK_SRC_DIR}/unix`\"
-	TK_WIN_DIR_NATIVE=\"`${CYGPATH} ${TK_SRC_DIR}/win`\"
-	TK_GENERIC_DIR_NATIVE=\"`${CYGPATH} ${TK_SRC_DIR}/generic`\"
-	TK_XLIB_DIR_NATIVE=\"`${CYGPATH} ${TK_SRC_DIR}/xlib`\"
 	TK_PLATFORM_DIR_NATIVE=${TK_WIN_DIR_NATIVE}
-
-	TK_INCLUDES="-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE} -I${TK_XLIB_DIR_NATIVE}"
     else
-	TK_TOP_DIR_NATIVE='${TK_SRC_DIR}'
-	TK_GENERIC_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/generic'
-	TK_UNIX_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/unix'
-	TK_WIN_DIR_NATIVE='${TK_TOP_DIR_NATIVE}/win'
 	TK_PLATFORM_DIR_NATIVE=${TK_UNIX_DIR_NATIVE}
+    fi
+    # We want to ensure these are substituted so as not to require
+    # any *_NATIVE vars be defined in the Makefile
+    TK_INCLUDES="-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}"
+    if test "${TEA_WINDOWINGSYSTEM}" = "win32" \
+	-o "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
+	TK_INCLUDES="${TK_INCLUDES} -I${TK_XLIB_DIR_NATIVE}"
+    fi
+    if test "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
+	TK_INCLUDES="${TK_INCLUDES} -I${TK_SRC_DIR_NATIVE}/macosx"
 
-	# substitute these in "relaxed" so that TK_INCLUDES still works
-	# without requiring the other vars to be defined in the Makefile
-	eval "TK_INCLUDES=\"-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}\""
-
-        # If building aginst TkAqua, add macosx source dir to TK_INCLUDES
-        case ${TK_DEFS} in
-	    *MAC_OSX_TK*)
-	        TK_INCLUDES="${TK_INCLUDES} -I\${TK_SRC_DIR}/macosx"
-	        ;;
-	esac
         # If Tk was built as a framework, attempt to use
         # the framework's Headers and PrivateHeaders directories
         case ${TK_DEFS} in
@@ -3548,8 +3555,9 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
 
     AC_SUBST(TK_INCLUDES)
 
-    if test "${TEA_PLATFORM}" = "windows" ; then
-	# On Windows, we need the X compat headers
+    if test "${TEA_WINDOWINGSYSTEM}" = "win32" \
+	-o "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
+	# On Windows and Aqua, we need the X compat headers
 	AC_MSG_CHECKING([for X11 header files])
 	if test ! -r "${INCLUDE_DIR_NATIVE}/X11/Xlib.h"; then
 	    INCLUDE_DIR_NATIVE="`${CYGPATH} ${TK_SRC_DIR}/xlib`"

@@ -9,9 +9,15 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.72 2005/09/13 22:05:43 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.73 2005/10/04 21:57:19 hobbs Exp $
 
 AC_PREREQ(2.50)
+
+# Possible values for key variables defined:
+#
+# TEA_WINDOWINGSYSTEM - win32 aqua x11 (mirrors 'tk windowingsystem')
+# TEA_PLATFORM        - windows unix
+#
 
 #------------------------------------------------------------------------
 # TEA_PATH_TCLCONFIG --
@@ -563,13 +569,14 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 		fi
 	    fi
 
-	    # Does the pthread-implementation provide
-	    # 'pthread_attr_setstacksize' ?
-
-	    ac_saved_libs=$LIBS
-	    LIBS="$LIBS $THREADS_LIBS"
-	    AC_CHECK_FUNCS(pthread_attr_setstacksize)
-	    LIBS=$ac_saved_libs
+dnl	    # Not needed in TEA
+dnl	    # Does the pthread-implementation provide
+dnl	    # 'pthread_attr_setstacksize' ?
+dnl
+dnl	    ac_saved_libs=$LIBS
+dnl	    LIBS="$LIBS $THREADS_LIBS"
+dnl	    AC_CHECK_FUNCS(pthread_attr_setstacksize)
+dnl	    LIBS=$ac_saved_libs
 	fi
     else
 	TCL_THREADS=0
@@ -3304,7 +3311,7 @@ AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
 	    *TCL_FRAMEWORK*)
 	        if test -d "${TCL_BIN_DIR}/Headers" -a -d "${TCL_BIN_DIR}/PrivateHeaders"; then
 	        TCL_INCLUDES="-I\"${TCL_BIN_DIR}/Headers\" -I\"${TCL_BIN_DIR}/PrivateHeaders\" ${TCL_INCLUDES}"; else
-	        TCL_INCLUDES="${TCL_INCLUDES} ${TCL_INCLUDE_SPEC} `echo "${TCL_INCLUDE_SPEC}" | sed -e 's/Headers/PrivateHeaders'`"; fi
+	        TCL_INCLUDES="${TCL_INCLUDES} ${TCL_INCLUDE_SPEC} `echo "${TCL_INCLUDE_SPEC}" | sed -e 's/Headers/PrivateHeaders/'`"; fi
 	        ;;
 	esac
     fi

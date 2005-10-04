@@ -1,3 +1,8 @@
+2005-10-04  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_PRIVATE_TCL_HEADERS): add / to finish sed macro
+	(TEA_ENABLE_THREADS): don't check for pthread_attr_setstacksize func
+
 2005-09-13  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: *** Update to TEA version 3.3 ***

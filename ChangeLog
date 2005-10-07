@@ -1,3 +1,7 @@
+2005-10-07  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: Fix Solaris 5.10 check and Solaris AMD64 64-bit builds.
+
 2005-10-04  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_PRIVATE_TCL_HEADERS): add / to finish sed macro

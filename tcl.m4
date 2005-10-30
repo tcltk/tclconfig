@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.74 2005/10/07 23:32:26 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.75 2005/10/30 18:51:31 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -3315,7 +3315,7 @@ AC_DEFUN(TEA_PRIVATE_TCL_HEADERS, [
     # We want to ensure these are substituted so as not to require
     # any *_NATIVE vars be defined in the Makefile
     TCL_INCLUDES="-I${TCL_GENERIC_DIR_NATIVE} -I${TCL_PLATFORM_DIR_NATIVE}"
-    if test "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
+    if test "`uname -s`" = "Darwin"; then
         # If Tcl was built as a framework, attempt to use
         # the framework's Headers and PrivateHeaders directories
         case ${TCL_DEFS} in
@@ -3467,7 +3467,8 @@ AC_DEFUN(TEA_PRIVATE_TK_HEADERS, [
     fi
     if test "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
 	TK_INCLUDES="${TK_INCLUDES} -I${TK_SRC_DIR_NATIVE}/macosx"
-
+    fi
+    if test "`uname -s`" = "Darwin"; then
         # If Tk was built as a framework, attempt to use
         # the framework's Headers and PrivateHeaders directories
         case ${TK_DEFS} in
@@ -3607,23 +3608,31 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
 
 AC_DEFUN(TEA_PROG_TCLSH, [
     AC_MSG_CHECKING([for tclsh])
-    if test -f "$TCL_BIN_DIR/Makefile" ; then
+    if test -f "${TCL_BIN_DIR}/Makefile" ; then
         # tclConfig.sh is in Tcl build directory
-        if test "$TEA_PLATFORM" = "windows"; then
-            TCLSH_PROG=${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}
+        if test "${TEA_PLATFORM}" = "windows"; then
+            TCLSH_PROG="${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}"
         else
-            TCLSH_PROG=${TCL_BIN_DIR}/tclsh
+            TCLSH_PROG="${TCL_BIN_DIR}/tclsh"
         fi
     else
-        # tclConfig.sh is in $INSTALL/lib directory
-        REAL_TCL_BIN_DIR=`cd ${TCL_BIN_DIR}/../bin/;pwd`
-        if test "$TEA_PLATFORM" = "windows"; then
-            TCLSH_PROG=${REAL_TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}
+        # tclConfig.sh is in install location
+        if test "${TEA_PLATFORM}" = "windows"; then
+            TCLSH_PROG="tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}"
         else
-            TCLSH_PROG=${REAL_TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}.${TCL_MINOR_VERSION}${TCL_DBGX}
+            TCLSH_PROG="tclsh${TCL_MAJOR_VERSION}.${TCL_MINOR_VERSION}${TCL_DBGX}"
         fi
+        list="`ls -d ${TCL_PREFIX}/bin     2>/dev/null` \
+              `ls -d ${TCL_BIN_DIR}/../bin 2>/dev/null`"
+        for i in $list ; do
+            if test -f "$i/${TCLSH_PROG}" ; then
+                REAL_TCL_BIN_DIR="`cd "$i"; pwd`"
+                break
+            fi
+        done
+        TCLSH_PROG="${REAL_TCL_BIN_DIR}/${TCLSH_PROG}"
     fi
-    AC_MSG_RESULT($TCLSH_PROG)
+    AC_MSG_RESULT(${TCLSH_PROG})
     AC_SUBST(TCLSH_PROG)
 ])
 
@@ -3648,23 +3657,31 @@ AC_DEFUN(TEA_PROG_TCLSH, [
 
 AC_DEFUN(TEA_PROG_WISH, [
     AC_MSG_CHECKING([for wish])
-    if test -f "$TK_BIN_DIR/Makefile" ; then
+    if test -f "${TK_BIN_DIR}/Makefile" ; then
         # tkConfig.sh is in Tk build directory
-        if test "$TEA_PLATFORM" = "windows"; then
-            WISH_PROG=${TK_BIN_DIR}/wish${TK_MAJOR_VERSION}${TK_MINOR_VERSION}${TK_DBGX}${EXEEXT}
+        if test "${TEA_PLATFORM}" = "windows"; then
+            WISH_PROG="${TK_BIN_DIR}/wish${TK_MAJOR_VERSION}${TK_MINOR_VERSION}${TK_DBGX}${EXEEXT}"
         else
-            WISH_PROG=${TK_BIN_DIR}/wish
+            WISH_PROG="${TK_BIN_DIR}/wish"
         fi
     else
-        # tkConfig.sh is in $INSTALL/lib directory
-        REAL_TK_BIN_DIR=`cd ${TK_BIN_DIR}/../bin/;pwd`
-        if test "$TEA_PLATFORM" = "windows"; then
-            WISH_PROG=${REAL_TK_BIN_DIR}/wish${TK_MAJOR_VERSION}${TK_MINOR_VERSION}${TK_DBGX}${EXEEXT}
+        # tkConfig.sh is in install location
+        if test "${TEA_PLATFORM}" = "windows"; then
+            WISH_PROG="wish${TK_MAJOR_VERSION}${TK_MINOR_VERSION}${TK_DBGX}${EXEEXT}"
         else
-            WISH_PROG=${REAL_TK_BIN_DIR}/wish${TK_MAJOR_VERSION}.${TK_MINOR_VERSION}${TK_DBGX}
+            WISH_PROG="wish${TK_MAJOR_VERSION}.${TK_MINOR_VERSION}${TK_DBGX}"
         fi
+        list="`ls -d ${TK_PREFIX}/bin     2>/dev/null` \
+              `ls -d ${TK_BIN_DIR}/../bin 2>/dev/null`"
+        for i in $list ; do
+            if test -f "$i/${WISH_PROG}" ; then
+                REAL_TK_BIN_DIR="`cd "$i"; pwd`"
+                break
+            fi
+        done
+        WISH_PROG="${REAL_TK_BIN_DIR}/${WISH_PROG}"
     fi
-    AC_MSG_RESULT($WISH_PROG)
+    AC_MSG_RESULT(${WISH_PROG})
     AC_SUBST(WISH_PROG)
 ])
 

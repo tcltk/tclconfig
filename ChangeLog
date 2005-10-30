@@ -1,3 +1,17 @@
+2005-10-30  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4: fixed two tests for TEA_WINDOWINGSYSTEM = "aqua" that should
+	have been for `uname -s` = "Darwin" instead; added some missing quoting.
+	(TEA_PROG_TCLSH, TEA_PROG_WISH): fix incorrect assumption that install
+	location of tclConfig.sh/tkConfig.sh allows to determine the tclsh/wish
+	install dir via ../bin. Indeed tcl/tk can be configured with arbitrary
+	--libdir and --bindir (independent of prefix) and such a configuration
+	is in fact standard with Darwin framework builds. At least now also
+	check ${TCL_PREFIX}/bin resp. ${TK_PREFIX}/bin for presence of tclsh
+	resp. wish (if tcl/tk have been configured with arbitrary --bindir, this
+	will still not find them, for a general solution *Config.sh would need
+	to contain the values of bindir/libdir/includedir passed to configure).
+
 2005-10-07  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: Fix Solaris 5.10 check and Solaris AMD64 64-bit builds.

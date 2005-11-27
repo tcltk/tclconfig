@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.75 2005/10/30 18:51:31 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.76 2005/11/27 02:42:31 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -709,22 +709,20 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 
     HAVE_LANGINFO=0
     if test "$langinfo_ok" = "yes"; then
-	if test "$langinfo_ok" = "yes"; then
-	    AC_CHECK_HEADER(langinfo.h,[langinfo_ok=yes],[langinfo_ok=no])
-	fi
+	AC_CHECK_HEADER(langinfo.h,[langinfo_ok=yes],[langinfo_ok=no])
     fi
     AC_MSG_CHECKING([whether to use nl_langinfo])
     if test "$langinfo_ok" = "yes"; then
-	AC_TRY_COMPILE([#include <langinfo.h>],
-		[nl_langinfo(CODESET);],[langinfo_ok=yes],[langinfo_ok=no])
-	if test "$langinfo_ok" = "no"; then
-	    langinfo_ok="no (could not compile with nl_langinfo)";
-	fi
-	if test "$langinfo_ok" = "yes"; then
+	AC_CACHE_VAL(tcl_cv_langinfo_h,
+	    AC_TRY_COMPILE([#include <langinfo.h>], [nl_langinfo(CODESET);],
+		    [tcl_cv_langinfo_h=yes],[tcl_cv_langinfo_h=no]))
+	AC_MSG_RESULT($tcl_cv_langinfo_h)
+	if test $tcl_cv_langinfo_h = yes; then
 	    AC_DEFINE(HAVE_LANGINFO, 1, [Do we have nl_langinfo()?])
 	fi
+    else 
+	AC_MSG_RESULT([$langinfo_ok])
     fi
-    AC_MSG_RESULT([$langinfo_ok])
 ])
 
 #--------------------------------------------------------------------
@@ -1490,7 +1488,11 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	Darwin-*)
 	    CFLAGS_OPTIMIZE="-Os"
 	    SHLIB_CFLAGS="-fno-common"
-	    SHLIB_LD="cc -dynamiclib \${LDFLAGS}"
+	    if test $do64bit = yes; then
+	        do64bit_ok=yes
+	        CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5"
+	    fi
+	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS}'
 	    AC_CACHE_CHECK([if ld accepts -single_module flag], tcl_cv_ld_single_module, [
 	        hold_ldflags=$LDFLAGS
 	        LDFLAGS="$LDFLAGS -dynamiclib -Wl,-single_module"
@@ -1503,7 +1505,12 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    SHLIB_SUFFIX=".dylib"
 	    DL_OBJS="tclLoadDyld.o"
 	    DL_LIBS=""
-	    LDFLAGS="$LDFLAGS -prebind -headerpad_max_install_names"
+	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
+	    if test -z "${MACOSX_DEPLOYMENT_TARGET}" -o \
+		    `echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F. '{print [$]2}'` -lt 4; then
+		LDFLAGS="$LDFLAGS -prebind"
+	    fi
+	    LDFLAGS="$LDFLAGS -headerpad_max_install_names"
 	    AC_CACHE_CHECK([if ld accepts -search_paths_first flag], tcl_cv_ld_search_paths_first, [
 	        hold_ldflags=$LDFLAGS
 	        LDFLAGS="$LDFLAGS -Wl,-search_paths_first"
@@ -2382,7 +2389,7 @@ AC_DEFUN(TEA_TIME_HANDLER, [
     # (like convex) have timezone functions, etc.
     #
     AC_MSG_CHECKING([long timezone variable])
-    AC_CACHE_VAL(tcl_cv_var_timezone,
+    AC_CACHE_VAL(tcl_cv_timezone_long,
 	AC_TRY_COMPILE([#include <time.h>],
 	    [extern long timezone;
 	    timezone += 1;

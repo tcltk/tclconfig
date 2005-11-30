@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.76 2005/11/27 02:42:31 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.77 2005/11/30 00:11:15 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -906,22 +906,38 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	windows)
 	    # This is a 2-stage check to make sure we have the 64-bit SDK
 	    # We have to know where the SDK is installed.
-	    if test "$do64bit" = "yes" ; then
+	    # This magic is based on MS Platform SDK for Win2003 SP1 - hobbs
+	    # MACHINE is IX86 for LINK, but this is used by the manifest,
+	    # which requires x86|amd64|ia64.
+	    MACHINE="X86"
+	    if test "$do64bit" != "no" ; then
 		if test "x${MSSDK}x" = "xx" ; then
-		    MSSDK="C:/Progra~1/Microsoft SDK"
+		    MSSDK="C:/Progra~1/Microsoft Platform SDK"
 		fi
-		# Ensure that this path has no spaces to work in autoconf
-		TEA_PATH_NOSPACE(MSSDK, ${MSSDK})
-		if test ! -d "${MSSDK}/bin/win64" ; then
-		    AC_MSG_WARN([could not find 64-bit SDK to enable 64bit mode])
+		MSSDK=`echo "$MSSDK" | sed -e  's!\\\!/!g'`
+		PATH64=""
+		case "$do64bit" in
+		    amd64|x64|yes)
+			MACHINE="AMD64" ; # default to AMD64 64-bit build
+			PATH64="${MSSDK}/Bin/Win64/x86/AMD64"
+			;;
+		    ia64)
+			MACHINE="IA64"
+			PATH64="${MSSDK}/Bin/Win64"
+			;;
+		esac
+		if test ! -d "${PATH64}" ; then
+		    AC_MSG_WARN([Could not find 64-bit $MACHINE SDK to enable 64bit mode])
+		    AC_MSG_WARN([Ensure latest Platform SDK is installed])
 		    do64bit="no"
 		else
+		    AC_MSG_RESULT([   Using 64-bit $MACHINE mode])
 		    do64bit_ok="yes"
 		fi
 	    fi
 
 	    if test "$doWince" != "no" ; then
-		if test "$do64bit" = "yes" ; then
+		if test "$do64bit" != "no" ; then
 		    AC_MSG_ERROR([Windows/CE and 64-bit builds incompatible])
 		fi
 		if test "$GCC" = "yes" ; then
@@ -962,9 +978,8 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 			SDKROOT="C:/Windows CE Tools"
 		    fi
 		fi
-		# Ensure that this path has no spaces to work in autoconf
-		TEA_PATH_NOSPACE(WCEROOT, ${WCEROOT})
-		TEA_PATH_NOSPACE(SDKROOT, ${SDKROOT})
+		WCEROOT=`echo "$WCEROOT" | sed -e 's!\\\!/!g'`
+		SDKROOT=`echo "$SDKROOT" | sed -e 's!\\\!/!g'`
 		if test ! -d "${SDKROOT}/${OSVERSION}/${PLATFORM}/Lib/${TARGETCPU}" \
 		    -o ! -d "${WCEROOT}/EVC/${OSVERSION}/bin"; then
 		    AC_MSG_ERROR([could not find PocketPC SDK or target compiler to enable WinCE mode [$CEVERSION,$TARGETCPU,$ARCH,$PLATFORM]])
@@ -987,27 +1002,27 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    runtime=-MD
 	        fi
 
-                if test "$do64bit" = "yes" ; then
+                if test "$do64bit" != "no" ; then
 		    # All this magic is necessary for the Win64 SDK RC1 - hobbs
-		    CC="${MSSDK}/Bin/Win64/cl.exe"
-		    CFLAGS="${CFLAGS} -I${MSSDK}/Include/prerelease \
-			-I${MSSDK}/Include/Win64/crt \
-			-I${MSSDK}/Include"
-		    RC="${MSSDK}/bin/rc.exe"
-		    lflags="-MACHINE:IA64 -LIBPATH:${MSSDK}/Lib/IA64 \
-			-LIBPATH:${MSSDK}/Lib/Prerelease/IA64 -nologo"
-		    LINKBIN="${MSSDK}/bin/win64/link.exe"
+		    CC="\"${PATH64}/cl.exe\""
+		    CFLAGS="${CFLAGS} -I\"${MSSDK}/Include\" -I\"${MSSDK}/Include/crt\" -I\"${MSSDK}/Include/crt/sys\""
+		    RC="\"${MSSDK}/bin/rc.exe\""
+		    lflags="-nologo -MACHINE:${MACHINE} -LIBPATH:\"${MSSDK}/Lib/${MACHINE}\""
+		    LINKBIN="\"${PATH64}/link.exe\""
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
+		    # Avoid 'unresolved external symbol __security_cookie'
+		    # errors, c.f. http://support.microsoft.com/?id=894573
+		    TEA_ADD_LIBS([bufferoverflowU.lib])
 		elif test "$doWince" != "no" ; then
 		    CEBINROOT="${WCEROOT}/EVC/${OSVERSION}/bin"
 		    if test "${TARGETCPU}" = "X86"; then
-			CC="${CEBINROOT}/cl.exe"
+			CC="\"${CEBINROOT}/cl.exe\""
 		    else
-			CC="${CEBINROOT}/cl${ARCH}.exe"
+			CC="\"${CEBINROOT}/cl${ARCH}.exe\""
 		    fi
 		    CFLAGS="$CFLAGS -I\"${CELIB_DIR}/inc\" -I\"${CEINCLUDE}\""
-		    RC="${WCEROOT}/Common/EVC/bin/rc.exe"
+		    RC="\"${WCEROOT}/Common/EVC/bin/rc.exe\""
 		    arch=`echo ${ARCH} | awk '{print tolower([$]0)}'`
 		    defs="${ARCH} _${ARCH}_ ${arch} PALM_SIZE _MT _WINDOWS"
 		    if test "${SHARED_BUILD}" = "1" ; then
@@ -1023,7 +1038,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 		    CFLAGS_OPTIMIZE="-nologo -Ox"
 		    lversion=`echo ${CEVERSION} | sed -e 's/\(.\)\(..\)/\1\.\2/'`
 		    lflags="-MACHINE:${ARCH} -LIBPATH:\"${CELIBPATH}\" -subsystem:windowsce,${lversion} -nologo"
-		    LINKBIN="${CEBINROOT}/link.exe"
+		    LINKBIN="\"${CEBINROOT}/link.exe\""
 		    AC_SUBST(CELIB_DIR)
 		else
 		    RC="rc"
@@ -1794,7 +1809,7 @@ dnl AC_CHECK_TOOL(AR, ar, :)
 	    ;;
     esac
 
-    if test "$do64bit" = "yes" -a "$do64bit_ok" = "no" ; then
+    if test "$do64bit" != "no" -a "$do64bit_ok" = "no" ; then
 	AC_MSG_WARN([64bit support being disabled -- don't know magic for this platform])
     fi
 
@@ -3923,50 +3938,8 @@ AC_DEFUN(TEA_PATH_CELIB, [
 	else
 	    no_celib=
 	    CELIB_DIR=${ac_cv_c_celibconfig}
+	    CELIB_DIR=`echo "$CELIB_DIR" | sed -e 's!\\\!/!g'`
 	    AC_MSG_RESULT([found $CELIB_DIR])
-	    TEA_PATH_NOSPACE(CELIB_DIR, ${ac_cv_c_celibconfig})
-	fi
-    fi
-])
-
-# FIXME: This macro is ill-conceived. One can't assume that the
-# TCLSH_PROG can be executed at build time when cross compiling.
-# Also, this will not work when TCLSH_PROG is the tclsh in the
-# build directory.
-
-#------------------------------------------------------------------------
-# TEA_PATH_NOSPACE
-#	Ensure that the given path has no spaces.  This is necessary for
-#	CC (and consitutuent vars that build it up) to work in the
-#	tortured autoconf environment.  Currently only for Windows use.
-#
-# Arguments
-#	VAR  - name of the variable to set
-#	PATH - path to ensure no spaces in
-#
-# Results
-#	Sets $VAR to short path of $PATH if it can be found.
-#------------------------------------------------------------------------
-
-AC_DEFUN([TEA_PATH_NOSPACE], [
-    if test "${TEA_PLATFORM}" = "windows" ; then
-	# we need TCLSH_PROG defined to get Windows short pathnames
-	AC_REQUIRE([TEA_PROG_TCLSH])
-
-	AC_MSG_CHECKING([short pathname for $1 ($2)])
-
-	shortpath=
-	case "$2" in
-	    *\ *)
-		# Only do this if we need to.
-		shortpath=`echo "puts [[file attributes {$2} -shortname]] ; exit" | ${TCLSH_PROG} 2>/dev/null`
-		;;
-	esac
-	if test "x${shortpath}" = "x" ; then
-	    AC_MSG_RESULT([not changed])
-	else
-	    $1=$shortpath
-	    AC_MSG_RESULT([${$1}])
 	fi
     fi
 ])

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.78 2005/12/01 02:19:06 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.79 2005/12/02 20:04:17 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -2729,7 +2729,7 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 AC_DEFUN(TEA_INIT, [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.3"
+    TEA_VERSION="3.4"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then

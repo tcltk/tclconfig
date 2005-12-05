@@ -1,3 +1,8 @@
+2005-12-05  Don Porter  <dgp@users.sf.net>
+
+	* tcl.m4 (TEA_PUBLIC_*_HEADERS):	Better support for finding
+	header files for uninstalled Tcl and Tk.
+
 2005-12-02  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correctly bump TEA_VERSION var to 3.4

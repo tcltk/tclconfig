@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.79 2005/12/02 20:04:17 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.80 2005/12/05 17:32:36 dgp Exp $
 
 AC_PREREQ(2.50)
 
@@ -3405,16 +3405,21 @@ AC_DEFUN(TEA_PUBLIC_TCL_HEADERS, [
                     list=""
                     ;;
             esac
+
+	    # Look in the source dir only if Tcl is not installed,
+	    # and in that situation, look there before installed locations.
+	    if test -f "$TCL_BIN_DIR/Makefile" ; then
+		list="$list `ls -d ${TCL_SRC_DIR}/generic 2>/dev/null`"
+	    fi
+
 	    # Check order: pkg --prefix location, Tcl's --prefix location,
-	    # directory of tclConfig.sh, and Tcl source directory.
-	    # Looking in the source dir is not ideal, but OK.
+	    # relative to directory of tclConfig.sh.
 
 	    eval "temp_includedir=${includedir}"
 	    list="$list \
 		`ls -d ${temp_includedir}        2>/dev/null` \
 		`ls -d ${TCL_PREFIX}/include     2>/dev/null` \
-		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
-		`ls -d ${TCL_SRC_DIR}/generic    2>/dev/null`"
+		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
 	    if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
 		list="$list /usr/local/include /usr/include"
 		if test x"${TCL_INCLUDE_SPEC}" != x ; then
@@ -3556,17 +3561,24 @@ AC_DEFUN(TEA_PUBLIC_TK_HEADERS, [
                     list=""
                     ;;
             esac
-	    # Check order: pkg --prefix location, Tcl's --prefix location,
-	    # directory of tclConfig.sh, and Tcl source directory.
-	    # Looking in the source dir is not ideal, but OK.
+
+	    # Look in the source dir only if Tk is not installed,
+	    # and in that situation, look there before installed locations.
+	    if test -f "$TK_BIN_DIR/Makefile" ; then
+		list="$list `ls -d ${TK_SRC_DIR}/generic 2>/dev/null`"
+	    fi
+
+	    # Check order: pkg --prefix location, Tk's --prefix location,
+	    # relative to directory of tkConfig.sh, Tcl's --prefix location, 
+	    # relative to directory of tclConfig.sh.
 
 	    eval "temp_includedir=${includedir}"
 	    list="$list \
 		`ls -d ${temp_includedir}        2>/dev/null` \
 		`ls -d ${TK_PREFIX}/include      2>/dev/null` \
+		`ls -d ${TK_BIN_DIR}/../include  2>/dev/null` \
 		`ls -d ${TCL_PREFIX}/include     2>/dev/null` \
-		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null` \
-		`ls -d ${TK_SRC_DIR}/generic     2>/dev/null`"
+		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
 	    if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
 		list="$list /usr/local/include /usr/include"
 	    fi

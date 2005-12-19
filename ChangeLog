@@ -1,3 +1,8 @@
+2005-12-19  Joe English  <jenglish@users.sourceforge.net>
+
+	* tcl.m4 (TEA_PATH_TCLCONFIG &c): Look for tclConfig.sh &c 
+	in ${libdir}, where they are installed by default [Patch #1377407].
+
 2005-12-05  Don Porter  <dgp@users.sf.net>
 
 	* tcl.m4 (TEA_PUBLIC_*_HEADERS):	Better support for finding

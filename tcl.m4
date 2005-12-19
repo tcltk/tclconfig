@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.80 2005/12/05 17:32:36 dgp Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.81 2005/12/19 19:44:24 jenglish Exp $
 
 AC_PREREQ(2.50)
 
@@ -108,7 +108,8 @@ AC_DEFUN(TEA_PATH_TCLCONFIG, [
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_tclconfig}" = x ; then
-		for i in `ls -d ${exec_prefix}/lib 2>/dev/null` \
+		for i in `ls -d ${libdir} 2>/dev/null` \
+			`ls -d ${exec_prefix}/lib 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
@@ -234,7 +235,8 @@ AC_DEFUN(TEA_PATH_TKCONFIG, [
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_tkconfig}" = x ; then
-		for i in `ls -d ${exec_prefix}/lib 2>/dev/null` \
+		for i in `ls -d ${libdir} 2>/dev/null` \
+			`ls -d ${exec_prefix}/lib 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
@@ -3805,7 +3807,8 @@ AC_DEFUN(TEA_PATH_CONFIG, [
 
 	    # check in a few common install locations
 	    if test x"${ac_cv_c_$1config}" = x ; then
-		for i in `ls -d ${exec_prefix}/lib 2>/dev/null` \
+		for i in `ls -d ${libdir} 2>/dev/null` \
+			`ls -d ${exec_prefix}/lib 2>/dev/null` \
 			`ls -d ${prefix}/lib 2>/dev/null` \
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \

@@ -1,3 +1,7 @@
+2006-01-04  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: remove extraneous ' that causes bash 3.1 to choke
+
 2005-12-19  Joe English  <jenglish@users.sourceforge.net>
 
 	* tcl.m4 (TEA_PATH_TCLCONFIG &c): Look for tclConfig.sh &c 

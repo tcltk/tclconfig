@@ -1,12 +1,21 @@
+2006-01-22  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: restore system=windows on Windows.
+	Remove error if 'ar' isn't found (it may not be on Windows).
+	Do not add -lxnet or define _XOPEN_SOURCE on HP-UX by default.
+	Ensure the C|LDFLAGS_DEFAULT gets the fully sub'd value at
+	configure time.
+
 2006-01-10  Daniel Steffen  <das@users.sourceforge.net>
 
-	* tcl.m4: add caching, use AC_CACHE_CHECK instead of AC_CACHE_VAL where
-	possible, consistent message quoting, sync relevant tcl/unix/tcl.m4 HEAD
-	changes and gratuitous formatting differences (notably sunc removal of
-	support for for ancient BSD's, IRIX 4, RISCos and Ultrix by kennykb),
-	Darwin improvements to TEA_LOAD_*CONFIG to make linking work against
-	Tcl/Tk frameworks installed in arbitrary location, change TEA_PROG_*
-	search order (look in *_BIN_DIR parents before *_PREFIX).
+	* tcl.m4: add caching, use AC_CACHE_CHECK instead of AC_CACHE_VAL
+	where possible, consistent message quoting, sync relevant
+	tcl/unix/tcl.m4 HEAD changes and gratuitous formatting differences
+	(notably sunc removal of support for for ancient BSD's, IRIX 4,
+	RISCos and Ultrix by kennykb), Darwin improvements to
+	TEA_LOAD_*CONFIG to make linking work against Tcl/Tk frameworks
+	installed in arbitrary location, change TEA_PROG_* search order
+	(look in *_BIN_DIR parents before *_PREFIX).
 
 2006-01-05  Jeff Hobbs  <jeffh@ActiveState.com>
 

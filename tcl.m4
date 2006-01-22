@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.84 2006/01/10 05:39:33 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.85 2006/01/22 21:53:17 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -659,11 +659,11 @@ AC_DEFUN(TEA_ENABLE_THREADS, [
 # Arguments:
 #	none
 #	
+#	TEA varies from core Tcl in that C|LDFLAGS_DEFAULT receives
+#	the value of C|LDFLAGS_OPTIMIZE|DEBUG already substituted.
 #	Requires the following vars to be set in the Makefile:
-#		CFLAGS_DEBUG
-#		CFLAGS_OPTIMIZE
-#		LDFLAGS_DEBUG
-#		LDFLAGS_OPTIMIZE
+#		CFLAGS_DEFAULT
+#		LDFLAGS_DEFAULT
 #	
 # Results:
 #
@@ -690,18 +690,18 @@ AC_DEFUN(TEA_ENABLE_SYMBOLS, [
 	[tcl_ok=$enableval], [tcl_ok=no])
     DBGX=""
     if test "$tcl_ok" = "no"; then
-	CFLAGS_DEFAULT='$(CFLAGS_OPTIMIZE)'
-	LDFLAGS_DEFAULT='$(LDFLAGS_OPTIMIZE)'
+	CFLAGS_DEFAULT="${CFLAGS_OPTIMIZE}"
+	LDFLAGS_DEFAULT="${LDFLAGS_OPTIMIZE}"
 	AC_MSG_RESULT([no])
     else
-	CFLAGS_DEFAULT='$(CFLAGS_DEBUG)'
-	LDFLAGS_DEFAULT='$(LDFLAGS_DEBUG)'
+	CFLAGS_DEFAULT="${CFLAGS_DEBUG}"
+	LDFLAGS_DEFAULT="${LDFLAGS_DEBUG}"
 	if test "$tcl_ok" = "yes"; then
 	    AC_MSG_RESULT([yes (standard debugging)])
 	fi
     fi
     if test "${TEA_PLATFORM}" != "windows" ; then
-	LDFLAGS_DEFAULT='$(LDFLAGS)'
+	LDFLAGS_DEFAULT="${LDFLAGS}"
     fi
 
     AC_SUBST(TCL_DBGX)
@@ -784,7 +784,9 @@ AC_DEFUN(TEA_ENABLE_LANGINFO, [
 
 AC_DEFUN(TEA_CONFIG_SYSTEM, [
     AC_CACHE_CHECK([system version], tcl_cv_sys_version, [
-	if test -f /usr/lib/NextStep/software_version; then
+	if test "${TEA_PLATFORM}" = "windows" ; then
+	    tcl_cv_sys_version=windows
+	elif test -f /usr/lib/NextStep/software_version; then
 	    tcl_cv_sys_version=NEXTSTEP-`awk '/3/,/3/' /usr/lib/NextStep/software_version`
 	else
 	    tcl_cv_sys_version=`uname -s`-`uname -r`
@@ -961,9 +963,6 @@ AC_DEFUN(TEA_CONFIG_CFLAGS, [
 dnl FIXME: Replace AC_CHECK_PROG with AC_CHECK_TOOL once cross compiling is fixed.
 dnl AC_CHECK_TOOL(AR, ar)
     AC_CHECK_PROG(AR, ar, ar)
-    if test "${AR}" = "" ; then
-	AC_MSG_ERROR([Required archive tool 'ar' not found on PATH.])
-    fi
     STLIB_LD='${AR} cr'
     LD_LIBRARY_PATH_VAR="LD_LIBRARY_PATH"
     case $system in
@@ -1282,9 +1281,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ;;
 	HP-UX-*.11.*)
 	    # Use updated header definitions where possible
-	    AC_DEFINE(_XOPEN_SOURCE, 1, [Do we want to use the XOPEN network library?])
 	    AC_DEFINE(_XOPEN_SOURCE_EXTENDED, 1, [Do we want to use the XOPEN network library?])
-	    LIBS="$LIBS -lxnet"               # Use the XOPEN network library
+	    # Needed by Tcl, but not most extensions
+	    #AC_DEFINE(_XOPEN_SOURCE, 1, [Do we want to use the XOPEN network library?])
+	    #LIBS="$LIBS -lxnet"               # Use the XOPEN network library
 
 	    SHLIB_SUFFIX=".sl"
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
@@ -1443,7 +1443,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
-	   SHLIB_LD="${CC} -shared"
+	    SHLIB_LD="${CC} -shared"
 	    DL_OBJS=""
 	    DL_LIBS="-ldl"
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
@@ -1946,9 +1946,6 @@ dnl AC_CHECK_TOOL(AR, ar)
     AC_SUBST(CFLAGS_DEBUG)
     AC_SUBST(CFLAGS_OPTIMIZE)
     AC_SUBST(CFLAGS_WARNING)
-
-    AC_SUBST(LDFLAGS_DEBUG)
-    AC_SUBST(LDFLAGS_OPTIMIZE)
 
     AC_SUBST(STLIB_LD)
     AC_SUBST(SHLIB_LD)

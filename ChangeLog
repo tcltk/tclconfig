@@ -1,3 +1,9 @@
+2006-01-23  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): for Tk extensions, remove -arch ppc64 from CFLAGS
+	like in the Tk configure, as neither TkAqua nor TkX11 can be built for
+	64bit at present (no 64bit GUI libraries).
+
 2006-01-22  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: restore system=windows on Windows.

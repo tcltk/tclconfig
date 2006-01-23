@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.85 2006/01/22 21:53:17 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.86 2006/01/23 01:04:03 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -1607,6 +1607,12 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
+
+	    # TEA specific: for Tk extensions, remove -arch ppc64 from CFLAGS
+	    # for fat builds, as neither TkAqua nor TkX11 can be built for 64bit
+	    # at present (no 64bit GUI libraries).
+	    test $do64bit_ok = no && test -n "${TK_BIN_DIR}" && \
+	        CFLAGS="`echo "$CFLAGS" | sed -e 's/-arch ppc64/-arch ppc/g'`"
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""

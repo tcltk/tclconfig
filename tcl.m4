@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.87 2006/01/23 19:01:35 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.88 2006/01/23 22:27:53 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -1609,7 +1609,8 @@ dnl AC_CHECK_TOOL(AR, ar)
 	        do64bit_ok=yes
 	        CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5"
 	    fi
-	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS}'
+	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS here:
+	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS_DEFAULT}'
 	    AC_CACHE_CHECK([if ld accepts -single_module flag], tcl_cv_ld_single_module, [
 	        hold_ldflags=$LDFLAGS
 	        LDFLAGS="$LDFLAGS -dynamiclib -Wl,-single_module"

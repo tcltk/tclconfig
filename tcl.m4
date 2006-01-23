@@ -9,9 +9,13 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.86 2006/01/23 01:04:03 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.87 2006/01/23 19:01:35 hobbs Exp $
 
 AC_PREREQ(2.50)
+
+dnl TEA extensions pass this us the version of TEA they think they
+dnl are compatible with (must be set in TEA_INIT below)
+dnl TEA_VERSION="3.5"
 
 # Possible values for key variables defined:
 #
@@ -104,6 +108,19 @@ AC_DEFUN(TEA_PATH_TCLCONFIG, [
 			; do
 		    if test -f "$i/Tcl.framework/tclConfig.sh" ; then
 			ac_cv_c_tclconfig=`(cd $i/Tcl.framework; pwd)`
+			break
+		    fi
+		done
+	    fi
+
+	    # on Windows, check in common installation locations
+	    if test "${TEA_PLATFORM}" = "windows" \
+		-a x"${ac_cv_c_tclconfig}" = x ; then
+		for i in `ls -d C:/Tcl/lib 2>/dev/null` \
+			`ls -d C:/Progra~1/Tcl/lib 2>/dev/null` \
+			; do
+		    if test -f "$i/tclConfig.sh" ; then
+			ac_cv_c_tclconfig=`(cd $i; pwd)`
 			break
 		    fi
 		done
@@ -254,6 +271,20 @@ AC_DEFUN(TEA_PATH_TKCONFIG, [
 		    fi
 		done
 	    fi
+
+	    # on Windows, check in common installation locations
+	    if test "${TEA_PLATFORM}" = "windows" \
+		-a x"${ac_cv_c_tclconfig}" = x ; then
+		for i in `ls -d C:/Tcl/lib 2>/dev/null` \
+			`ls -d C:/Progra~1/Tcl/lib 2>/dev/null` \
+			; do
+		    if test -f "$i/tclConfig.sh" ; then
+			ac_cv_c_tclconfig=`(cd $i; pwd)`
+			break
+		    fi
+		done
+	    fi
+
 	    # check in a few other private locations
 	    if test x"${ac_cv_c_tkconfig}" = x ; then
 		for i in \
@@ -2676,6 +2707,7 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 #		CYGPATH
 #		EXEEXT
 #	Defines only:
+#		TEA_VERSION
 #		TEA_INITED
 #		TEA_PLATFORM (windows or unix)
 #
@@ -2692,7 +2724,7 @@ AC_DEFUN(TEA_TCL_64BIT_FLAGS, [
 AC_DEFUN(TEA_INIT, [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.4"
+    TEA_VERSION="3.5"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then

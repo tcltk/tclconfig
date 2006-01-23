@@ -1,3 +1,9 @@
+2006-01-23  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4:  *** Bump to TEA version 3.5 ***
+	add C:/Tcl/lib and C:/Progra~1/Tcl/lib dirs to check for
+	*Config.sh on Windows. [Bug 1407544]
+
 2006-01-23  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): for Tk extensions, remove -arch ppc64 from CFLAGS

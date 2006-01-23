@@ -1,3 +1,9 @@
+2006-01-24  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): use makefile variable LDFLAGS_DEFAULT instead of
+	LDFLAGS in SHLIB_LD, to ensure linker flags in sampleextension Makefile
+	are picked up. [Bug 1403343]
+
 2006-01-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4:  *** Bump to TEA version 3.5 ***

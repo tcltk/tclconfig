@@ -1,6 +1,11 @@
-2006-01-24  Daniel Steffen  <das@users.sourceforge.net>
+2006-01-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA version 3.5 ***
+
+	* tcl.m4: keep LD_SEARCH_FLAGS and CC_SEARCH_FLAGS synchronous
+	with core tcl.m4 meaning.
+
+2006-01-24  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): use makefile variable LDFLAGS_DEFAULT instead of
 	LDFLAGS in SHLIB_LD, to ensure linker flags in sampleextension Makefile

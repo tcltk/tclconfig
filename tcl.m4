@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.88 2006/01/23 22:27:53 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.89 2006/01/25 21:25:02 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -1939,10 +1939,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	BUILD_DLTEST=""
     fi
     LDFLAGS="$LDFLAGS $LDFLAGS_ARCH"
-
-    # For TEA, CC_SEARCH_FLAGS becomes LD_SEARCH_FLAGS:
-    LD_SEARCH_FLAGS="${CC_SEARCH_FLAGS}"
-    CC_SEARCH_FLAGS=""
 
     # If we're running gcc, then change the C flags for compiling shared
     # libraries to the right flags for gcc, instead of those for the

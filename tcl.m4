@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.89 2006/01/25 21:25:02 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.90 2006/03/08 07:06:24 jenglish Exp $
 
 AC_PREREQ(2.50)
 
@@ -1521,7 +1521,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # NetBSD/SPARC needs -fPIC, -fpic will not do.
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD="ld -Bshareable -x"
-	    SHLIB_LD_LIBS=""
+	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    DL_OBJS="tclLoadDl.o"
 	    DL_LIBS=""

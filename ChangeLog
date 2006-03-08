@@ -1,3 +1,7 @@
+2006-03-07  Joe English  <jenglish@users.sourceforge.net>
+	* tcl.m4: Set SHLIB_LD_FLAGS='${LIBS}' on NetBSD,
+	as per the other *BSD variants [Bug 1334613].
+
 2006-01-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA version 3.5 ***

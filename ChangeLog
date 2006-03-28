@@ -1,4 +1,11 @@
+2006-03-28  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: []-quote AC_DEFUN functions.
+	(TEA_PATH_TKCONFIG): Fixed Windows-specific check for tkConfig.sh.
+	(TEA_MAKE_LIB): Prepend 'lib' for Windows-gcc configs.
+
 2006-03-07  Joe English  <jenglish@users.sourceforge.net>
+
 	* tcl.m4: Set SHLIB_LD_FLAGS='${LIBS}' on NetBSD,
 	as per the other *BSD variants [Bug 1334613].
 

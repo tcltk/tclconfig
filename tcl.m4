@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.91 2006/03/28 21:07:09 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.92 2006/05/26 19:15:38 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -829,7 +829,7 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 		# results, and the version is kept in special file).
 
 		if test -r /etc/.relid -a "X`uname -n`" = "X`uname -s`" ; then
-		    tcl_cv_sys_version=MP-RAS-`awk '{print $3}' /etc/.relid`
+		    tcl_cv_sys_version=MP-RAS-`awk '{print [$]3}' /etc/.relid`
 		fi
 		if test "`uname -s`" = "AIX" ; then
 		    tcl_cv_sys_version=AIX-`uname -v`.`uname -r`

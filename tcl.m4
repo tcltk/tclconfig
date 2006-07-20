@@ -9,11 +9,11 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.92 2006/05/26 19:15:38 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.93 2006/07/20 07:41:28 das Exp $
 
 AC_PREREQ(2.50)
 
-dnl TEA extensions pass this us the version of TEA they think they
+dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
 dnl TEA_VERSION="3.5"
 
@@ -783,9 +783,9 @@ AC_DEFUN([TEA_ENABLE_LANGINFO], [
     fi
     AC_MSG_CHECKING([whether to use nl_langinfo])
     if test "$langinfo_ok" = "yes"; then
-	AC_CACHE_VAL(tcl_cv_langinfo_h,
+	AC_CACHE_VAL(tcl_cv_langinfo_h, [
 	    AC_TRY_COMPILE([#include <langinfo.h>], [nl_langinfo(CODESET);],
-		    [tcl_cv_langinfo_h=yes],[tcl_cv_langinfo_h=no]))
+		    [tcl_cv_langinfo_h=yes],[tcl_cv_langinfo_h=no])])
 	AC_MSG_RESULT([$tcl_cv_langinfo_h])
 	if test $tcl_cv_langinfo_h = yes; then
 	    AC_DEFINE(HAVE_LANGINFO, 1, [Do we have nl_langinfo()?])
@@ -829,7 +829,7 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 		# results, and the version is kept in special file).
 
 		if test -r /etc/.relid -a "X`uname -n`" = "X`uname -s`" ; then
-		    tcl_cv_sys_version=MP-RAS-`awk '{print [$]3}' /etc/.relid`
+		    tcl_cv_sys_version=MP-RAS-`awk '{print $[3]}' /etc/.relid`
 		fi
 		if test "`uname -s`" = "AIX" ; then
 		    tcl_cv_sys_version=AIX-`uname -v`.`uname -r`
@@ -1606,18 +1606,18 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    CFLAGS_OPTIMIZE="-Os"
 	    SHLIB_CFLAGS="-fno-common"
 	    if test $do64bit = yes; then
-	        do64bit_ok=yes
-	        CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5"
+		do64bit_ok=yes
+		CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5"
 	    fi
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS here:
 	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS_DEFAULT}'
 	    AC_CACHE_CHECK([if ld accepts -single_module flag], tcl_cv_ld_single_module, [
-	        hold_ldflags=$LDFLAGS
-	        LDFLAGS="$LDFLAGS -dynamiclib -Wl,-single_module"
-	        AC_TRY_LINK(, [int i;], tcl_cv_ld_single_module=yes, tcl_cv_ld_single_module=no)
-	        LDFLAGS=$hold_ldflags])
+		hold_ldflags=$LDFLAGS
+		LDFLAGS="$LDFLAGS -dynamiclib -Wl,-single_module"
+		AC_TRY_LINK(, [int i;], tcl_cv_ld_single_module=yes, tcl_cv_ld_single_module=no)
+		LDFLAGS=$hold_ldflags])
 	    if test $tcl_cv_ld_single_module = yes; then
-	        SHLIB_LD="${SHLIB_LD} -Wl,-single_module"
+		SHLIB_LD="${SHLIB_LD} -Wl,-single_module"
 	    fi
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dylib"
@@ -1629,12 +1629,12 @@ dnl AC_CHECK_TOOL(AR, ar)
 		LDFLAGS="$LDFLAGS -prebind"
 	    LDFLAGS="$LDFLAGS -headerpad_max_install_names"
 	    AC_CACHE_CHECK([if ld accepts -search_paths_first flag], tcl_cv_ld_search_paths_first, [
-	        hold_ldflags=$LDFLAGS
-	        LDFLAGS="$LDFLAGS -Wl,-search_paths_first"
-	        AC_TRY_LINK(, [int i;], tcl_cv_ld_search_paths_first=yes, tcl_cv_ld_search_paths_first=no)
-	        LDFLAGS=$hold_ldflags])
+		hold_ldflags=$LDFLAGS
+		LDFLAGS="$LDFLAGS -Wl,-search_paths_first"
+		AC_TRY_LINK(, [int i;], tcl_cv_ld_search_paths_first=yes, tcl_cv_ld_search_paths_first=no)
+		LDFLAGS=$hold_ldflags])
 	    if test $tcl_cv_ld_search_paths_first = yes; then
-	        LDFLAGS="$LDFLAGS -Wl,-search_paths_first"
+		LDFLAGS="$LDFLAGS -Wl,-search_paths_first"
 	    fi
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
@@ -1644,7 +1644,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # for fat builds, as neither TkAqua nor TkX11 can be built for 64bit
 	    # at present (no 64bit GUI libraries).
 	    test $do64bit_ok = no && test -n "${TK_BIN_DIR}" && \
-	        CFLAGS="`echo "$CFLAGS" | sed -e 's/-arch ppc64/-arch ppc/g'`"
+		CFLAGS="`echo "$CFLAGS" | sed -e 's/-arch ppc64/-arch ppc/g'`"
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""
@@ -1916,8 +1916,8 @@ dnl AC_CHECK_TOOL(AR, ar)
     # Step 4: disable dynamic loading if requested via a command-line switch.
 
     AC_ARG_ENABLE(load,
-	AC_HELP_STRING([--disable-load],
-	    [disallow dynamic loading and "load" command (default: enabled)]),
+	AC_HELP_STRING([--enable-load],
+	    [allow dynamic loading and "load" command (default: on)]),
 	[tcl_ok=$enableval], [tcl_ok=yes])
     if test "$tcl_ok" = "no"; then
 	DL_OBJS=""
@@ -2146,7 +2146,7 @@ int main() {
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_MISSING_POSIX_HEADERS], [
-    AC_CACHE_CHECK([dirent.h], tcl_cv_dirent_h,
+    AC_CACHE_CHECK([dirent.h], tcl_cv_dirent_h, [
     AC_TRY_LINK([#include <sys/types.h>
 #include <dirent.h>], [
 #ifndef _POSIX_SOURCE
@@ -2166,7 +2166,7 @@ d = opendir("foobar");
 entryPtr = readdir(d);
 p = entryPtr->d_name;
 closedir(d);
-], tcl_cv_dirent_h=yes, tcl_cv_dirent_h=no))
+], tcl_cv_dirent_h=yes, tcl_cv_dirent_h=no)])
 
     if test $tcl_cv_dirent_h = no; then
 	AC_DEFINE(NO_DIRENT_H, 1, [Do we have <dirent.h>?])
@@ -2374,16 +2374,16 @@ AC_DEFUN([TEA_TIME_HANDLER], [
 
     AC_CHECK_FUNCS(gmtime_r localtime_r)
 
-    AC_CACHE_CHECK([tm_tzadj in struct tm], tcl_cv_member_tm_tzadj,
+    AC_CACHE_CHECK([tm_tzadj in struct tm], tcl_cv_member_tm_tzadj, [
 	AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_tzadj;],
-	    tcl_cv_member_tm_tzadj=yes, tcl_cv_member_tm_tzadj=no))
+	    tcl_cv_member_tm_tzadj=yes, tcl_cv_member_tm_tzadj=no)])
     if test $tcl_cv_member_tm_tzadj = yes ; then
 	AC_DEFINE(HAVE_TM_TZADJ, 1, [Should we use the tm_tzadj field of struct tm?])
     fi
 
-    AC_CACHE_CHECK([tm_gmtoff in struct tm], tcl_cv_member_tm_gmtoff,
+    AC_CACHE_CHECK([tm_gmtoff in struct tm], tcl_cv_member_tm_gmtoff, [
 	AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_gmtoff;],
-	    tcl_cv_member_tm_gmtoff=yes, tcl_cv_member_tm_gmtoff=no))
+	    tcl_cv_member_tm_gmtoff=yes, tcl_cv_member_tm_gmtoff=no)])
     if test $tcl_cv_member_tm_gmtoff = yes ; then
 	AC_DEFINE(HAVE_TM_GMTOFF, 1, [Should we use the tm_gmtoff field of struct tm?])
     fi
@@ -2392,24 +2392,24 @@ AC_DEFUN([TEA_TIME_HANDLER], [
     # Its important to include time.h in this check, as some systems
     # (like convex) have timezone functions, etc.
     #
-    AC_CACHE_CHECK([long timezone variable], tcl_cv_timezone_long,
+    AC_CACHE_CHECK([long timezone variable], tcl_cv_timezone_long, [
 	AC_TRY_COMPILE([#include <time.h>],
 	    [extern long timezone;
 	    timezone += 1;
 	    exit (0);],
-	    tcl_cv_timezone_long=yes, tcl_cv_timezone_long=no))
+	    tcl_cv_timezone_long=yes, tcl_cv_timezone_long=no)])
     if test $tcl_cv_timezone_long = yes ; then
 	AC_DEFINE(HAVE_TIMEZONE_VAR, 1, [Should we use the global timezone variable?])
     else
 	#
 	# On some systems (eg IRIX 6.2), timezone is a time_t and not a long.
 	#
-	AC_CACHE_CHECK([time_t timezone variable], tcl_cv_timezone_time,
+	AC_CACHE_CHECK([time_t timezone variable], tcl_cv_timezone_time, [
 	    AC_TRY_COMPILE([#include <time.h>],
 		[extern time_t timezone;
 		timezone += 1;
 		exit (0);],
-		tcl_cv_timezone_time=yes, tcl_cv_timezone_time=no))
+		tcl_cv_timezone_time=yes, tcl_cv_timezone_time=no)])
 	if test $tcl_cv_timezone_time = yes ; then
 	    AC_DEFINE(HAVE_TIMEZONE_VAR, 1, [Should we use the global timezone variable?])
 	fi

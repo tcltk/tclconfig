@@ -1,3 +1,11 @@
+2006-08-18  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): add support for --enable-64bit on x86_64, for
+	universal builds including x86_64 and for use of -mmacosx-version-min
+	instead of MACOSX_DEPLOYMENT_TARGET. For Tk extensions, remove 64-bit
+	arch flags from CFLAGS like in the Tk configure, as neither TkAqua nor
+	TkX11 can be built for 64-bit at present.
+
 2006-03-28  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: []-quote AC_DEFUN functions.

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.93 2006/07/20 07:41:28 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.94 2006/08/18 07:47:42 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -1607,7 +1607,20 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_CFLAGS="-fno-common"
 	    if test $do64bit = yes; then
 		do64bit_ok=yes
-		CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5"
+		case `arch` in
+		    ppc)
+			CFLAGS="$CFLAGS -arch ppc64 -mpowerpc64 -mcpu=G5";;
+		    i386)
+			CFLAGS="$CFLAGS -arch x86_64";;
+		    *)
+			AC_MSG_WARN([Don't know how enable 64-bit on architecture `arch`])
+			do64bit_ok=no;;
+		esac
+	    else
+		# Check for combined 32-bit and 64-bit fat build
+		echo "$CFLAGS " | grep -E -q -- '-arch (ppc64|x86_64) ' && \
+		    echo "$CFLAGS " | grep -E -q -- '-arch (ppc|i386) ' && \
+		    fat_32_64=yes
 	    fi
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS here:
 	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS_DEFAULT}'
@@ -1624,8 +1637,8 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    DL_OBJS="tclLoadDyld.o"
 	    DL_LIBS=""
 	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
-	    test -z "${MACOSX_DEPLOYMENT_TARGET}" || \
-		test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F. '{print [$]2}'`" -lt 4 && \
+	    test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F '10\\.' '{print int([$]2)}'`" -lt 4 -a \
+		"`echo "${CFLAGS}" | awk -F '-mmacosx-version-min=10\\.' '{print int([$]2)}'`" -lt 4 && \
 		LDFLAGS="$LDFLAGS -prebind"
 	    LDFLAGS="$LDFLAGS -headerpad_max_install_names"
 	    AC_CACHE_CHECK([if ld accepts -search_paths_first flag], tcl_cv_ld_search_paths_first, [
@@ -1640,11 +1653,11 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    LD_SEARCH_FLAGS=""
 	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
 
-	    # TEA specific: for Tk extensions, remove -arch ppc64 from CFLAGS
-	    # for fat builds, as neither TkAqua nor TkX11 can be built for 64bit
-	    # at present (no 64bit GUI libraries).
-	    test $do64bit_ok = no && test -n "${TK_BIN_DIR}" && \
-		CFLAGS="`echo "$CFLAGS" | sed -e 's/-arch ppc64/-arch ppc/g'`"
+	    # TEA specific: for Tk extensions, remove 64-bit arch flags from
+	    # CFLAGS for combined 32-bit and 64-bit fat builds as neither TkAqua
+	    # nor TkX11 can be built for 64-bit at present.
+	    test "$fat_32_64" = yes && test -n "${TK_BIN_DIR}" && \
+		CFLAGS="`echo "$CFLAGS " | sed -e 's/-arch ppc64 / /g' -e 's/-arch x86_64 / /g'`"
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""

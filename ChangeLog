@@ -1,3 +1,7 @@
+2006-11-26  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Linux): --enable-64bit support. [Patch 1597389], [Bug 1230558]
+
 2006-08-18  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): add support for --enable-64bit on x86_64, for

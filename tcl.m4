@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.94 2006/08/18 07:47:42 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.95 2006/11/26 06:05:25 das Exp $
 
 AC_PREREQ(2.50)
 
@@ -1447,7 +1447,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # get rid of the warnings.
 	    #CFLAGS_OPTIMIZE="${CFLAGS_OPTIMIZE} -D__NO_STRING_INLINES -D__NO_MATH_INLINES"
 
-	    SHLIB_LD="${CC} -shared"
+	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS}'
 	    DL_OBJS="tclLoadDl.o"
 	    DL_LIBS="-ldl"
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
@@ -1455,6 +1455,17 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    if test "`uname -m`" = "alpha" ; then
 		CFLAGS="$CFLAGS -mieee"
+	    fi
+	    if test $do64bit = yes; then
+		AC_CACHE_CHECK([if compiler accepts -m64 flag], tcl_cv_cc_m64, [
+		    hold_cflags=$CFLAGS
+		    CFLAGS="$CFLAGS -m64"
+		    AC_TRY_LINK(,, tcl_cv_cc_m64=yes, tcl_cv_cc_m64=no)
+		    CFLAGS=$hold_cflags])
+		if test $tcl_cv_cc_m64 = yes; then
+		    CFLAGS="$CFLAGS -m64"
+		    do64bit_ok=yes
+		fi
 	    fi
 
 	    # The combo of gcc + glibc has a bug related

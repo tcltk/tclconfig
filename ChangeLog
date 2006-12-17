@@ -1,3 +1,9 @@
+2006-12-16  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Linux): fix previous change to use makefile variable
+	LDFLAGS_DEFAULT instead of LDFLAGS in SHLIB_LD, to ensure linker
+	flags in sampleextension Makefile are picked up.
+
 2006-11-26  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Linux): --enable-64bit support. [Patch 1597389], [Bug 1230558]

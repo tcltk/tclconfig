@@ -1,3 +1,8 @@
+2006-12-19  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): --enable-64bit: verify linking with 64bit -arch flag
+	succeeds before enabling 64bit build.
+
 2006-12-16  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Linux): fix previous change to use makefile variable

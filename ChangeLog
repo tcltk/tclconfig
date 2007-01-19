@@ -1,3 +1,10 @@
+2006-01-19  Daniel Steffen  <das@users.sourceforge.net>
+
+	* unix/tcl.m4: ensure CPPFLAGS env var is used when set. [Bug 1586861]
+	(Darwin): add -isysroot and -mmacosx-version-min flags to CPPFLAGS when
+	present in CFLAGS to avoid discrepancies between what headers configure
+	sees during preprocessing tests and compiling tests.
+
 2006-12-19  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): --enable-64bit: verify linking with 64bit -arch flag

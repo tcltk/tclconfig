@@ -1,3 +1,8 @@
+2007-02-08  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_PRIVATE_TCL_HEADERS, TEA_PRIVATE_TK_HEADERS): check
+	that the dirs actually have private headers. [Bug 1631922]
+
 2007-02-04  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4: add caching to -pipe check.

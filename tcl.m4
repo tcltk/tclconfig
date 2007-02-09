@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.101 2007/02/04 02:52:07 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.102 2007/02/09 00:10:57 hobbs Exp $
 
 AC_PREREQ(2.50)
 
@@ -3404,6 +3404,10 @@ AC_DEFUN([TEA_PRIVATE_TCL_HEADERS], [
 	esac
     fi
 
+    if test ! -d "${TCL_SRC_DIR}/tclInt.h" ; then
+	AC_MSG_ERROR([Cannot find private header tclInt.h in ${TCL_SRC_DIR}])
+    fi
+
     AC_SUBST(TCL_TOP_DIR_NATIVE)
     AC_SUBST(TCL_GENERIC_DIR_NATIVE)
     AC_SUBST(TCL_UNIX_DIR_NATIVE)
@@ -3558,6 +3562,10 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 	        TK_INCLUDES="-I\"${TK_BIN_DIR}/Headers\" -I\"${TK_BIN_DIR}/PrivateHeaders\" ${TK_INCLUDES}"; fi
 	        ;;
 	esac
+    fi
+
+    if test ! -d "${TK_SRC_DIR}/tkInt.h" ; then
+	AC_MSG_ERROR([Cannot find private header tkInt.h in ${TK_SRC_DIR}])
     fi
 
     AC_SUBST(TK_TOP_DIR_NATIVE)

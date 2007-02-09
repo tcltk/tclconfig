@@ -9,13 +9,13 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.104 2007/02/09 18:38:16 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.105 2007/02/09 19:04:53 hobbs Exp $
 
-AC_PREREQ(2.50)
+AC_PREREQ(2.57)
 
 dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.5"
+dnl TEA_VERSION="3.6"
 
 # Possible values for key variables defined:
 #
@@ -2783,7 +2783,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 AC_DEFUN([TEA_INIT], [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.5"
+    TEA_VERSION="3.6"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then

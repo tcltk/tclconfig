@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.105 2007/02/09 19:04:53 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.106 2007/02/15 22:57:21 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -3406,11 +3406,12 @@ AC_DEFUN([TEA_PRIVATE_TCL_HEADERS], [
 	        TCL_INCLUDES="${TCL_INCLUDES} ${TCL_INCLUDE_SPEC} `echo "${TCL_INCLUDE_SPEC}" | sed -e 's/Headers/PrivateHeaders/'`"; fi
 	        ;;
 	esac
+    else
+	if test ! -f "${TCL_SRC_DIR}/generic/tclInt.h" ; then
+	    AC_MSG_ERROR([Cannot find private header tclInt.h in ${TCL_SRC_DIR}])
+	fi
     fi
 
-    if test ! -f "${TCL_SRC_DIR}/tclInt.h" ; then
-	AC_MSG_ERROR([Cannot find private header tclInt.h in ${TCL_SRC_DIR}])
-    fi
 
     AC_SUBST(TCL_TOP_DIR_NATIVE)
     AC_SUBST(TCL_GENERIC_DIR_NATIVE)
@@ -3566,10 +3567,10 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 	        TK_INCLUDES="-I\"${TK_BIN_DIR}/Headers\" -I\"${TK_BIN_DIR}/PrivateHeaders\" ${TK_INCLUDES}"; fi
 	        ;;
 	esac
-    fi
-
-    if test ! -f "${TK_SRC_DIR}/tkInt.h" ; then
-	AC_MSG_ERROR([Cannot find private header tkInt.h in ${TK_SRC_DIR}])
+    else
+	if test ! -f "${TK_SRC_DIR}/generic/tkInt.h" ; then
+	    AC_MSG_ERROR([Cannot find private header tkInt.h in ${TK_SRC_DIR}])
+	fi
     fi
 
     AC_SUBST(TK_TOP_DIR_NATIVE)

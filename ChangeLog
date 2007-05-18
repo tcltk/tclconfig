@@ -1,3 +1,8 @@
+2007-05-18  Donal K. Fellows  <donal.k.fellows@man.ac.uk>
+
+	* tcl.m4: Added quoting so that paths with spaces cause fewer
+	problems.
+
 2007-03-07  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): s/CFLAGS/CPPFLAGS/ in -mmacosx-version-min check.

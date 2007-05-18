@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.107 2007/03/07 23:51:20 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.108 2007/05/18 15:04:22 dkf Exp $
 
 AC_PREREQ(2.57)
 
@@ -336,7 +336,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 
     if test -f "${TCL_BIN_DIR}/tclConfig.sh" ; then
         AC_MSG_RESULT([loading])
-	. ${TCL_BIN_DIR}/tclConfig.sh
+	. "${TCL_BIN_DIR}/tclConfig.sh"
     else
         AC_MSG_RESULT([could not find ${TCL_BIN_DIR}/tclConfig.sh])
     fi
@@ -351,7 +351,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     # of TCL_BUILD_LIB_SPEC. An extension should make use of TCL_LIB_SPEC
     # instead of TCL_BUILD_LIB_SPEC since it will work with both an
     # installed and uninstalled version of Tcl.
-    if test -f ${TCL_BIN_DIR}/Makefile ; then
+    if test -f "${TCL_BIN_DIR}/Makefile" ; then
         TCL_LIB_SPEC=${TCL_BUILD_LIB_SPEC}
         TCL_STUB_LIB_SPEC=${TCL_BUILD_STUB_LIB_SPEC}
         TCL_STUB_LIB_PATH=${TCL_BUILD_STUB_LIB_PATH}
@@ -361,7 +361,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	# against Tcl.framework installed in an arbitary location.
 	case ${TCL_DEFS} in
 	    *TCL_FRAMEWORK*)
-		if test -f ${TCL_BIN_DIR}/${TCL_LIB_FILE}; then
+		if test -f "${TCL_BIN_DIR}/${TCL_LIB_FILE}"; then
 		    for i in "`cd ${TCL_BIN_DIR}; pwd`" \
 			     "`cd ${TCL_BIN_DIR}/../..; pwd`"; do
 			if test "`basename "$i"`" = "${TCL_LIB_FILE}.framework"; then
@@ -370,7 +370,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 			fi
 		    done
 		fi
-		if test -f ${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}; then
+		if test -f "${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}"; then
 		    TCL_STUB_LIB_SPEC="-L${TCL_BIN_DIR} ${TCL_STUB_LIB_FLAG}"
 		    TCL_STUB_LIB_PATH="${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}"
 		fi
@@ -424,7 +424,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 
     if test -f "${TK_BIN_DIR}/tkConfig.sh" ; then
         AC_MSG_RESULT([loading])
-	. ${TK_BIN_DIR}/tkConfig.sh
+	. "${TK_BIN_DIR}/tkConfig.sh"
     else
         AC_MSG_RESULT([could not find ${TK_BIN_DIR}/tkConfig.sh])
     fi
@@ -439,7 +439,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
     # of TK_BUILD_LIB_SPEC. An extension should make use of TK_LIB_SPEC
     # instead of TK_BUILD_LIB_SPEC since it will work with both an
     # installed and uninstalled version of Tcl.
-    if test -f ${TK_BIN_DIR}/Makefile ; then
+    if test -f "${TK_BIN_DIR}/Makefile" ; then
         TK_LIB_SPEC=${TK_BUILD_LIB_SPEC}
         TK_STUB_LIB_SPEC=${TK_BUILD_STUB_LIB_SPEC}
         TK_STUB_LIB_PATH=${TK_BUILD_STUB_LIB_PATH}
@@ -449,7 +449,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 	# against Tk.framework installed in an arbitary location.
 	case ${TK_DEFS} in
 	    *TK_FRAMEWORK*)
-		if test -f ${TK_BIN_DIR}/${TK_LIB_FILE}; then
+		if test -f "${TK_BIN_DIR}/${TK_LIB_FILE}"; then
 		    for i in "`cd ${TK_BIN_DIR}; pwd`" \
 			     "`cd ${TK_BIN_DIR}/../..; pwd`"; do
 			if test "`basename "$i"`" = "${TK_LIB_FILE}.framework"; then
@@ -458,7 +458,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 			fi
 		    done
 		fi
-		if test -f ${TK_BIN_DIR}/${TK_STUB_LIB_FILE}; then
+		if test -f "${TK_BIN_DIR}/${TK_STUB_LIB_FILE}"; then
 		    TK_STUB_LIB_SPEC="-L${TK_BIN_DIR} ${TK_STUB_LIB_FLAG}"
 		    TK_STUB_LIB_PATH="${TK_BIN_DIR}/${TK_STUB_LIB_FILE}"
 		fi
@@ -3925,7 +3925,7 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
 
     if test -f "${$1_BIN_DIR}/$1Config.sh" ; then
         AC_MSG_RESULT([loading])
-	. ${$1_BIN_DIR}/$1Config.sh
+	. "${$1_BIN_DIR}/$1Config.sh"
     else
         AC_MSG_RESULT([file not found])
     fi
@@ -3939,7 +3939,7 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
     # installed and uninstalled version of Tcl.
     #
 
-    if test -f ${$1_BIN_DIR}/Makefile ; then
+    if test -f "${$1_BIN_DIR}/Makefile" ; then
 	AC_MSG_WARN([Found Makefile - using build library specs for $1])
         $1_LIB_SPEC=${$1_BUILD_LIB_SPEC}
         $1_STUB_LIB_SPEC=${$1_BUILD_STUB_LIB_SPEC}

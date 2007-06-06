@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.108 2007/05/18 15:04:22 dkf Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.109 2007/06/06 09:58:01 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -1697,10 +1697,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
 
 	    # TEA specific: for Tk extensions, remove 64-bit arch flags from
-	    # CFLAGS for combined 32-bit and 64-bit fat builds as neither TkAqua
-	    # nor TkX11 can be built for 64-bit at present.
-	    test "$fat_32_64" = yes && test -n "${TK_BIN_DIR}" && \
-		CFLAGS="`echo "$CFLAGS " | sed -e 's/-arch ppc64 / /g' -e 's/-arch x86_64 / /g'`"
+	    # CFLAGS et al. for combined 32 & 64 bit fat builds as neither
+	    # TkAqua nor TkX11 can be built for 64-bit at present.
+	    test "$fat_32_64" = yes && test -n "${TK_BIN_DIR}" && for v in CFLAGS CPPFLAGS LDFLAGS; do
+		eval $v'="`echo "$'$v' "|sed -e "s/-arch ppc64 / /g" -e "s/-arch x86_64 / /g"`"'; done
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""

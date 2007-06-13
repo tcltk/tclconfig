@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.109 2007/06/06 09:58:01 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.110 2007/06/13 17:31:40 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -3607,7 +3607,7 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 AC_DEFUN([TEA_PUBLIC_TK_HEADERS], [
     AC_MSG_CHECKING([for Tk public headers])
 
-    AC_ARG_WITH(tkinclude, [  --with-tkinclude      directory containing the public Tk header files.], with_tkinclude=${withval})
+    AC_ARG_WITH(tkinclude, [  --with-tkinclude        directory containing the public Tk header files], with_tkinclude=${withval})
 
     AC_CACHE_VAL(ac_cv_c_tkh, [
 	# Use the value from --with-tkinclude, if it was given

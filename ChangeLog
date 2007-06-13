@@ -1,3 +1,7 @@
+2007-06-13  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: fix --with-tkinclude alignment. [Bug 1506111]
+
 2007-06-06  Daniel Steffen  <das@users.sourceforge.net>
 
 	* unix/tcl.m4 (Darwin): fix 64bit arch removal in fat 32&64bit builds. 

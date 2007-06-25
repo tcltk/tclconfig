@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.110 2007/06/13 17:31:40 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.111 2007/06/25 19:15:14 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -3727,11 +3727,11 @@ AC_DEFUN([TEA_PROG_TCLSH], [
               `ls -d ${TCL_PREFIX}/bin     2>/dev/null`"
         for i in $list ; do
             if test -f "$i/${TCLSH_PROG}" ; then
-                REAL_TCL_BIN_DIR="`cd "$i"; pwd`"
+                REAL_TCL_BIN_DIR="`cd "$i"; pwd`/"
                 break
             fi
         done
-        TCLSH_PROG="${REAL_TCL_BIN_DIR}/${TCLSH_PROG}"
+        TCLSH_PROG="${REAL_TCL_BIN_DIR}${TCLSH_PROG}"
     fi
     AC_MSG_RESULT([${TCLSH_PROG}])
     AC_SUBST(TCLSH_PROG)
@@ -3777,11 +3777,11 @@ AC_DEFUN([TEA_PROG_WISH], [
               `ls -d ${TK_PREFIX}/bin     2>/dev/null`"
         for i in $list ; do
             if test -f "$i/${WISH_PROG}" ; then
-                REAL_TK_BIN_DIR="`cd "$i"; pwd`"
+                REAL_TK_BIN_DIR="`cd "$i"; pwd`/"
                 break
             fi
         done
-        WISH_PROG="${REAL_TK_BIN_DIR}/${WISH_PROG}"
+        WISH_PROG="${REAL_TK_BIN_DIR}${WISH_PROG}"
     fi
     AC_MSG_RESULT([${WISH_PROG}])
     AC_SUBST(WISH_PROG)

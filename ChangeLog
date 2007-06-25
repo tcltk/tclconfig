@@ -1,3 +1,7 @@
+2007-06-25  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_PROG_TCLSH, TEA_PROG_WISH): move where / is added.
+
 2007-06-13  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: fix --with-tkinclude alignment. [Bug 1506111]

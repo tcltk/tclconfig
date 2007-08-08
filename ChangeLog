@@ -1,3 +1,8 @@
+2007-08-08  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: check Ttk dir for Tk private headers (8.5).
+	Add some comments to other bits.
+
 2007-06-25  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_PROG_TCLSH, TEA_PROG_WISH): move where / is added.

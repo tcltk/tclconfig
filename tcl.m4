@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.111 2007/06/25 19:15:14 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.112 2007/08/08 23:21:12 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -1319,6 +1319,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    if test "`uname -m`" = "ia64" ; then
 		SHLIB_SUFFIX=".so"
+		# Use newer C++ library for C++ extensions
+		#if test "$GCC" != "yes" ; then
+		#   CPPFLAGS="-AA"
+		#fi
 	    else
 		SHLIB_SUFFIX=".sl"
 	    fi
@@ -2867,6 +2871,8 @@ AC_DEFUN([TEA_ADD_SOURCES], [
 		;;
 	    *)
 		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
 		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
 		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
 		    ; then
@@ -3551,6 +3557,10 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
     # We want to ensure these are substituted so as not to require
     # any *_NATIVE vars be defined in the Makefile
     TK_INCLUDES="-I${TK_GENERIC_DIR_NATIVE} -I${TK_PLATFORM_DIR_NATIVE}"
+    # Detect and add ttk subdir
+    if test -d ${TK_SRC_DIR_NATIVE}/generic/ttk; then
+	TK_INCLUDES="${TK_INCLUDES} -I\"${TK_SRC_DIR_NATIVE}/generic/ttk\""
+    fi
     if test "${TEA_WINDOWINGSYSTEM}" = "win32" \
 	-o "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
 	TK_INCLUDES="${TK_INCLUDES} -I${TK_XLIB_DIR_NATIVE}"

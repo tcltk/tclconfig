@@ -1,3 +1,10 @@
+2007-09-15  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4: 	replace all direct references to compiler by ${CC} to
+			enable CC overriding at configure & make time.
+	(SunOS-5.1x):	replace direct use of '/usr/ccs/bin/ld' in SHLIB_LD by
+			'cc' compiler driver.
+
 2007-08-08  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: check Ttk dir for Tk private headers (8.5).
@@ -13,7 +20,7 @@
 
 2007-06-06  Daniel Steffen  <das@users.sourceforge.net>
 
-	* unix/tcl.m4 (Darwin): fix 64bit arch removal in fat 32&64bit builds. 
+	* tcl.m4 (Darwin): fix 64bit arch removal in fat 32&64bit builds. 
 
 2007-05-18  Donal K. Fellows  <donal.k.fellows@man.ac.uk>
 

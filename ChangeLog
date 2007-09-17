@@ -1,3 +1,8 @@
+2007-09-17  Joe English  <jenglish@users.sourceforge.net>
+
+	* tcl.m4: use '${CC} -shared' instead of 'ld -Bshareable' 
+	to build shared libraries on current NetBSDs [#1749251].
+
 2007-09-15  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4: 	replace all direct references to compiler by ${CC} to

@@ -1,3 +1,7 @@
+2007-10-23  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	*** Tagged tea-3-branch to start TEA 4 development on HEAD ***
+
 2007-09-17  Joe English  <jenglish@users.sourceforge.net>
 
 	* tcl.m4: use '${CC} -shared' instead of 'ld -Bshareable' 

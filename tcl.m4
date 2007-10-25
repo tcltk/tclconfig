@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115 2007/09/18 12:46:27 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.1 2007/10/25 20:27:58 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -1694,11 +1694,31 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    LD_SEARCH_FLAGS=""
 	    LD_LIBRARY_PATH_VAR="DYLD_LIBRARY_PATH"
 
-	    # TEA specific: for Tk extensions, remove 64-bit arch flags from
-	    # CFLAGS et al. for combined 32 & 64 bit fat builds as neither
-	    # TkAqua nor TkX11 can be built for 64-bit at present.
-	    test "$fat_32_64" = yes && test -n "${TK_BIN_DIR}" && for v in CFLAGS CPPFLAGS LDFLAGS; do
-		eval $v'="`echo "$'$v' "|sed -e "s/-arch ppc64 / /g" -e "s/-arch x86_64 / /g"`"'; done
+	    # TEA specific: for combined 32 & 64 bit fat builds of Tk
+	    # extensions, verify that 64-bit build is possible.
+	    if test "$fat_32_64" = yes && test -n "${TK_BIN_DIR}"; then
+		if test "${TEA_WINDOWINGSYSTEM}" = x11; then
+		    AC_CACHE_CHECK([for 64-bit X11], tcl_cv_lib_x11_64, [
+			for v in CFLAGS CPPFLAGS LDFLAGS; do
+			    eval 'hold_'$v'="$'$v'";'$v'="`echo "$'$v' "|sed -e "s/-arch ppc / /g" -e "s/-arch i386 / /g"`"'
+			done
+			CPPFLAGS="$CPPFLAGS -I/usr/X11R6/include"
+			LDFLAGS="$LDFLAGS -L/usr/X11R6/lib -lX11"
+			AC_TRY_LINK([#include <X11/Xlib.h>], [XrmInitialize();],
+			    tcl_cv_lib_x11_64=yes, tcl_cv_lib_x11_64=no)
+			for v in CFLAGS CPPFLAGS LDFLAGS; do
+			    eval $v'="$hold_'$v'"'
+			done])
+		fi
+		# remove 64-bit arch flags from CFLAGS et al. if configuration
+		# does not support 64-bit.
+		if test "${TEA_WINDOWINGSYSTEM}" = aqua -o "$tcl_cv_lib_x11_64" = no; then
+		    AC_MSG_NOTICE([Removing 64-bit architectures from compiler & linker flags])
+		    for v in CFLAGS CPPFLAGS LDFLAGS; do
+			eval $v'="`echo "$'$v' "|sed -e "s/-arch ppc64 / /g" -e "s/-arch x86_64 / /g"`"'
+		    done
+		fi
+	    fi
 	    ;;
 	NEXTSTEP-*)
 	    SHLIB_CFLAGS=""

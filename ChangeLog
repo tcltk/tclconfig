@@ -1,3 +1,7 @@
+2007-10-26  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): add support for 64-bit X11.
+
 2007-10-23  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Tagged tea-3-branch to start TEA 4 development on HEAD ***

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.117 2007/11/18 07:14:28 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.118 2008/02/01 18:37:15 dkf Exp $
 
 AC_PREREQ(2.57)
 
@@ -1290,9 +1290,23 @@ dnl AC_CHECK_TOOL(AR, ar)
 		PATHTYPE=-w
 		# For information on what debugtype is most useful, see:
 		# http://msdn.microsoft.com/library/en-us/dnvc60/html/gendepdebug.asp
+		# and also
+		# http://msdn2.microsoft.com/en-us/library/y0zzbyt4%28VS.80%29.aspx
 		# This essentially turns it all on.
-		LDFLAGS_DEBUG="-debug:full -debugtype:both -warn:2"
-		LDFLAGS_OPTIMIZE="-release"
+		LDFLAGS_SAVE=$LDFLAGS
+		LDFLAGS="$LDFLAGS_SAVE -debug:full -debugtype:both -warn:2"
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(,[(void)0;])], [
+		    LDFLAGS_DEBUG="-debug:full -debugtype:both -warn:2"], [
+		    LDFLAGS="$LDFLAGS_SAVE -debug -debugtype:cv"
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM(,[(void)0;])], [
+		        LDFLAGS_DEBUG="-debug -debugtype:cv"])
+		LDFLAGS="$LDFLAGS_SAVE -release -opt:ref -opt:icf,3"
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(,[(void)0;])], [
+		    LDFLAGS_OPTIMIZE="-release -opt:ref -opt:icf,3"], [
+		    LDFLAGS="$LDFLAGS_SAVE -release"
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM(,[(void)0;])], [
+			LDFLAGS_OPTIMIZE="-release"])])
+		LDFLAGS=$LDFLAGS_SAVE
 		if test "$doWince" != "no" ; then
 		    LDFLAGS_CONSOLE="-link ${lflags}"
 		    LDFLAGS_WINDOW=${LDFLAGS_CONSOLE}

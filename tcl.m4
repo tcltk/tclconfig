@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.120 2008/02/01 19:00:39 dkf Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.121 2008/03/27 13:45:07 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -2084,7 +2084,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ], [
 		case $system in
 		    SunOS-5.[[1-9]][[0-9]]*)
-			SHLIB_LD='${CC} -G -z text';;
+			SHLIB_LD='${CC} -G -z text ${LDFLAGS}';;
 		    *)
 			SHLIB_LD='/usr/ccs/bin/ld -G -z text';;
 		esac

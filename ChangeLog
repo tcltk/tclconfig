@@ -1,3 +1,7 @@
+2008-03-27  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (SunOS-5.1x): fix 64bit support for Sun cc. [Bug 1921166]
+
 2007-10-26  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): add support for 64-bit X11.
@@ -9,7 +13,7 @@
 2007-09-17  Joe English  <jenglish@users.sourceforge.net>
 
 	* tcl.m4: use '${CC} -shared' instead of 'ld -Bshareable' 
-	to build shared libraries on current NetBSDs [#1749251].
+	to build shared libraries on current NetBSDs [Bug 1749251].
 
 2007-09-15  Daniel Steffen  <das@users.sourceforge.net>
 

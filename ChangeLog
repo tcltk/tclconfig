@@ -1,3 +1,8 @@
+2008-08-12  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): link shlib with current and compatiblity version
+	flags; look for libX11.dylib when searching for X11 libraries.
+
 2008-06-12  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (SunOS-5.11): fix 64bit amd64 support with gcc & Sun cc.

@@ -1,6 +1,11 @@
-2008-11-04  Jeff Hobbs  <jeffh@ActiveState.com>
+2008-11-04  Daniel Steffen  <das@users.sourceforge.net>
 
 	*** Bump to TEA_VERSION 3.7 ***
+
+	* tcl.m4 (Darwin): sync TEA_PRIVATE_TK_HEADERS handling of
+	Tk.framework PrivateHeaders with TEA_PRIVATE_TCL_HEADERS.
+
+2008-11-04  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4 (TEA_PATH_TCLCONFIG, TEA_PATH_TKCONFIG): exit with error
 	when tclConfig.sh cannot be found. [Bug #1997760]

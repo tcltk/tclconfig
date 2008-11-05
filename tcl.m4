@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.124 2008/11/05 00:05:31 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.125 2008/11/05 00:40:05 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -3726,6 +3726,8 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 			if test -d "${TK_BIN_DIR}/Headers" -a \
 				-d "${TK_BIN_DIR}/PrivateHeaders"; then
 			    TK_INCLUDES="-I\"${TK_BIN_DIR}/Headers\" -I\"${TK_BIN_DIR}/PrivateHeaders\" ${TK_INCLUDES}"
+			else
+			    TK_INCLUDES="${TK_INCLUDES} ${TK_INCLUDE_SPEC} `echo "${TK_INCLUDE_SPEC}" | sed -e 's/Headers/PrivateHeaders/'`"
 			fi
 			;;
 	    esac

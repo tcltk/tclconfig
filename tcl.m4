@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.125 2008/11/05 00:40:05 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.126 2008/12/02 19:06:50 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -3532,8 +3532,14 @@ AC_DEFUN([TEA_PRIVATE_TCL_HEADERS], [
     TCL_SRC_DIR_NATIVE=`${CYGPATH} ${TCL_SRC_DIR}`
     TCL_TOP_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}\"
 
-    # Check to see if tclInt.h isn't already with the public headers
-    if test -f "${ac_cv_c_tclh}/tclInt.h" ; then
+    # Check to see if tcl<Plat>Port.h isn't already with the public headers
+    # Don't look for tclInt.h because that resides with tcl.h in the core
+    # sources, but the <plat>Port headers are in a different directory
+    if test "${TEA_PLATFORM}" = "windows" -a \
+	-f "${ac_cv_c_tclh}/tclWinPort.h"; then
+	result="private headers found with public headers"
+    elif test "${TEA_PLATFORM}" = "unix" -a \
+	-f "${ac_cv_c_tclh}/tclUnixPort.h"; then
 	result="private headers found with public headers"
     else
 	TCL_GENERIC_DIR_NATIVE=\"${TCL_SRC_DIR_NATIVE}/generic\"
@@ -3692,8 +3698,14 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
     TK_SRC_DIR_NATIVE=`${CYGPATH} ${TK_SRC_DIR}`
     TK_TOP_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}\"
 
-    # Check to see if tkInt.h isn't already with the public headers
-    if test -f "${ac_cv_c_tkh}/tkInt.h" ; then
+    # Check to see if tk<Plat>Port.h isn't already with the public headers
+    # Don't look for tkInt.h because that resides with tk.h in the core
+    # sources, but the <plat>Port headers are in a different directory
+    if test "${TEA_PLATFORM}" = "windows" -a \
+	-f "${ac_cv_c_tkh}/tkWinPort.h"; then
+	result="private headers found with public headers"
+    elif test "${TEA_PLATFORM}" = "unix" -a \
+	-f "${ac_cv_c_tkh}/tkUnixPort.h"; then
 	result="private headers found with public headers"
     else
 	TK_GENERIC_DIR_NATIVE=\"${TK_SRC_DIR_NATIVE}/generic\"

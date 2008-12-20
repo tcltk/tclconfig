@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.8 2008/12/02 19:08:12 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.9 2008/12/20 00:20:47 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -92,6 +92,11 @@ AC_DEFUN([TEA_PATH_TCLCONFIG], [
 			`ls -dr ../../../tcl[[8-9]].[[0-9]].[[0-9]]* 2>/dev/null` \
 			`ls -dr ../../../tcl[[8-9]].[[0-9]] 2>/dev/null` \
 			`ls -dr ../../../tcl[[8-9]].[[0-9]]* 2>/dev/null` ; do
+		    if test "${TEA_PLATFORM}" = "windows" \
+			    -a -f "$i/win/tclConfig.sh" ; then
+			ac_cv_c_tclconfig=`(cd $i/win; pwd)`
+			break
+		    fi
 		    if test -f "$i/unix/tclConfig.sh" ; then
 			ac_cv_c_tclconfig=`(cd $i/unix; pwd)`
 			break
@@ -149,6 +154,11 @@ AC_DEFUN([TEA_PATH_TCLCONFIG], [
 			`ls -dr ${srcdir}/../tcl[[8-9]].[[0-9]].[[0-9]]* 2>/dev/null` \
 			`ls -dr ${srcdir}/../tcl[[8-9]].[[0-9]] 2>/dev/null` \
 			`ls -dr ${srcdir}/../tcl[[8-9]].[[0-9]]* 2>/dev/null` ; do
+		    if test "${TEA_PLATFORM}" = "windows" \
+			    -a -f "$i/win/tclConfig.sh" ; then
+			ac_cv_c_tclconfig=`(cd $i/win; pwd)`
+			break
+		    fi
 		    if test -f "$i/unix/tclConfig.sh" ; then
 		    ac_cv_c_tclconfig=`(cd $i/unix; pwd)`
 		    break
@@ -234,6 +244,11 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 			`ls -dr ../../../tk[[8-9]].[[0-9]].[[0-9]]* 2>/dev/null` \
 			`ls -dr ../../../tk[[8-9]].[[0-9]] 2>/dev/null` \
 			`ls -dr ../../../tk[[8-9]].[[0-9]]* 2>/dev/null` ; do
+		    if test "${TEA_PLATFORM}" = "windows" \
+			    -a -f "$i/win/tkConfig.sh" ; then
+			ac_cv_c_tkconfig=`(cd $i/win; pwd)`
+			break
+		    fi
 		    if test -f "$i/unix/tkConfig.sh" ; then
 			ac_cv_c_tkconfig=`(cd $i/unix; pwd)`
 			break
@@ -291,6 +306,11 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 			`ls -dr ${srcdir}/../tk[[8-9]].[[0-9]].[[0-9]]* 2>/dev/null` \
 			`ls -dr ${srcdir}/../tk[[8-9]].[[0-9]] 2>/dev/null` \
 			`ls -dr ${srcdir}/../tk[[8-9]].[[0-9]]* 2>/dev/null` ; do
+		    if test "${TEA_PLATFORM}" = "windows" \
+			    -a -f "$i/win/tkConfig.sh" ; then
+			ac_cv_c_tkconfig=`(cd $i/win; pwd)`
+			break
+		    fi
 		    if test -f "$i/unix/tkConfig.sh" ; then
 			ac_cv_c_tkconfig=`(cd $i/unix; pwd)`
 			break
@@ -316,7 +336,7 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 #	Load the tclConfig.sh file
 #
 # Arguments:
-#	
+#
 #	Requires the following vars to be set:
 #		TCL_BIN_DIR
 #
@@ -408,7 +428,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 #	Load the tkConfig.sh file
 #
 # Arguments:
-#	
+#
 #	Requires the following vars to be set:
 #		TK_BIN_DIR
 #
@@ -789,13 +809,13 @@ AC_DEFUN([TEA_ENABLE_THREADS], [
 #
 # Arguments:
 #	none
-#	
+#
 #	TEA varies from core Tcl in that C|LDFLAGS_DEFAULT receives
 #	the value of C|LDFLAGS_OPTIMIZE|DEBUG already substituted.
 #	Requires the following vars to be set in the Makefile:
 #		CFLAGS_DEFAULT
 #		LDFLAGS_DEFAULT
-#	
+#
 # Results:
 #
 #	Adds the following arguments to configure:
@@ -860,7 +880,7 @@ AC_DEFUN([TEA_ENABLE_SYMBOLS], [
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Adds the following arguments to configure:
@@ -890,7 +910,7 @@ AC_DEFUN([TEA_ENABLE_LANGINFO], [
 	if test $tcl_cv_langinfo_h = yes; then
 	    AC_DEFINE(HAVE_LANGINFO, 1, [Do we have nl_langinfo()?])
 	fi
-    else 
+    else
 	AC_MSG_RESULT([$langinfo_ok])
     fi
 ])
@@ -1113,7 +1133,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
     AS_IF([test "$GCC" = yes], [
 	# TEA specific:
 	CFLAGS_OPTIMIZE=-O2
-	CFLAGS_WARNING="-Wall -Wno-implicit-int"
+	CFLAGS_WARNING="-Wall"
     ], [CFLAGS_WARNING=""])
     TCL_NEEDS_EXP_FILE=0
     TCL_BUILD_EXP_FILE=""
@@ -1581,7 +1601,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    # TEA specific:
 	    CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
-	    # egcs-2.91.66 on Redhat Linux 6.0 generates lots of warnings 
+	    # egcs-2.91.66 on Redhat Linux 6.0 generates lots of warnings
 	    # when you inline the string and math operations.  Turn this off to
 	    # get rid of the warnings.
 	    #CFLAGS_OPTIMIZE="${CFLAGS_OPTIMIZE} -D__NO_STRING_INLINES -D__NO_MATH_INLINES"
@@ -1868,7 +1888,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    CFLAGS_OPTIMIZE=""		# Optimizer is buggy
 	    AC_DEFINE(_OE_SOCKETS, 1,	# needed in sys/socket.h
 		[Should OS/390 do the right thing with sockets?])
-	    ;;      
+	    ;;
 	OSF1-1.0|OSF1-1.1|OSF1-1.2)
 	    # OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
 	    SHLIB_CFLAGS=""
@@ -2104,7 +2124,8 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ], [
 		case $system in
 		    SunOS-5.[[1-9]][[0-9]]*)
-			SHLIB_LD='${CC} -G -z text ${LDFLAGS}';;
+			# TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
+			SHLIB_LD='${CC} -G -z text ${LDFLAGS_DEFAULT}';;
 		    *)
 			SHLIB_LD='/usr/ccs/bin/ld -G -z text';;
 		esac
@@ -2178,6 +2199,7 @@ dnl # preprocessing tests use only CPPFLAGS.
 	    NetBSD-*|FreeBSD-*) ;;
 	    Darwin-*) ;;
 	    SCO_SV-3.2*) ;;
+	    windows) ;;
 	    *) SHLIB_CFLAGS="-fPIC" ;;
 	esac])
 
@@ -2219,7 +2241,7 @@ dnl # preprocessing tests use only CPPFLAGS.
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Defines only one of the following vars:
@@ -2338,7 +2360,7 @@ int main() {
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Defines some of the following vars:
@@ -2432,7 +2454,7 @@ closedir(d);
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Sets the following vars:
@@ -2521,13 +2543,13 @@ AC_DEFUN([TEA_PATH_UNIX_X], [
 # TEA_BLOCKING_STYLE
 #
 #	The statements below check for systems where POSIX-style
-#	non-blocking I/O (O_NONBLOCK) doesn't work or is unimplemented. 
+#	non-blocking I/O (O_NONBLOCK) doesn't work or is unimplemented.
 #	On these systems (mostly older ones), use the old BSD-style
 #	FIONBIO approach instead.
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Defines some of the following vars:
@@ -2571,7 +2593,7 @@ AC_DEFUN([TEA_BLOCKING_STYLE], [
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Defines some of the following vars:
@@ -2643,7 +2665,7 @@ AC_DEFUN([TEA_TIME_HANDLER], [
 #
 # Arguments:
 #	none
-#	
+#
 # Results:
 #
 #	Might defines some of the following vars:
@@ -2696,7 +2718,7 @@ AC_DEFUN([TEA_BUGGY_STRTOD], [
 #		DL_LIBS
 #		LIBS
 #		MATH_LIBS
-#	
+#
 # Results:
 #
 #	Subst's the following var:
@@ -2779,7 +2801,7 @@ AC_DEFUN([TEA_TCL_LINK_LIBS], [
 #
 # Arguments:
 #	None
-#	
+#
 # Results:
 #
 #	Might define the following vars:
@@ -2825,7 +2847,7 @@ AC_DEFUN([TEA_TCL_EARLY_FLAGS],[
 #
 # Arguments:
 #	None
-#	
+#
 # Results:
 #
 #	Might define the following vars:
@@ -3811,7 +3833,7 @@ AC_DEFUN([TEA_PUBLIC_TK_HEADERS], [
 	    fi
 
 	    # Check order: pkg --prefix location, Tk's --prefix location,
-	    # relative to directory of tkConfig.sh, Tcl's --prefix location, 
+	    # relative to directory of tkConfig.sh, Tcl's --prefix location,
 	    # relative to directory of tclConfig.sh.
 
 	    eval "temp_includedir=${includedir}"
@@ -3981,7 +4003,7 @@ AC_DEFUN([TEA_PATH_CONFIG], [
 #	Load the $1Config.sh file
 #
 # Arguments:
-#	
+#
 #	Requires the following vars to be set:
 #		$1_BIN_DIR
 #

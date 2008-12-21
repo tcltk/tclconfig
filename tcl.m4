@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.127 2008/12/20 00:20:42 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.128 2008/12/21 09:03:11 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1477,24 +1477,23 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
 	    AS_IF([test "$tcl_ok" = yes], [
-		SHLIB_CFLAGS="+z"
-		SHLIB_LD="ld -b"
 		SHLIB_LD_LIBS='${LIBS}'
 		DL_OBJS="tclLoadShl.o"
 		DL_LIBS="-ldld"
 		LDFLAGS="$LDFLAGS -Wl,-E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
-		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
+		LD_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 		LD_LIBRARY_PATH_VAR="SHLIB_PATH"
 	    ])
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
-		SHLIB_LD_LIBS='${LIBS}'
-		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
+	    ], [
+		CFLAGS="$CFLAGS -z"
+		# Users may want PA-RISC 1.1/2.0 portable code - needs HP cc
+		#CFLAGS="$CFLAGS +DAportable"
+		SHLIB_CFLAGS="+z"
+		SHLIB_LD="${CC} -Wl,-b"
 	    ])
-
-	    # Users may want PA-RISC 1.1/2.0 portable code - needs HP cc
-	    #CFLAGS="$CFLAGS +DAportable"
 
 	    # Check to enable 64-bit flags for compiler/linker
 	    AS_IF([test "$do64bit" = "yes"], [
@@ -1857,10 +1856,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 			for v in CFLAGS CPPFLAGS LDFLAGS; do
 			    eval 'hold_'$v'="$'$v'";'$v'="`echo "$'$v' "|sed -e "s/-arch ppc / /g" -e "s/-arch i386 / /g"`"'
 			done
-			CPPFLAGS="$CPPFLAGS -I/usr/X11R6/include"
-			LDFLAGS="$LDFLAGS -L/usr/X11R6/lib -lX11"
-			AC_TRY_LINK([#include <X11/Xlib.h>], [XrmInitialize();],
-			    tcl_cv_lib_x11_64=yes, tcl_cv_lib_x11_64=no)
+			AC_TRY_LINK([#include <CoreFoundation/CoreFoundation.h>], 
+			    [CFBundleRef b = CFBundleGetMainBundle();], 
+			    tcl_cv_lib_corefoundation_64=yes,
+			    tcl_cv_lib_corefoundation_64=no)
 			for v in CFLAGS CPPFLAGS LDFLAGS; do
 			    eval $v'="$hold_'$v'"'
 			done])
@@ -1888,7 +1887,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    CFLAGS_OPTIMIZE=""		# Optimizer is buggy
 	    AC_DEFINE(_OE_SOCKETS, 1,	# needed in sys/socket.h
 		[Should OS/390 do the right thing with sockets?])
-	    ;;
+	    ;;      
 	OSF1-1.0|OSF1-1.1|OSF1-1.2)
 	    # OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
 	    SHLIB_CFLAGS=""

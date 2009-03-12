@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.129 2008/12/22 05:51:58 das Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.130 2009/03/12 00:57:53 jenglish Exp $
 
 AC_PREREQ(2.57)
 
@@ -376,7 +376,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     elif test "`uname -s`" = "Darwin"; then
 	# If Tcl was built as a framework, attempt to use the libraries
 	# from the framework at the given location so that linking works
-	# against Tcl.framework installed in an arbitary location.
+	# against Tcl.framework installed in an arbitrary location.
 	case ${TCL_DEFS} in
 	    *TCL_FRAMEWORK*)
 		if test -f "${TCL_BIN_DIR}/${TCL_LIB_FILE}"; then
@@ -465,7 +465,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
     elif test "`uname -s`" = "Darwin"; then
 	# If Tk was built as a framework, attempt to use the libraries
 	# from the framework at the given location so that linking works
-	# against Tk.framework installed in an arbitary location.
+	# against Tk.framework installed in an arbitrary location.
 	case ${TK_DEFS} in
 	    *TK_FRAMEWORK*)
 		if test -f "${TK_BIN_DIR}/${TK_LIB_FILE}"; then
@@ -1143,6 +1143,7 @@ dnl AC_CHECK_TOOL(AR, ar)
     AC_CHECK_PROG(AR, ar, ar)
     STLIB_LD='${AR} cr'
     LD_LIBRARY_PATH_VAR="LD_LIBRARY_PATH"
+    AS_IF([test "x$SHLIB_VERSION" = x],[SHLIB_VERSION="1.0"])
     case $system in
 	# TEA specific:
 	windows)
@@ -1701,7 +1702,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AS_IF([test $tcl_cv_ld_elf = yes], [
 		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so'
 	    ], [
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
 	    ])
 
 	    # Ancient FreeBSD doesn't handle version numbers with dots.
@@ -1719,7 +1720,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
 	    AC_CACHE_CHECK([for ELF], tcl_cv_ld_elf, [
 		AC_EGREP_CPP(yes, [
 #ifdef __ELF__
@@ -2000,7 +2001,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # requires an extra version number at the end of .so file names.
 	    # So, the library has to have a name like libtcl75.so.1.0
 
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.1.0'
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
@@ -2353,7 +2354,7 @@ int main() {
 #	Supply substitutes for missing POSIX header files.  Special
 #	notes:
 #	    - stdlib.h doesn't define strtol, strtoul, or
-#	      strtod insome versions of SunOS
+#	      strtod in some versions of SunOS
 #	    - some versions of string.h don't declare procedures such
 #	      as strstr
 #
@@ -3637,6 +3638,7 @@ AC_DEFUN([TEA_PUBLIC_TCL_HEADERS], [
 		AC_MSG_ERROR([${with_tclinclude} directory does not contain tcl.h])
 	    fi
 	else
+	    list=""
 	    if test "`uname -s`" = "Darwin"; then
 		# If Tcl was built as a framework, attempt to use
 		# the framework's Headers directory
@@ -3815,6 +3817,7 @@ AC_DEFUN([TEA_PUBLIC_TK_HEADERS], [
 		AC_MSG_ERROR([${with_tkinclude} directory does not contain tk.h])
 	    fi
 	else
+	    list=""
 	    if test "`uname -s`" = "Darwin"; then
 		# If Tk was built as a framework, attempt to use
 		# the framework's Headers directory.

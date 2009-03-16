@@ -1,7 +1,13 @@
+2009-03-16  Joe English  <jenglish@users.sourceforge.net>
+	
+	* tcl.m4(TEA_PUBLIC_TK_HEADERS): Look at ${TK_INCLUDE_SPEC}
+	(found in tkConfig.sh) when trying to guess where tk.h might be
+	[Patch 1960628].
+
 2009-03-11  Joe English  <jenglish@users.sourceforge.net>
 
 	* tcl.m4: Allow ${SHLIB_SUFFIX} to be overridden at
-	configure-time [Bug 1960628].  Also fix some comment typos,
+	configure-time [Patch 1960628].  Also fix some comment typos,
 	and an uninitialized variable bug-waiting-to-happen.
 
 2008-12-21  Jan Nijtmans  <nijtmans@users.sf.net>

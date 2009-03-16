@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.130 2009/03/12 00:57:53 jenglish Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.131 2009/03/16 23:49:07 jenglish Exp $
 
 AC_PREREQ(2.57)
 
@@ -2586,7 +2586,7 @@ AC_DEFUN([TEA_BLOCKING_STYLE], [
 ])
 
 #--------------------------------------------------------------------
-# TEA_TIME_HANLDER
+# TEA_TIME_HANDLER
 #
 #	Checks how the system deals with time.h, what time structures
 #	are used on the system, and what fields the structures have.
@@ -3847,6 +3847,10 @@ AC_DEFUN([TEA_PUBLIC_TK_HEADERS], [
 		`ls -d ${TCL_BIN_DIR}/../include 2>/dev/null`"
 	    if test "${TEA_PLATFORM}" != "windows" -o "$GCC" = "yes"; then
 		list="$list /usr/local/include /usr/include"
+		if test x"${TK_INCLUDE_SPEC}" != x ; then
+		    d=`echo "${TK_INCLUDE_SPEC}" | sed -e 's/^-I//'`
+		    list="$list `ls -d ${d} 2>/dev/null`"
+		fi
 	    fi
 	    for i in $list ; do
 		if test -f "$i/tk.h" ; then

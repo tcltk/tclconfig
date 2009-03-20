@@ -1,3 +1,8 @@
+2009-03-20  Andreas Kupries  <andreask@activestate.com>
+
+	* tclconfig/tcl.m4: Changed SHLIB_LD definition to unbreak
+	building on HPUX.
+
 2009-03-16  Joe English  <jenglish@users.sourceforge.net>
 	
 	* tcl.m4(TEA_PUBLIC_TK_HEADERS): Look at ${TK_INCLUDE_SPEC}

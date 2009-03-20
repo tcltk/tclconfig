@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.131 2009/03/16 23:49:07 jenglish Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.132 2009/03/20 17:48:41 andreas_kupries Exp $
 
 AC_PREREQ(2.57)
 
@@ -1493,7 +1493,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 		# Users may want PA-RISC 1.1/2.0 portable code - needs HP cc
 		#CFLAGS="$CFLAGS +DAportable"
 		SHLIB_CFLAGS="+z"
-		SHLIB_LD="${CC} -Wl,-b"
+		SHLIB_LD="ld -b"
 	    ])
 
 	    # Check to enable 64-bit flags for compiler/linker

@@ -1,3 +1,8 @@
+2009-03-26  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tclconfig/tcl.m4: Adapt LDFLAGS and LD_SEARCH_FLAGS
+	together with SHLIB_LD definition to unbreak building on HPUX.
+
 2009-03-20  Andreas Kupries  <andreask@activestate.com>
 
 	* tclconfig/tcl.m4: Changed SHLIB_LD definition to unbreak

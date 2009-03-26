@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.132 2009/03/20 17:48:41 andreas_kupries Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.133 2009/03/26 10:07:45 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1481,13 +1481,14 @@ dnl AC_CHECK_TOOL(AR, ar)
 		SHLIB_LD_LIBS='${LIBS}'
 		DL_OBJS="tclLoadShl.o"
 		DL_LIBS="-ldld"
-		LDFLAGS="$LDFLAGS -Wl,-E"
+		LDFLAGS="$LDFLAGS -E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
-		LD_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
+		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
 		LD_LIBRARY_PATH_VAR="SHLIB_PATH"
 	    ])
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
+		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    ], [
 		CFLAGS="$CFLAGS -z"
 		# Users may want PA-RISC 1.1/2.0 portable code - needs HP cc

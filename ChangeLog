@@ -1,3 +1,7 @@
+2008-04-10  Daniel Steffen  <das@users.sourceforge.net>
+
+	* tcl.m4 (Darwin): check for 64-bit TkAqua.
+
 2009-03-26  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tclconfig/tcl.m4: Adapt LDFLAGS and LD_SEARCH_FLAGS

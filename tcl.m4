@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.133 2009/03/26 10:07:45 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.134 2009/04/10 23:16:07 das Exp $
 
 AC_PREREQ(2.57)
 
@@ -1866,9 +1866,22 @@ dnl AC_CHECK_TOOL(AR, ar)
 			    eval $v'="$hold_'$v'"'
 			done])
 		])
+		AS_IF([test "${TEA_WINDOWINGSYSTEM}" = aqua], [
+		    AC_CACHE_CHECK([for 64-bit Tk], tcl_cv_lib_tk_64, [
+			for v in CFLAGS CPPFLAGS LDFLAGS; do
+			    eval 'hold_'$v'="$'$v'";'$v'="`echo "$'$v' "|sed -e "s/-arch ppc / /g" -e "s/-arch i386 / /g"`"'
+			done
+			CPPFLAGS="$CPPFLAGS -DUSE_TCL_STUBS=1 -DUSE_TK_STUBS=1 ${TCL_INCLUDES} ${TK_INCLUDES}"
+			LDFLAGS="$LDFLAGS ${TCL_STUB_LIB_SPEC} ${TK_STUB_LIB_SPEC}"
+			AC_TRY_LINK([#include <tk.h>], [Tk_InitStubs(NULL, "", 0);],
+			    tcl_cv_lib_tk_64=yes, tcl_cv_lib_tk_64=no)
+			for v in CFLAGS CPPFLAGS LDFLAGS; do
+			    eval $v'="$hold_'$v'"'
+			done])
+		])
 		# remove 64-bit arch flags from CFLAGS et al. if configuration
 		# does not support 64-bit.
-		AS_IF([test "${TEA_WINDOWINGSYSTEM}" = aqua -o "$tcl_cv_lib_x11_64" = no], [
+		AS_IF([test "$tcl_cv_lib_tk_64" = no -o "$tcl_cv_lib_x11_64" = no], [
 		    AC_MSG_NOTICE([Removing 64-bit architectures from compiler & linker flags])
 		    for v in CFLAGS CPPFLAGS LDFLAGS; do
 			eval $v'="`echo "$'$v' "|sed -e "s/-arch ppc64 / /g" -e "s/-arch x86_64 / /g"`"'

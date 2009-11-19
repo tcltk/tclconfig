@@ -1,3 +1,12 @@
+2009-10-22  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: [Tcl Patch #2883533] tcl.m4 support for Haiku OS
+
+2009-04-27  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4 (TEA_CONFIG_CFLAGS): harden the check to add _r to CC on
+	AIX with threads.
+
 2009-04-10  Daniel Steffen  <das@users.sourceforge.net>
 
 	* tcl.m4 (Darwin): check for 64-bit TkAqua.

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.13 2009/04/28 00:38:53 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.14 2009/11/19 21:29:15 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1460,6 +1460,16 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    DL_LIBS="-ldl"
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
+	    ;;
+	Haiku*)
+	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
+	    SHLIB_CFLAGS="-fPIC"
+	    SHLIB_LD_LIBS='${LIBS}'
+	    SHLIB_SUFFIX=".so"
+	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS}'
+	    DL_OBJS="tclLoadDl.o"
+	    DL_LIBS="-lroot"
+	    AC_CHECK_LIB(network, inet_ntoa, [LIBS="$LIBS -lnetwork"])
 	    ;;
 	HP-UX-*.11.*)
 	    # Use updated header definitions where possible

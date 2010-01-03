@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.137 2010/01/03 21:12:32 dkf Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.138 2010/01/03 21:37:07 dkf Exp $
 
 AC_PREREQ(2.57)
 
@@ -1779,7 +1779,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # This configuration from FreeBSD Ports.
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD="${CC} -shared"
-	    TCL_SHLIB_LD_EXTRAS="-soname \$@"
+	    TCL_SHLIB_LD_EXTRAS="-soname \$[@]"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    DL_OBJS="tclLoadDl.o"

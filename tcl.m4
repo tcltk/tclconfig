@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.138 2010/01/03 21:37:07 dkf Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.139 2010/01/19 22:20:50 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -413,6 +413,26 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     AC_SUBST(TCL_STUB_LIB_FILE)
     AC_SUBST(TCL_STUB_LIB_FLAG)
     AC_SUBST(TCL_STUB_LIB_SPEC)
+
+    case "`uname -s`" in
+	*CYGWIN_*)
+	    AC_MSG_CHECKING([for cygwin variant])
+	    case ${TCL_EXTRA_CFLAGS} in
+		*-mwin32*|*-mno-cygwin*)
+		    TEA_PLATFORM="windows"
+		    AC_MSG_RESULT([win32])
+		    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
+		    ;;
+		*)
+		    TEA_PLATFORM="unix"
+		    AC_MSG_RESULT([unix])
+		    ;;
+	    esac
+	    EXEEXT=".exe"
+	    ;;
+	*)
+	    ;;
+    esac
 
     # TEA specific:
     AC_SUBST(TCL_LIBS)
@@ -3023,10 +3043,14 @@ TEA version not specified.])
 	AC_MSG_RESULT([ok (TEA ${TEA_VERSION})])
     fi
     case "`uname -s`" in
-	*win32*|*WIN32*|*CYGWIN_NT*|*CYGWIN_9*|*CYGWIN_ME*|*MINGW32_*)
+	*win32*|*WIN32*|*MINGW32_*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
 	    EXEEXT=".exe"
 	    TEA_PLATFORM="windows"
+	    ;;
+	*CYGWIN_*)
+	    # CYGPATH and TEA_PLATFORM are determined later
+	    EXEEXT=".exe"
 	    ;;
 	*)
 	    CYGPATH=echo

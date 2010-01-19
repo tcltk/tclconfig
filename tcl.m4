@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.14 2009/11/19 21:29:15 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.15 2010/01/19 22:21:31 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -413,6 +413,26 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     AC_SUBST(TCL_STUB_LIB_FILE)
     AC_SUBST(TCL_STUB_LIB_FLAG)
     AC_SUBST(TCL_STUB_LIB_SPEC)
+
+    case "`uname -s`" in
+	*CYGWIN_*)
+	    AC_MSG_CHECKING([for cygwin variant])
+	    case ${TCL_EXTRA_CFLAGS} in
+		*-mwin32*|*-mno-cygwin*)
+		    TEA_PLATFORM="windows"
+		    AC_MSG_RESULT([win32])
+		    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
+		    ;;
+		*)
+		    TEA_PLATFORM="unix"
+		    AC_MSG_RESULT([unix])
+		    ;;
+	    esac
+	    EXEEXT=".exe"
+	    ;;
+	*)
+	    ;;
+    esac
 
     # TEA specific:
     AC_SUBST(TCL_LIBS)
@@ -1747,7 +1767,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
-	NetBSD-*|FreeBSD-*)
+	NetBSD-*|FreeBSD-[[3-4]].*)
 	    # FreeBSD 3.* and greater have ELF.
 	    # NetBSD 2.* has ELF and can use 'cc -shared' to build shared libs
 	    SHLIB_CFLAGS="-fPIC"
@@ -1774,6 +1794,30 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    	TCL_LIB_VERSIONS_OK=nodots
 		;;
 	    esac
+	    ;;
+	FreeBSD-*)
+	    # This configuration from FreeBSD Ports.
+	    SHLIB_CFLAGS="-fPIC"
+	    SHLIB_LD="${CC} -shared"
+	    TCL_SHLIB_LD_EXTRAS="-soname \$[@]"
+	    SHLIB_LD_LIBS='${LIBS}'
+	    SHLIB_SUFFIX=".so"
+	    DL_OBJS="tclLoadDl.o"
+	    DL_LIBS=""
+	    LDFLAGS=""
+	    AS_IF([test $doRpath = yes], [
+		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
+	    AS_IF([test "${TCL_THREADS}" = "1"], [
+		# The -pthread needs to go in the LDFLAGS, not LIBS
+		LIBS=`echo $LIBS | sed s/-pthread//`
+		CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+		LDFLAGS="$LDFLAGS $PTHREAD_LIBS"])
+	    # Version numbers are dot-stripped by system policy.
+	    TCL_TRIM_DOTS=`echo ${VERSION} | tr -d .`
+	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
+	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1'
+	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	Darwin-*)
 	    CFLAGS_OPTIMIZE="-Os"
@@ -2999,10 +3043,14 @@ TEA version not specified.])
 	AC_MSG_RESULT([ok (TEA ${TEA_VERSION})])
     fi
     case "`uname -s`" in
-	*win32*|*WIN32*|*CYGWIN_NT*|*CYGWIN_9*|*CYGWIN_ME*|*MINGW32_*)
+	*win32*|*WIN32*|*MINGW32_*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
 	    EXEEXT=".exe"
 	    TEA_PLATFORM="windows"
+	    ;;
+	*CYGWIN_*)
+	    # CYGPATH and TEA_PLATFORM are determined later
+	    EXEEXT=".exe"
 	    ;;
 	*)
 	    CYGPATH=echo

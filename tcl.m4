@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.15 2010/01/19 22:21:31 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.16 2010/03/12 15:54:41 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1762,7 +1762,12 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AS_IF([test $tcl_cv_ld_elf = yes], [
 		LDFLAGS=-Wl,-export-dynamic
 	    ], [LDFLAGS=""])
-
+	    AS_IF([test "${TCL_THREADS}" = "1"], [
+		# OpenBSD builds and links with -pthread, never -lpthread.
+		LIBS=`echo $LIBS | sed s/-lpthread//`
+		CFLAGS="$CFLAGS -pthread"
+		SHLIB_CFLAGS="$SHLIB_CFLAGS -pthread"
+	    ])
 	    # OpenBSD doesn't do version numbers with dots.
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 	    TCL_LIB_VERSIONS_OK=nodots
@@ -2265,7 +2270,7 @@ dnl # preprocessing tests use only CPPFLAGS.
 	    AIX-*) ;;
 	    BSD/OS*) ;;
 	    IRIX*) ;;
-	    NetBSD-*|FreeBSD-*) ;;
+	    NetBSD-*|FreeBSD-*|OpenBSD-*) ;;
 	    Darwin-*) ;;
 	    SCO_SV-3.2*) ;;
 	    windows) ;;

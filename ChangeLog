@@ -1,3 +1,8 @@
+2010-04-06  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* install-sh         [Bug 2982540] configure and install* script files
+	                     should always have LF
+
 2010-02-19  Stuart Cassoff  <stwo@users.sourceforge.net>
 
 	* tcl.m4: Correct compiler/linker flags for threaded builds on

@@ -1,3 +1,8 @@
+2010-07-05  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4             [Patch #1055668] removal of exported internals from
+	                     tclInt.h (EXTERN macro)
+
 2010-04-14  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4    - Backport a lot of quoting fixes from tcl8.6/unix/tcl.m4

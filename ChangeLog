@@ -1,7 +1,15 @@
+2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: remove the following old platform configurations:
+	UNIX_SV*|UnixWare-5*, SunOS-4.*, SINIX*5.4*, SCO_SV-3.2*,
+	OSF1-1.*, NEXTSTEP-*, NetBSD-1.*|FreeBSD-[[1-2]].*, MP-RAS-*,
+	IRIX-5.*, HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*, dgux*,
+	BSD/OS-2.1*|BSD/OS-3*
+
 2010-07-05  Jan Nijtmans  <nijtmans@users.sf.net>
 
-	* tcl.m4             [Patch #1055668] removal of exported internals from
-	                     tclInt.h (EXTERN macro)
+	* tcl.m4: [Patch #1055668] removal of exported internals from
+	tclInt.h (EXTERN macro)
 
 2010-04-14  Jan Nijtmans  <nijtmans@users.sf.net>
 

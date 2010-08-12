@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.19 2010/08/11 20:14:56 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.20 2010/08/12 01:00:24 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -1040,16 +1040,6 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 #                       a .a extension whereas shared objects for loadable
 #                       extensions have a .so extension.  Defaults to
 #                       ${VERSION}${SHLIB_SUFFIX}.
-#       TCL_NEEDS_EXP_FILE -
-#                       1 means that an export file is needed to link to a
-#                       shared library.
-#       TCL_EXP_FILE -  The name of the installed export / import file which
-#                       should be used to link to the Tcl shared library.
-#                       Empty if Tcl is unshared.
-#       TCL_BUILD_EXP_FILE -
-#                       The name of the built export / import file which
-#                       should be used to link to the Tcl shared library.
-#                       Empty if Tcl is unshared.
 #	CFLAGS_DEBUG -
 #			Flags used when running the compiler in debug mode
 #	CFLAGS_OPTIMIZE -
@@ -1143,7 +1133,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
     # LDFLAGS_ARCH so they eventually end up in LDFLAGS even if [load]
     # is disabled by the user. [Bug 1016796]
     LDFLAGS_ARCH=""
-    TCL_EXPORT_FILE_SUFFIX=""
     UNSHARED_LIB_SUFFIX=""
     # TEA specific: use PACKAGE_VERSION instead of VERSION
     TCL_TRIM_DOTS='`echo ${PACKAGE_VERSION} | tr -d .`'
@@ -1156,9 +1145,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	CFLAGS_OPTIMIZE=-O2
 	CFLAGS_WARNING="-Wall"
     ], [CFLAGS_WARNING=""])
-    TCL_NEEDS_EXP_FILE=0
-    TCL_BUILD_EXP_FILE=""
-    TCL_EXP_FILE=""
 dnl FIXME: Replace AC_CHECK_PROG with AC_CHECK_TOOL once cross compiling is fixed.
 dnl AC_CHECK_TOOL(AR, ar)
     AC_CHECK_PROG(AR, ar, ar)
@@ -1374,8 +1360,8 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    DL_OBJS="tclLoadDl.o"
 	    LD_LIBRARY_PATH_VAR="LIBPATH"
 
-	    # Check to enable 64-bit flags for compiler/linker on AIX 4+
-	    AS_IF([test "$do64bit" = yes -a "`uname -v`" -gt 3], [
+	    # Check to enable 64-bit flags for compiler/linker
+	    AS_IF([test "$do64bit" = yes], [
 		AS_IF([test "$GCC" = yes], [
 		    AC_MSG_WARN([64bit mode not supported with GCC on $system])
 		], [
@@ -1400,40 +1386,16 @@ dnl AC_CHECK_TOOL(AR, ar)
 		])
 		LD_SEARCH_FLAGS='-R ${LIB_RUNTIME_DIR}'
 	    ], [
-		AS_IF([test "$GCC" = yes], [SHLIB_LD='${CC} -shared'], [
-		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
+		AS_IF([test "$GCC" = yes], [
+		    SHLIB_LD='${CC} -shared -Wl,-bexpall'
+		], [
+		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bexpall -H512 -T512 -bnoentry"
+		    LDFLAGS="$LDFLAGS -brtl"
 		])
-		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix ${SHLIB_LD} ${SHLIB_LD_FLAGS}"
+		SHLIB_LD="${SHLIB_LD} ${SHLIB_LD_FLAGS}"
 		DL_LIBS="-ldl"
 		CC_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-		TCL_NEEDS_EXP_FILE=1
-		# TEA specific: use PACKAGE_VERSION instead of VERSION
-		TCL_EXPORT_FILE_SUFFIX='${PACKAGE_VERSION}.exp'
-	    ])
-
-	    # AIX v<=4.1 has some different flags than 4.2+
-	    AS_IF([test "$system" = "AIX-4.1" -o "`uname -v`" -lt 4], [
-		AC_LIBOBJ([tclLoadAix])
-		DL_LIBS="-lld"
-	    ])
-
-	    # On AIX <=v4 systems, libbsd.a has to be linked in to support
-	    # non-blocking file IO.  This library has to be linked in after
-	    # the MATH_LIBS or it breaks the pow() function.  The way to
-	    # insure proper sequencing, is to add it to the tail of MATH_LIBS.
-	    # This library also supplies gettimeofday.
-	    #
-	    # AIX does not have a timezone field in struct tm. When the AIX
-	    # bsd library is used, the timezone global and the gettimeofday
-	    # methods are to be avoided for timezone deduction instead, we
-	    # deduce the timezone by comparing the localtime result on a
-	    # known GMT value.
-
-	    AC_CHECK_LIB(bsd, gettimeofday, libbsd=yes, libbsd=no)
-	    AS_IF([test $libbsd = yes], [
-	    	MATH_LIBS="$MATH_LIBS -lbsd"
-	    	AC_DEFINE(USE_DELTA_FOR_TZ, 1, [Do we need a special AIX hack for timezones?])
 	    ])
 	    ;;
 	BeOS*)

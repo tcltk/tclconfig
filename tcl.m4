@@ -9,13 +9,13 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.142 2010/07/05 18:29:32 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.143 2010/08/12 01:17:26 hobbs Exp $
 
 AC_PREREQ(2.57)
 
 dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.7"
+dnl TEA_VERSION="3.8"
 
 # Possible values for key variables defined:
 #
@@ -1040,16 +1040,6 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 #                       a .a extension whereas shared objects for loadable
 #                       extensions have a .so extension.  Defaults to
 #                       ${VERSION}${SHLIB_SUFFIX}.
-#       TCL_NEEDS_EXP_FILE -
-#                       1 means that an export file is needed to link to a
-#                       shared library.
-#       TCL_EXP_FILE -  The name of the installed export / import file which
-#                       should be used to link to the Tcl shared library.
-#                       Empty if Tcl is unshared.
-#       TCL_BUILD_EXP_FILE -
-#                       The name of the built export / import file which
-#                       should be used to link to the Tcl shared library.
-#                       Empty if Tcl is unshared.
 #	CFLAGS_DEBUG -
 #			Flags used when running the compiler in debug mode
 #	CFLAGS_OPTIMIZE -
@@ -1143,7 +1133,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
     # LDFLAGS_ARCH so they eventually end up in LDFLAGS even if [load]
     # is disabled by the user. [Bug 1016796]
     LDFLAGS_ARCH=""
-    TCL_EXPORT_FILE_SUFFIX=""
     UNSHARED_LIB_SUFFIX=""
     # TEA specific: use PACKAGE_VERSION instead of VERSION
     TCL_TRIM_DOTS='`echo ${PACKAGE_VERSION} | tr -d .`'
@@ -1156,9 +1145,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	CFLAGS_OPTIMIZE=-O2
 	CFLAGS_WARNING="-Wall"
     ], [CFLAGS_WARNING=""])
-    TCL_NEEDS_EXP_FILE=0
-    TCL_BUILD_EXP_FILE=""
-    TCL_EXP_FILE=""
 dnl FIXME: Replace AC_CHECK_PROG with AC_CHECK_TOOL once cross compiling is fixed.
 dnl AC_CHECK_TOOL(AR, ar)
     AC_CHECK_PROG(AR, ar, ar)
@@ -1374,8 +1360,8 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    DL_OBJS="tclLoadDl.o"
 	    LD_LIBRARY_PATH_VAR="LIBPATH"
 
-	    # Check to enable 64-bit flags for compiler/linker on AIX 4+
-	    AS_IF([test "$do64bit" = yes -a "`uname -v`" -gt 3], [
+	    # Check to enable 64-bit flags for compiler/linker
+	    AS_IF([test "$do64bit" = yes], [
 		AS_IF([test "$GCC" = yes], [
 		    AC_MSG_WARN([64bit mode not supported with GCC on $system])
 		], [
@@ -1400,40 +1386,16 @@ dnl AC_CHECK_TOOL(AR, ar)
 		])
 		LD_SEARCH_FLAGS='-R ${LIB_RUNTIME_DIR}'
 	    ], [
-		AS_IF([test "$GCC" = yes], [SHLIB_LD='${CC} -shared'], [
-		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
+		AS_IF([test "$GCC" = yes], [
+		    SHLIB_LD='${CC} -shared -Wl,-bexpall'
+		], [
+		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bexpall -H512 -T512 -bnoentry"
+		    LDFLAGS="$LDFLAGS -brtl"
 		])
-		SHLIB_LD="${TCL_SRC_DIR}/unix/ldAix ${SHLIB_LD} ${SHLIB_LD_FLAGS}"
+		SHLIB_LD="${SHLIB_LD} ${SHLIB_LD_FLAGS}"
 		DL_LIBS="-ldl"
 		CC_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-		TCL_NEEDS_EXP_FILE=1
-		# TEA specific: use PACKAGE_VERSION instead of VERSION
-		TCL_EXPORT_FILE_SUFFIX='${PACKAGE_VERSION}.exp'
-	    ])
-
-	    # AIX v<=4.1 has some different flags than 4.2+
-	    AS_IF([test "$system" = "AIX-4.1" -o "`uname -v`" -lt 4], [
-		AC_LIBOBJ([tclLoadAix])
-		DL_LIBS="-lld"
-	    ])
-
-	    # On AIX <=v4 systems, libbsd.a has to be linked in to support
-	    # non-blocking file IO.  This library has to be linked in after
-	    # the MATH_LIBS or it breaks the pow() function.  The way to
-	    # insure proper sequencing, is to add it to the tail of MATH_LIBS.
-	    # This library also supplies gettimeofday.
-	    #
-	    # AIX does not have a timezone field in struct tm. When the AIX
-	    # bsd library is used, the timezone global and the gettimeofday
-	    # methods are to be avoided for timezone deduction instead, we
-	    # deduce the timezone by comparing the localtime result on a
-	    # known GMT value.
-
-	    AC_CHECK_LIB(bsd, gettimeofday, libbsd=yes, libbsd=no)
-	    AS_IF([test $libbsd = yes], [
-	    	MATH_LIBS="$MATH_LIBS -lbsd"
-	    	AC_DEFINE(USE_DELTA_FOR_TZ, 1, [Do we need a special AIX hack for timezones?])
 	    ])
 	    ;;
 	BeOS*)
@@ -1450,16 +1412,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # is always linked to, for compatibility.
 	    #-----------------------------------------------------------
 	    AC_CHECK_LIB(bind, inet_ntoa, [LIBS="$LIBS -lbind -lsocket"])
-	    ;;
-	BSD/OS-2.1*|BSD/OS-3*)
-	    SHLIB_CFLAGS=""
-	    SHLIB_LD="shlicc -r"
-	    SHLIB_LD_LIBS='${LIBS}'
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
 	    ;;
 	BSD/OS-4.*)
 	    SHLIB_CFLAGS="-export-dynamic -fPIC"
@@ -1478,16 +1430,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dll"
 	    EXE_SUFFIX=".exe"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	dgux*)
-	    SHLIB_CFLAGS="-K PIC"
-	    SHLIB_LD='${CC} -G'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
 	    DL_OBJS="tclLoadDl.o"
 	    DL_LIBS="-ldl"
 	    CC_SEARCH_FLAGS=""
@@ -1563,31 +1505,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		    LDFLAGS_ARCH="+DD64"
 		])
 	    ]) ;;
-	HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*)
-	    SHLIB_SUFFIX=".sl"
-	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
-	    AS_IF([test "$tcl_ok" = yes], [
-		SHLIB_CFLAGS="+z"
-		SHLIB_LD="ld -b"
-		SHLIB_LD_LIBS=""
-		DL_OBJS="tclLoadShl.o"
-		DL_LIBS="-ldld"
-		LDFLAGS="$LDFLAGS -Wl,-E"
-		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
-		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
-		LD_LIBRARY_PATH_VAR="SHLIB_PATH"
-	    ]) ;;
-	IRIX-5.*)
-	    SHLIB_CFLAGS=""
-	    SHLIB_LD="ld -shared -rdata_shared"
-	    SHLIB_LD_LIBS='${LIBS}'
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
-	    AS_IF([test $doRpath = yes], [
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
-		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
-	    ;;
 	IRIX-6.*)
 	    SHLIB_CFLAGS=""
 	    SHLIB_LD="ld -n32 -shared -rdata_shared"
@@ -1705,54 +1622,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
-	    ;;
-	MP-RAS-02*)
-	    SHLIB_CFLAGS="-K PIC"
-	    SHLIB_LD='${CC} -G'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	MP-RAS-*)
-	    SHLIB_CFLAGS="-K PIC"
-	    SHLIB_LD='${CC} -G'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    LDFLAGS="$LDFLAGS -Wl,-Bexport"
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	NetBSD-1.*|FreeBSD-[[1-2]].*)
-	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD="ld -Bshareable -x"
-	    SHLIB_LD_LIBS='${LIBS}'
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
-	    AS_IF([test $doRpath = yes], [
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
-		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
-	    AC_CACHE_CHECK([for ELF], tcl_cv_ld_elf, [
-		AC_EGREP_CPP(yes, [
-#ifdef __ELF__
-	yes
-#endif
-		], tcl_cv_ld_elf=yes, tcl_cv_ld_elf=no)])
-	    AS_IF([test $tcl_cv_ld_elf = yes], [
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so'
-	    ], [
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
-	    ])
-
-	    # Ancient FreeBSD doesn't handle version numbers with dots.
-
-	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
-	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	OpenBSD-*)
 	    SHLIB_CFLAGS="-fPIC"
@@ -1961,45 +1830,10 @@ dnl AC_CHECK_TOOL(AR, ar)
 		    done])
 	    ])
 	    ;;
-	NEXTSTEP-*)
-	    SHLIB_CFLAGS=""
-	    SHLIB_LD='${CC} -nostdlib -r'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadNext.o"
-	    DL_LIBS=""
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
 	OS/390-*)
 	    CFLAGS_OPTIMIZE=""		# Optimizer is buggy
 	    AC_DEFINE(_OE_SOCKETS, 1,	# needed in sys/socket.h
 		[Should OS/390 do the right thing with sockets?])
-	    ;;
-	OSF1-1.0|OSF1-1.1|OSF1-1.2)
-	    # OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
-	    SHLIB_CFLAGS=""
-	    # Hack: make package name same as library name
-	    SHLIB_LD='ld -R -export $@:'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadOSF.o"
-	    DL_LIBS=""
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	OSF1-1.*)
-	    # OSF/1 1.3 from OSF using ELF, and derivatives, including AD2
-	    SHLIB_CFLAGS="-fPIC"
-	    AS_IF([test "$SHARED_BUILD" = 1], [SHLIB_LD="ld -shared"], [
-	        SHLIB_LD="ld -non_shared"
-	    ])
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
 	    ;;
 	OSF1-V*)
 	    # Digital OSF/1
@@ -2043,54 +1877,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    DL_LIBS=""
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
-	    ;;
-	SCO_SV-3.2*)
-	    # Note, dlopen is available only on SCO 3.2.5 and greater. However,
-	    # this test works, since "uname -s" was non-standard in 3.2.4 and
-	    # below.
-	    AS_IF([test "$GCC" = yes], [
-	    	SHLIB_CFLAGS="-fPIC -melf"
-	    	LDFLAGS="$LDFLAGS -melf -Wl,-Bexport"
-	    ], [
-	    	SHLIB_CFLAGS="-Kpic -belf"
-	    	LDFLAGS="$LDFLAGS -belf -Wl,-Bexport"
-	    ])
-	    SHLIB_LD="ld -G"
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	SINIX*5.4*)
-	    SHLIB_CFLAGS="-K PIC"
-	    SHLIB_LD='${CC} -G'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
-	    ;;
-	SunOS-4*)
-	    SHLIB_CFLAGS="-PIC"
-	    SHLIB_LD="ld"
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    CC_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
-	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-
-	    # SunOS can't handle version numbers with dots in them in library
-	    # specs, like -ltcl7.5, so use -ltcl75 instead.  Also, it
-	    # requires an extra version number at the end of .so file names.
-	    # So, the library has to have a name like libtcl75.so.1.0
-
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
-	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
-	    TCL_LIB_VERSIONS_OK=nodots
 	    ;;
 	SunOS-5.[[0-6]])
 	    # Careful to not let 5.10+ fall into this case
@@ -2219,26 +2005,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		CC_SEARCH_FLAGS='-Wl,-R,${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS='-R ${LIB_RUNTIME_DIR}'
 	    ])
-	    ;;
-	UNIX_SV* | UnixWare-5*)
-	    SHLIB_CFLAGS="-KPIC"
-	    SHLIB_LD='${CC} -G'
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
-	    # Some UNIX_SV* systems (unixware 1.1.2 for example) have linkers
-	    # that don't grok the -Bexport option.  Test that it does.
-	    AC_CACHE_CHECK([for ld accepts -Bexport flag], tcl_cv_ld_Bexport, [
-		hold_ldflags=$LDFLAGS
-		LDFLAGS="$LDFLAGS -Wl,-Bexport"
-		AC_TRY_LINK(, [int i;], tcl_cv_ld_Bexport=yes, tcl_cv_ld_Bexport=no)
-	        LDFLAGS=$hold_ldflags])
-	    AS_IF([test $tcl_cv_ld_Bexport = yes], [
-		LDFLAGS="$LDFLAGS -Wl,-Bexport"
-	    ])
-	    CC_SEARCH_FLAGS=""
-	    LD_SEARCH_FLAGS=""
 	    ;;
     esac
 
@@ -3052,7 +2818,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 AC_DEFUN([TEA_INIT], [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.7"
+    TEA_VERSION="3.8"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.143 2010/08/12 01:17:26 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.144 2010/08/12 19:30:41 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -941,8 +941,7 @@ AC_DEFUN([TEA_ENABLE_LANGINFO], [
 #
 #	Determine what the system is (some things cannot be easily checked
 #	on a feature-driven basis, alas). This can usually be done via the
-#	"uname" command, but there are a few systems, like Next, where
-#	this doesn't work.
+#	"uname" command.
 #
 # Arguments:
 #	none
@@ -959,20 +958,12 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 	# TEA specific:
 	if test "${TEA_PLATFORM}" = "windows" ; then
 	    tcl_cv_sys_version=windows
-	elif test -f /usr/lib/NextStep/software_version; then
-	    tcl_cv_sys_version=NEXTSTEP-`awk '/3/,/3/' /usr/lib/NextStep/software_version`
 	else
 	    tcl_cv_sys_version=`uname -s`-`uname -r`
 	    if test "$?" -ne 0 ; then
 		AC_MSG_WARN([can't find uname command])
 		tcl_cv_sys_version=unknown
 	    else
-		# Special check for weird MP-RAS system (uname returns weird
-		# results, and the version is kept in special file).
-
-		if test -r /etc/.relid -a "X`uname -n`" = "X`uname -s`" ; then
-		    tcl_cv_sys_version=MP-RAS-`awk '{print $[3]}' /etc/.relid`
-		fi
 		if test "`uname -s`" = "AIX" ; then
 		    tcl_cv_sys_version=AIX-`uname -v`.`uname -r`
 		fi
@@ -995,10 +986,7 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 #
 #	Defines and substitutes the following vars:
 #
-#       DL_OBJS -       Name of the object file that implements dynamic
-#                       loading for Tcl on this system.
-#       DL_LIBS -       Library file(s) to include in tclsh and other base
-#                       applications in order for the "load" command to work.
+#	DL_OBJS, DL_LIBS - removed for TEA, only needed by core.
 #       LDFLAGS -      Flags to pass to the compiler when linking object
 #                       files into an executable application binary such
 #                       as tclsh.
@@ -1109,26 +1097,20 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	AC_MSG_RESULT([$doWince])
     ])
 
-    # Step 1: set the variable "system" to hold the name and version number
+    # Set the variable "system" to hold the name and version number
     # for the system.
 
     TEA_CONFIG_SYSTEM
-
-    # Step 2: check for existence of -ldl library.  This is needed because
-    # Linux can use either -ldl or -ldld for dynamic loading.
-
-    AC_CHECK_LIB(dl, dlopen, have_dl=yes, have_dl=no)
 
     # Require ranlib early so we can override it in special cases below.
 
     AC_REQUIRE([AC_PROG_RANLIB])
 
-    # Step 3: set configuration options based on system name and version.
+    # Set configuration options based on system name and version.
     # This is similar to Tcl's unix/tcl.m4 except that we've added a
     # "windows" case.
 
     do64bit_ok=no
-    LDFLAGS_ORIG="$LDFLAGS"
     # When ld needs options to work in 64-bit mode, put them in
     # LDFLAGS_ARCH so they eventually end up in LDFLAGS even if [load]
     # is disabled by the user. [Bug 1016796]
@@ -1335,8 +1317,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.dll'
 
 	    TCL_LIB_VERSIONS_OK=nodots
-	    # Bogus to avoid getting this turned off
-	    DL_OBJS="tclLoadNone.obj"
     	    ;;
 	AIX-*)
 	    AS_IF([test "${TCL_THREADS}" = "1" -a "$GCC" != "yes"], [
@@ -1357,7 +1337,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
-	    DL_OBJS="tclLoadDl.o"
 	    LD_LIBRARY_PATH_VAR="LIBPATH"
 
 	    # Check to enable 64-bit flags for compiler/linker
@@ -1377,8 +1356,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AS_IF([test "`uname -m`" = ia64], [
 		# AIX-5 uses ELF style dynamic libraries on IA-64, but not PPC
 		SHLIB_LD="/usr/ccs/bin/ld -G -z text"
-		# AIX-5 has dl* in libc.so
-		DL_LIBS=""
 		AS_IF([test "$GCC" = yes], [
 		    CC_SEARCH_FLAGS='-Wl,-R,${LIB_RUNTIME_DIR}'
 		], [
@@ -1393,7 +1370,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		    LDFLAGS="$LDFLAGS -brtl"
 		])
 		SHLIB_LD="${SHLIB_LD} ${SHLIB_LD_FLAGS}"
-		DL_LIBS="-ldl"
 		CC_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    ])
@@ -1403,8 +1379,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD='${CC} -nostart'
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 
 	    #-----------------------------------------------------------
 	    # Check for inet_ntoa in -lbind, for BeOS (which also needs
@@ -1418,8 +1392,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD='${CC} -shared'
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
@@ -1430,8 +1402,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dll"
 	    EXE_SUFFIX=".exe"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    ;;
@@ -1441,8 +1411,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS}'
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-lroot"
 	    AC_CHECK_LIB(network, inet_ntoa, [LIBS="$LIBS -lnetwork"])
 	    ;;
 	HP-UX-*.11.*)
@@ -1464,8 +1432,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
 	    AS_IF([test "$tcl_ok" = yes], [
 		SHLIB_LD_LIBS='${LIBS}'
-		DL_OBJS="tclLoadShl.o"
-		DL_LIBS="-ldld"
 		LDFLAGS="$LDFLAGS -E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
@@ -1510,8 +1476,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD="ld -n32 -shared -rdata_shared"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
@@ -1536,8 +1500,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD="ld -n32 -shared -rdata_shared"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
@@ -1562,15 +1524,9 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    # TEA specific:
 	    CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
-	    # egcs-2.91.66 on Redhat Linux 6.0 generates lots of warnings
-	    # when you inline the string and math operations.  Turn this off to
-	    # get rid of the warnings.
-	    #CFLAGS_OPTIMIZE="${CFLAGS_OPTIMIZE} -D__NO_STRING_INLINES -D__NO_MATH_INLINES"
 
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
 	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS_DEFAULT}'
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
@@ -1603,8 +1559,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_SUFFIX=".so"
 
 	    SHLIB_LD='${CC} -shared'
-	    DL_OBJS=""
-	    DL_LIBS="-ldl"
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
@@ -1616,8 +1570,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_SUFFIX=".so"
 	    CFLAGS_OPTIMIZE=-02
 	    SHLIB_LD='${CC} -shared'
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-mshared -ldl"
 	    LD_FLAGS="-Wl,--export-dynamic"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
@@ -1628,8 +1580,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -1660,8 +1610,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
@@ -1688,8 +1636,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    TCL_SHLIB_LD_EXTRAS="-soname \$[@]"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    LDFLAGS=""
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
@@ -1767,8 +1713,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD="${SHLIB_LD} -current_version ${vers:-0} -compatibility_version ${vers:-0}"
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dylib"
-	    DL_OBJS="tclLoadDyld.o"
-	    DL_LIBS=""
 	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
 	    AS_IF([test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F '10\\.' '{print int([$]2)}'`" -lt 4 -a \
 		"`echo "${CPPFLAGS}" | awk -F '-mmacosx-version-min=10\\.' '{print int([$]2)}'`" -lt 4], [
@@ -1845,8 +1789,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS=""
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'])
@@ -1872,9 +1814,20 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_LD="ld -Bshareable -x"
 	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    # dlopen is in -lc on QNX
-	    DL_LIBS=""
+	    CC_SEARCH_FLAGS=""
+	    LD_SEARCH_FLAGS=""
+	    ;;
+	SCO_SV-3.2*)
+	    AS_IF([test "$GCC" = yes], [
+		SHLIB_CFLAGS="-fPIC -melf"
+		LDFLAGS="$LDFLAGS -melf -Wl,-Bexport"
+	    ], [
+	       SHLIB_CFLAGS="-Kpic -belf"
+	       LDFLAGS="$LDFLAGS -belf -Wl,-Bexport"
+	    ])
+	    SHLIB_LD="ld -G"
+	    SHLIB_LD_LIBS=""
+	    SHLIB_SUFFIX=".so"
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    ;;
@@ -1895,8 +1848,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
 		CC_SEARCH_FLAGS='-Wl,-R,${LIB_RUNTIME_DIR}'
@@ -1971,8 +1922,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 
 	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl.o"
-	    DL_LIBS="-ldl"
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
 		CC_SEARCH_FLAGS='-Wl,-R,${LIB_RUNTIME_DIR}'
@@ -2018,33 +1967,15 @@ dnl # both CPPFLAGS and CFLAGS (unlike our compile and link) but configure's
 dnl # preprocessing tests use only CPPFLAGS.
     AC_CONFIG_COMMANDS_PRE([CFLAGS="${CFLAGS} ${CPPFLAGS}"; CPPFLAGS=""])
 
-    # Step 4: disable dynamic loading if requested via a command-line switch.
-
-    AC_ARG_ENABLE(load,
-	AC_HELP_STRING([--enable-load],
-	    [allow dynamic loading and "load" command (default: on)]),
-	[tcl_ok=$enableval], [tcl_ok=yes])
-    AS_IF([test "$tcl_ok" = no], [DL_OBJS=""])
-
-    AS_IF([test "x$DL_OBJS" != x], [BUILD_DLTEST="\$(DLTEST_TARGETS)"], [
-	AC_MSG_WARN([Can't figure out how to do dynamic loading or shared libraries on this system.])
-	SHLIB_CFLAGS=""
-	SHLIB_LD=""
-	SHLIB_SUFFIX=""
-	DL_OBJS="tclLoadNone.o"
-	DL_LIBS=""
-	LDFLAGS="$LDFLAGS_ORIG"
-	CC_SEARCH_FLAGS=""
-	LD_SEARCH_FLAGS=""
-	BUILD_DLTEST=""
-    ])
+    # Add in the arch flags late to ensure it wasn't removed.
+    # Not necessary in TEA, but this is aligned with core
     LDFLAGS="$LDFLAGS $LDFLAGS_ARCH"
 
     # If we're running gcc, then change the C flags for compiling shared
     # libraries to the right flags for gcc, instead of those for the
     # standard manufacturer compiler.
 
-    AS_IF([test "$DL_OBJS" != "tclLoadNone.o" -a "$GCC" = yes], [
+    AS_IF([test "$GCC" = yes], [
 	case $system in
 	    AIX-*) ;;
 	    BSD/OS*) ;;
@@ -2069,8 +2000,6 @@ dnl # preprocessing tests use only CPPFLAGS.
     AS_IF([test "$UNSHARED_LIB_SUFFIX" = ""], [
 	# TEA specific: use PACKAGE_VERSION instead of VERSION
 	UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'])
-
-    AC_SUBST(DL_LIBS)
 
     AC_SUBST(CFLAGS_DEBUG)
     AC_SUBST(CFLAGS_OPTIMIZE)
@@ -2363,7 +2292,7 @@ AC_DEFUN([TEA_PATH_UNIX_X], [
 	    found_xincludes="yes"
 	fi
     fi
-    if test found_xincludes = "no"; then
+    if test "$found_xincludes" = "no"; then
 	AC_MSG_RESULT([couldn't find any!])
     fi
 
@@ -2426,16 +2355,7 @@ AC_DEFUN([TEA_BLOCKING_STYLE], [
     TEA_CONFIG_SYSTEM
     AC_MSG_CHECKING([FIONBIO vs. O_NONBLOCK for nonblocking I/O])
     case $system in
-	# There used to be code here to use FIONBIO under AIX.  However, it
-	# was reported that FIONBIO doesn't work under AIX 3.2.5.  Since
-	# using O_NONBLOCK seems fine under AIX 4.*, I removed the FIONBIO
-	# code (JO, 5/31/97).
-
 	OSF*)
-	    AC_DEFINE(USE_FIONBIO, 1, [Should we use FIONBIO?])
-	    AC_MSG_RESULT([FIONBIO])
-	    ;;
-	SunOS-4*)
 	    AC_DEFINE(USE_FIONBIO, 1, [Should we use FIONBIO?])
 	    AC_MSG_RESULT([FIONBIO])
 	    ;;
@@ -2575,7 +2495,7 @@ AC_DEFUN([TEA_BUGGY_STRTOD], [
 #
 # Arguments:
 #	Requires the following vars to be set in the Makefile:
-#		DL_LIBS
+#		DL_LIBS (not in TEA, only needed in core)
 #		LIBS
 #		MATH_LIBS
 #
@@ -2911,6 +2831,7 @@ AC_DEFUN([TEA_ADD_SOURCES], [
 		# in Makefile.in as well
 		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
 		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
 		    ; then
 		    AC_MSG_ERROR([could not find source file '$i'])
 		fi
@@ -2954,6 +2875,7 @@ AC_DEFUN([TEA_ADD_STUB_SOURCES], [
 	# check for existence - allows for generic/win/unix VPATH
 	if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
 	    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+	    -a ! -f "${srcdir}/macosx/$i" \
 	    ; then
 	    AC_MSG_ERROR([could not find stub source file '$i'])
 	fi

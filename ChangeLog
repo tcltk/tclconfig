@@ -2,6 +2,8 @@
 
 	* tcl.m4: remove more vestigial bits from removed platforms.
 	Add back SCO_SV-3.2*.
+	Remove use of DL_LIBS and DL_OBJS and related baggage - these are
+	only needed by the core to support 'load'.
 
 2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
 

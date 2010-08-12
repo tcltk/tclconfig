@@ -5,6 +5,7 @@
 	OSF1-1.*, NEXTSTEP-*, NetBSD-1.*|FreeBSD-[[1-2]].*, MP-RAS-*,
 	IRIX-5.*, HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*, dgux*,
 	BSD/OS-2.1*|BSD/OS-3*
+	(AIX): drop AIX-pre4 support and use of ldAix, use -bexpall/-brtl
 
 2010-07-05  Jan Nijtmans  <nijtmans@users.sf.net>
 

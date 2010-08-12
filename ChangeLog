@@ -1,5 +1,10 @@
 2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
 
+	*** Bump to TEA_VERSION 3.8 ***
+	If upgrading from TEA_VERSION 3.7, copy over tcl.m4, change
+	TEA_INIT to use 3.8 and reconfigure (ac-2.59+).
+	No other changes should be necessary.
+
 	* tcl.m4: remove the following old platform configurations:
 	UNIX_SV*|UnixWare-5*, SunOS-4.*, SINIX*5.4*, SCO_SV-3.2*,
 	OSF1-1.*, NEXTSTEP-*, NetBSD-1.*|FreeBSD-[[1-2]].*, MP-RAS-*,
@@ -61,7 +66,7 @@
 	building on HPUX.
 
 2009-03-16  Joe English  <jenglish@users.sourceforge.net>
-	
+
 	* tcl.m4(TEA_PUBLIC_TK_HEADERS): Look at ${TK_INCLUDE_SPEC}
 	(found in tkConfig.sh) when trying to guess where tk.h might be
 	[Patch 1960628].

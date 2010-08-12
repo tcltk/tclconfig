@@ -1,9 +1,18 @@
-2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
+2010-08-12  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA_VERSION 3.8 ***
 	If upgrading from TEA_VERSION 3.7, copy over tcl.m4, change
 	TEA_INIT to use 3.8 and reconfigure (ac-2.59+).
 	No other changes should be necessary.
+
+	* tcl.m4: remove more vestigial bits from removed platforms.
+	Add back SCO_SV-3.2*.
+	Remove use of DL_LIBS and DL_OBJS and related baggage - these are
+	only needed by the core to support 'load'.
+	Allow for macosx in TEA_ADD_SOURCES.
+	Correct check for found_xincludes=no in TEA_PATH_UNIX_X.
+
+2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: remove the following old platform configurations:
 	UNIX_SV*|UnixWare-5*, SunOS-4.*, SINIX*5.4*, SCO_SV-3.2*,

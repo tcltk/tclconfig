@@ -1,3 +1,8 @@
+2010-08-12  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: remove more vestigial bits from removed platforms.
+	Add back SCO_SV-3.2*.
+
 2010-08-11  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA_VERSION 3.8 ***
@@ -6,7 +11,7 @@
 	No other changes should be necessary.
 
 	* tcl.m4: remove the following old platform configurations:
-	UNIX_SV*|UnixWare-5*, SunOS-4.*, SINIX*5.4*, SCO_SV-3.2*,
+	UNIX_SV*|UnixWare-5*, SunOS-4.*, SINIX*5.4*, SCO_SV-3.2*<readded>,
 	OSF1-1.*, NEXTSTEP-*, NetBSD-1.*|FreeBSD-[[1-2]].*, MP-RAS-*,
 	IRIX-5.*, HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*, dgux*,
 	BSD/OS-2.1*|BSD/OS-3*

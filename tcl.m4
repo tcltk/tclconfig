@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.23 2010/08/12 18:27:11 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.24 2010/08/12 19:25:25 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -2292,7 +2292,7 @@ AC_DEFUN([TEA_PATH_UNIX_X], [
 	    found_xincludes="yes"
 	fi
     fi
-    if test found_xincludes = "no"; then
+    if test "$found_xincludes" = "no"; then
 	AC_MSG_RESULT([couldn't find any!])
     fi
 
@@ -2831,6 +2831,7 @@ AC_DEFUN([TEA_ADD_SOURCES], [
 		# in Makefile.in as well
 		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
 		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
 		    ; then
 		    AC_MSG_ERROR([could not find source file '$i'])
 		fi
@@ -2874,6 +2875,7 @@ AC_DEFUN([TEA_ADD_STUB_SOURCES], [
 	# check for existence - allows for generic/win/unix VPATH
 	if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
 	    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+	    -a ! -f "${srcdir}/macosx/$i" \
 	    ; then
 	    AC_MSG_ERROR([could not find stub source file '$i'])
 	fi

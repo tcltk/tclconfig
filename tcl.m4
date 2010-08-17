@@ -9,13 +9,13 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.24 2010/08/12 19:25:25 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.25 2010/08/17 00:18:04 hobbs Exp $
 
 AC_PREREQ(2.57)
 
 dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.8"
+dnl TEA_VERSION="3.9"
 
 # Possible values for key variables defined:
 #
@@ -139,6 +139,7 @@ AC_DEFUN([TEA_PATH_TCLCONFIG], [
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
+			`ls -d /usr/lib64 2>/dev/null` \
 			; do
 		    if test -f "$i/tclConfig.sh" ; then
 			ac_cv_c_tclconfig="`(cd $i; pwd)`"
@@ -160,9 +161,9 @@ AC_DEFUN([TEA_PATH_TCLCONFIG], [
 			break
 		    fi
 		    if test -f "$i/unix/tclConfig.sh" ; then
-		    ac_cv_c_tclconfig="`(cd $i/unix; pwd)`"
-		    break
-		fi
+			ac_cv_c_tclconfig="`(cd $i/unix; pwd)`"
+			break
+		    fi
 		done
 	    fi
 	])
@@ -278,6 +279,7 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
+			`ls -d /usr/lib64 2>/dev/null` \
 			; do
 		    if test -f "$i/tkConfig.sh" ; then
 			ac_cv_c_tkconfig="`(cd $i; pwd)`"
@@ -435,7 +437,16 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	    ;;
     esac
 
+    # Do this here as we have fully defined TEA_PLATFORM now
+    if test "${TEA_PLATFORM}" = "windows" ; then
+	# The BUILD_$pkg is to define the correct extern storage class
+	# handling when making this package
+	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME})
+	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb"
+    fi
+
     # TEA specific:
+    AC_SUBST(CLEANFILES)
     AC_SUBST(TCL_LIBS)
     AC_SUBST(TCL_DEFS)
     AC_SUBST(TCL_EXTRA_CFLAGS)
@@ -1007,7 +1018,7 @@ AC_DEFUN([TEA_CONFIG_SYSTEM], [
 #       SHLIB_LD_LIBS - Dependent libraries for the linker to scan when
 #                       creating shared libraries.  This symbol typically
 #                       goes at the end of the "ld" commands that build
-#                       shared libraries. The value of the symbol is
+#                       shared libraries. The value of the symbol defaults to
 #                       "${LIBS}" if all of the dependent libraries should
 #                       be specified when creating a shared library.  If
 #                       dependent libraries should not be specified (as on
@@ -1108,9 +1119,11 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 
     # Set configuration options based on system name and version.
     # This is similar to Tcl's unix/tcl.m4 except that we've added a
-    # "windows" case.
+    # "windows" case and removed some core-only vars.
 
     do64bit_ok=no
+    # default to '{$LIBS}' and set to "" on per-platform necessary basis
+    SHLIB_LD_LIBS='${LIBS}'
     # When ld needs options to work in 64-bit mode, put them in
     # LDFLAGS_ARCH so they eventually end up in LDFLAGS even if [load]
     # is disabled by the user. [Bug 1016796]
@@ -1312,7 +1325,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		fi
 	    fi
 
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dll"
 	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.dll'
 
@@ -1334,7 +1346,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    LIBS="$LIBS -lc"
 	    SHLIB_CFLAGS=""
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
 	    LD_LIBRARY_PATH_VAR="LIBPATH"
@@ -1377,7 +1388,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	BeOS*)
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD='${CC} -nostart'
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
 	    #-----------------------------------------------------------
@@ -1390,7 +1400,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	BSD/OS-4.*)
 	    SHLIB_CFLAGS="-export-dynamic -fPIC"
 	    SHLIB_LD='${CC} -shared'
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    CC_SEARCH_FLAGS=""
@@ -1399,7 +1408,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	CYGWIN_*)
 	    SHLIB_CFLAGS=""
 	    SHLIB_LD='${CC} -shared'
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dll"
 	    EXE_SUFFIX=".exe"
 	    CC_SEARCH_FLAGS=""
@@ -1408,7 +1416,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	Haiku*)
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS}'
 	    AC_CHECK_LIB(network, inet_ntoa, [LIBS="$LIBS -lnetwork"])
@@ -1431,7 +1438,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
 	    AS_IF([test "$tcl_ok" = yes], [
-		SHLIB_LD_LIBS='${LIBS}'
 		LDFLAGS="$LDFLAGS -E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
@@ -1456,7 +1462,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 			    # 64-bit gcc in use.  Fix flags for GNU ld.
 			    do64bit_ok=yes
 			    SHLIB_LD='${CC} -shared'
-			    SHLIB_LD_LIBS='${LIBS}'
 			    AS_IF([test $doRpath = yes], [
 				CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 			    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -1474,7 +1479,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	IRIX-6.*)
 	    SHLIB_CFLAGS=""
 	    SHLIB_LD="ld -n32 -shared -rdata_shared"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
@@ -1498,7 +1502,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	IRIX64-6.*)
 	    SHLIB_CFLAGS=""
 	    SHLIB_LD="ld -n32 -shared -rdata_shared"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
@@ -1519,7 +1522,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ;;
 	Linux*)
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
 	    # TEA specific:
@@ -1555,7 +1557,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ;;
 	GNU*)
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 
 	    SHLIB_LD='${CC} -shared'
@@ -1566,7 +1567,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ;;
 	Lynx*)
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    CFLAGS_OPTIMIZE=-02
 	    SHLIB_LD='${CC} -shared'
@@ -1578,7 +1578,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	OpenBSD-*)
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
@@ -1608,7 +1607,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # NetBSD 2.* has ELF and can use 'cc -shared' to build shared libs
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    AS_IF([test $doRpath = yes], [
@@ -1634,7 +1632,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_LD="${CC} -shared"
 	    TCL_SHLIB_LD_EXTRAS="-soname \$[@]"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS=""
 	    AS_IF([test $doRpath = yes], [
@@ -1711,7 +1708,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    # TEA specific: link shlib with current and compatiblity version flags
 	    vers=`echo ${PACKAGE_VERSION} | sed -e 's/^\([[0-9]]\{1,5\}\)\(\(\.[[0-9]]\{1,3\}\)\{0,2\}\).*$/\1\2/p' -e d`
 	    SHLIB_LD="${SHLIB_LD} -current_version ${vers:-0} -compatibility_version ${vers:-0}"
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".dylib"
 	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
 	    AS_IF([test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F '10\\.' '{print int([$]2)}'`" -lt 4 -a \
@@ -1787,7 +1783,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ], [
 	        SHLIB_LD='ld -non_shared -expect_unresolved "*"'
 	    ])
-	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
@@ -1842,11 +1837,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		[Do we really want to follow the standard? Yes we do!])
 
 	    SHLIB_CFLAGS="-KPIC"
-
-	    # Note: need the LIBS below, otherwise Tk won't find Tcl's
-	    # symbols when dynamically loaded into tclsh.
-
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
@@ -1917,10 +1907,6 @@ dnl AC_CHECK_TOOL(AR, ar)
 		], [AC_MSG_WARN([64bit mode not supported for $arch])])])
 	    ])
 
-	    # Note: need the LIBS below, otherwise Tk won't find Tcl's
-	    # symbols when dynamically loaded into tclsh.
-
-	    SHLIB_LD_LIBS='${LIBS}'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test "$GCC" = yes], [
 		SHLIB_LD='${CC} -shared'
@@ -2738,7 +2724,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 AC_DEFUN([TEA_INIT], [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.8"
+    TEA_VERSION="3.9"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -2762,7 +2748,7 @@ TEA version not specified.])
 	*CYGWIN_*)
 	    CYGPATH=echo
 	    EXEEXT=".exe"
-	    # TEA_PLATFORM is determined later
+	    # TEA_PLATFORM is determined later in LOAD_TCLCONFIG
 	    ;;
 	*)
 	    CYGPATH=echo
@@ -3289,6 +3275,8 @@ AC_DEFUN([TEA_LIB_SPEC], [
 	    `ls -dr ${tea_lib_name_dir}/lib$1[[0-9]]* 2>/dev/null ` \
 	    `ls -dr /usr/lib/$1[[0-9]]*.lib 2>/dev/null ` \
 	    `ls -dr /usr/lib/lib$1[[0-9]]* 2>/dev/null ` \
+	    `ls -dr /usr/lib64/$1[[0-9]]*.lib 2>/dev/null ` \
+	    `ls -dr /usr/lib64/lib$1[[0-9]]* 2>/dev/null ` \
 	    `ls -dr /usr/local/lib/$1[[0-9]]*.lib 2>/dev/null ` \
 	    `ls -dr /usr/local/lib/lib$1[[0-9]]* 2>/dev/null ` ; do
 	if test -f "$i" ; then
@@ -3769,6 +3757,7 @@ AC_DEFUN([TEA_PATH_CONFIG], [
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
+			`ls -d /usr/lib64 2>/dev/null` \
 			; do
 		    if test -f "$i/$1Config.sh" ; then
 			ac_cv_c_$1config=`(cd $i; pwd)`
@@ -3845,7 +3834,95 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
     AC_SUBST($1_STUB_LIB_FILE)
     AC_SUBST($1_STUB_LIB_SPEC)
     AC_SUBST($1_STUB_LIB_PATH)
+
+    # Allow the caller to prevent this auto-check by specifying any 2nd arg
+    AS_IF([test "x$2" = x], [
+	# Check both upper and lower-case variants
+	# If a dev wanted non-stubs libs, this function could take an option
+	# to not use _STUB in the paths below
+	AS_IF([test "x${$1_STUB_LIB_SPEC}" = x],
+	    [TEA_LOAD_CONFIG_LIB(translit($1,[a-z],[A-Z])_STUB)],
+	    [TEA_LOAD_CONFIG_LIB($1_STUB)])
+    ])
 ])
+
+#------------------------------------------------------------------------
+# TEA_LOAD_CONFIG_LIB --
+#
+#	Helper function to load correct library from another extension's
+#	${PACKAGE}Config.sh.
+#
+# Results:
+#	Adds to LIBS the appropriate extension library
+#
+#------------------------------------------------------------------------
+AC_DEFUN([TEA_LOAD_CONFIG_LIB], [
+    AC_MSG_CHECKING([For $1 library for LIBS])
+    # This simplifies the use of stub libraries by automatically adding
+    # the stub lib to your path.  Normally this would add to SHLIB_LD_LIBS,
+    # but this is called before CONFIG_CFLAGS.  More importantly, this adds
+    # to PKG_LIBS, which becomes LIBS, and that is only used by SHLIB_LD.
+    if test "x${$1_LIB_SPEC}" != "x" ; then
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes" ; then
+	    TEA_ADD_LIBS([\"`${CYGPATH} ${$1_LIB_PATH}`\"])
+	    AC_MSG_RESULT([using $1_LIB_PATH ${$1_LIB_PATH}])
+	else
+	    TEA_ADD_LIBS([${$1_LIB_SPEC}])
+	    AC_MSG_RESULT([using $1_LIB_SPEC ${$1_LIB_SPEC}])
+	fi
+    else
+	AC_MSG_RESULT([file not found])
+    fi
+])
+
+#------------------------------------------------------------------------
+# TEA_EXPORT_CONFIG --
+#
+#	Define the data to insert into the ${PACKAGE}Config.sh file
+#
+# Arguments:
+#
+#	Requires the following vars to be set:
+#		$1
+#
+# Results:
+#	Subst the following vars:
+#
+#------------------------------------------------------------------------
+
+AC_DEFUN(TEA_EXPORT_CONFIG, [
+    #--------------------------------------------------------------------
+    # These are for $1Config.sh
+    #--------------------------------------------------------------------
+
+    # pkglibdir must be a fully qualified path and (not ${exec_prefix}/lib)
+    eval pkglibdir="[$]{libdir}/$1${PACKAGE_VERSION}"
+    if test "${TCL_LIB_VERSIONS_OK}" = "ok"; then
+	eval $1_LIB_FLAG="-l$1${PACKAGE_VERSION}${DBGX}"
+	eval $1_STUB_LIB_FLAG="-l$1stub${PACKAGE_VERSION}${DBGX}"
+    else
+	eval $1_LIB_FLAG="-l$1`echo ${PACKAGE_VERSION} | tr -d .`${DBGX}"
+	eval $1_STUB_LIB_FLAG="-l$1stub`echo ${PACKAGE_VERSION} | tr -d .`${DBGX}"
+    fi
+    $1_BUILD_LIB_SPEC="-L`pwd` ${$1_LIB_FLAG}"
+    $1_LIB_SPEC="-L${pkglibdir} ${$1_LIB_FLAG}"
+    $1_BUILD_STUB_LIB_SPEC="-L`pwd` [$]{$1_STUB_LIB_FLAG}"
+    $1_STUB_LIB_SPEC="-L${pkglibdir} [$]{$1_STUB_LIB_FLAG}"
+    $1_BUILD_STUB_LIB_PATH="`pwd`/[$]{PKG_STUB_LIB_FILE}"
+    $1_STUB_LIB_PATH="${pkglibdir}/[$]{PKG_STUB_LIB_FILE}"
+
+    AC_SUBST($1_BUILD_LIB_SPEC)
+    AC_SUBST($1_LIB_SPEC)
+    AC_SUBST($1_BUILD_STUB_LIB_SPEC)
+    AC_SUBST($1_STUB_LIB_SPEC)
+    AC_SUBST($1_BUILD_STUB_LIB_PATH)
+    AC_SUBST($1_STUB_LIB_PATH)
+
+    AC_SUBST(MAJOR_VERSION)
+    AC_SUBST(MINOR_VERSION)
+    AC_SUBST(PATCHLEVEL)
+])
+
 
 #------------------------------------------------------------------------
 # TEA_PATH_CELIB --

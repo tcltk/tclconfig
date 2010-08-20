@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.145 2010/08/17 00:33:40 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.146 2010/08/20 00:23:00 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -442,7 +442,7 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	# The BUILD_$pkg is to define the correct extern storage class
 	# handling when making this package
 	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME})
-	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb"
+	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb *.exp"
     fi
 
     # TEA specific:
@@ -2999,6 +2999,22 @@ AC_DEFUN([TEA_ADD_LIBS], [
 AC_DEFUN([TEA_ADD_CFLAGS], [
     PKG_CFLAGS="$PKG_CFLAGS $@"
     AC_SUBST(PKG_CFLAGS)
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_CLEANFILES --
+#
+#	Specify one or more CLEANFILES.
+#
+# Arguments:
+#	one or more file names to clean target
+#
+# Results:
+#
+#	Appends to CLEANFILES, already defined for subst in LOAD_TCLCONFIG
+#------------------------------------------------------------------------
+AC_DEFUN([TEA_ADD_CLEANFILES], [
+    CLEANFILES="$CLEANFILES $@"
 ])
 
 #------------------------------------------------------------------------

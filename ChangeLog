@@ -1,3 +1,8 @@
+2010-08-19  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: add TEA_ADD_CLEANFILES macro to make adding cleanfiles
+	easier, and add *.exp to CLEANFILES Windows default.
+
 2010-08-16  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA_VERSION 3.9 ***

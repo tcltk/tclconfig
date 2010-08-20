@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.146 2010/08/20 00:23:00 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.147 2010/08/20 00:26:09 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -3171,12 +3171,25 @@ AC_DEFUN([TEA_SETUP_COMPILER], [
 #	MAKE_SHARED_LIB	Makefile rule for building a shared library
 #	MAKE_STATIC_LIB	Makefile rule for building a static library
 #	MAKE_STUB_LIB	Makefile rule for building a stub library
+#	VC_MANIFEST_EMBED_DLL Makefile rule for embedded VC manifest in DLL
+#	VC_MANIFEST_EMBED_EXE Makefile rule for embedded VC manifest in EXE
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_MAKE_LIB], [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_LIBS} \${LDFLAGS_DEFAULT} -out:\[$]@ \$(PKG_OBJECTS)"
+	AC_EGREP_CPP([manifest needed], [
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+print("manifest needed")
+#endif
+	], [
+	# Could do a CHECK_PROG for mt, but should always be with MSVC8+
+	VC_MANIFEST_EMBED_DLL="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2"
+	VC_MANIFEST_EMBED_EXE="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1"
+	MAKE_SHARED_LIB="${MAKE_SHARED_LIB} ; ${VC_MANIFEST_EMBED_DLL}"
+	TEA_ADD_CLEANFILES([*.manifest])
+	])
 	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_STUB_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"
@@ -3244,6 +3257,8 @@ AC_DEFUN([TEA_MAKE_LIB], [
     AC_SUBST(MAKE_STATIC_LIB)
     AC_SUBST(MAKE_STUB_LIB)
     AC_SUBST(RANLIB_STUB)
+    AC_SUBST(VC_MANIFEST_EMBED_DLL)
+    AC_SUBST(VC_MANIFEST_EMBED_EXE)
 ])
 
 #------------------------------------------------------------------------

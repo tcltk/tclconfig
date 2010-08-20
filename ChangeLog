@@ -2,6 +2,10 @@
 
 	* tcl.m4: add TEA_ADD_CLEANFILES macro to make adding cleanfiles
 	easier, and add *.exp to CLEANFILES Windows default.
+	(TEA_MAKE_LIB): Enhanced to check for MSVC that requires manifests
+	and auto-embed it into proj DLL via MAKE_SHARED_LIB.  Also define
+	VC_MANIFEST_EMBED_DLL and VC_MANIFEST_EMBED_EXE that do the same
+	magic in case it is needed for extended TEA projects.
 
 2010-08-16  Jeff Hobbs  <jeffh@ActiveState.com>
 

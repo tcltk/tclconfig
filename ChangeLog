@@ -1,3 +1,7 @@
+2010-08-26  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: ensure safe quoting for autoheader usage
+
 2010-08-19  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: add TEA_ADD_CLEANFILES macro to make adding cleanfiles

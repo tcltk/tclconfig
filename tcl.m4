@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.26 2010/08/19 22:56:55 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.27 2010/08/27 01:05:42 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -441,7 +441,8 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     if test "${TEA_PLATFORM}" = "windows" ; then
 	# The BUILD_$pkg is to define the correct extern storage class
 	# handling when making this package
-	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME})
+	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME}, [],
+		[Building extension source?])
 	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb *.exp"
     fi
 
@@ -1977,7 +1978,7 @@ dnl # preprocessing tests use only CPPFLAGS.
     AS_IF([test "$tcl_cv_cc_visibility_hidden" != yes], [
 	AC_DEFINE(MODULE_SCOPE, [extern],
 	    [No Compiler support for module scope symbols])
-	AC_DEFINE(NO_VIZ)
+	AC_DEFINE(NO_VIZ, [], [No visibility hidden passed to zlib?])
     ])
 
     AS_IF([test "$SHARED_LIB_SUFFIX" = ""], [
@@ -3890,7 +3891,7 @@ AC_DEFUN([TEA_LOAD_CONFIG_LIB], [
 #
 #------------------------------------------------------------------------
 
-AC_DEFUN(TEA_EXPORT_CONFIG, [
+AC_DEFUN([TEA_EXPORT_CONFIG], [
     #--------------------------------------------------------------------
     # These are for $1Config.sh
     #--------------------------------------------------------------------

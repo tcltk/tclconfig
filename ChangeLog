@@ -1,3 +1,7 @@
+2010-08-26  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: ensure safe quoting for auto-header usage
+
 2010-08-16  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	*** Bump to TEA_VERSION 3.9 ***

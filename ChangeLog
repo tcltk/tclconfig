@@ -1,3 +1,10 @@
+2010-09-09  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: [FREQ #3058486] TEA_LOAD_CONFIG doesn't set all BUILD_ vars
+	Slightly related: defining BUILD_$1 on all platforms - not only win -
+	allows the -fvisibility feature to be used in extensions as well, at
+	least if you compile against tcl >= 8.5.
+
 2010-08-26  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: ensure safe quoting for autoheader usage

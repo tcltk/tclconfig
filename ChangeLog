@@ -1,3 +1,8 @@
+2010-09-14  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: add extra if check for .manifest file generation
+	Add notice about package name and version being built.
+
 2010-09-09  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4: [FREQ #3058486] TEA_LOAD_CONFIG doesn't set all BUILD_ vars

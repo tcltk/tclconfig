@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.149 2010/09/09 15:40:51 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.150 2010/09/14 23:26:43 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -2767,6 +2767,8 @@ TEA version not specified.])
 	exec_prefix=$prefix
     fi
 
+    AC_MSG_NOTICE([configuring ${PACKAGE_NAME} ${PACKAGE_VERSION}])
+
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
 
@@ -3186,8 +3188,8 @@ print("manifest needed")
 #endif
 	], [
 	# Could do a CHECK_PROG for mt, but should always be with MSVC8+
-	VC_MANIFEST_EMBED_DLL="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2"
-	VC_MANIFEST_EMBED_EXE="mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1"
+	VC_MANIFEST_EMBED_DLL="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2 ; fi"
+	VC_MANIFEST_EMBED_EXE="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1 ; fi"
 	MAKE_SHARED_LIB="${MAKE_SHARED_LIB} ; ${VC_MANIFEST_EMBED_DLL}"
 	TEA_ADD_CLEANFILES([*.manifest])
 	])

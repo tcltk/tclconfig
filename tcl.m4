@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.27 2010/08/27 01:05:42 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.28 2010/09/15 07:48:11 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -437,12 +437,12 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	    ;;
     esac
 
+    # The BUILD_$pkg is to define the correct extern storage class
+    # handling when making this package
+    AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME}, [],
+	    [Building extension source?])
     # Do this here as we have fully defined TEA_PLATFORM now
     if test "${TEA_PLATFORM}" = "windows" ; then
-	# The BUILD_$pkg is to define the correct extern storage class
-	# handling when making this package
-	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE_NAME}, [],
-		[Building extension source?])
 	CLEANFILES="$CLEANFILES *.lib *.dll *.pdb *.exp"
     fi
 
@@ -2767,6 +2767,8 @@ TEA version not specified.])
 	exec_prefix=$prefix
     fi
 
+    AC_MSG_NOTICE([configuring ${PACKAGE_NAME} ${PACKAGE_VERSION}])
+
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
 
@@ -3003,6 +3005,22 @@ AC_DEFUN([TEA_ADD_CFLAGS], [
 ])
 
 #------------------------------------------------------------------------
+# TEA_ADD_CLEANFILES --
+#
+#	Specify one or more CLEANFILES.
+#
+# Arguments:
+#	one or more file names to clean target
+#
+# Results:
+#
+#	Appends to CLEANFILES, already defined for subst in LOAD_TCLCONFIG
+#------------------------------------------------------------------------
+AC_DEFUN([TEA_ADD_CLEANFILES], [
+    CLEANFILES="$CLEANFILES $@"
+])
+
+#------------------------------------------------------------------------
 # TEA_PREFIX --
 #
 #	Handle the --prefix=... option by defaulting to what Tcl gave
@@ -3156,12 +3174,25 @@ AC_DEFUN([TEA_SETUP_COMPILER], [
 #	MAKE_SHARED_LIB	Makefile rule for building a shared library
 #	MAKE_STATIC_LIB	Makefile rule for building a static library
 #	MAKE_STUB_LIB	Makefile rule for building a stub library
+#	VC_MANIFEST_EMBED_DLL Makefile rule for embedded VC manifest in DLL
+#	VC_MANIFEST_EMBED_EXE Makefile rule for embedded VC manifest in EXE
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_MAKE_LIB], [
     if test "${TEA_PLATFORM}" = "windows" -a "$GCC" != "yes"; then
 	MAKE_STATIC_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_OBJECTS)"
 	MAKE_SHARED_LIB="\${SHLIB_LD} \${SHLIB_LD_LIBS} \${LDFLAGS_DEFAULT} -out:\[$]@ \$(PKG_OBJECTS)"
+	AC_EGREP_CPP([manifest needed], [
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+print("manifest needed")
+#endif
+	], [
+	# Could do a CHECK_PROG for mt, but should always be with MSVC8+
+	VC_MANIFEST_EMBED_DLL="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;2 ; fi"
+	VC_MANIFEST_EMBED_EXE="if test -f \[$]@.manifest ; then mt.exe -nologo -manifest \[$]@.manifest -outputresource:\[$]@\;1 ; fi"
+	MAKE_SHARED_LIB="${MAKE_SHARED_LIB} ; ${VC_MANIFEST_EMBED_DLL}"
+	TEA_ADD_CLEANFILES([*.manifest])
+	])
 	MAKE_STUB_LIB="\${STLIB_LD} -out:\[$]@ \$(PKG_STUB_OBJECTS)"
     else
 	MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"
@@ -3229,6 +3260,8 @@ AC_DEFUN([TEA_MAKE_LIB], [
     AC_SUBST(MAKE_STATIC_LIB)
     AC_SUBST(MAKE_STUB_LIB)
     AC_SUBST(RANLIB_STUB)
+    AC_SUBST(VC_MANIFEST_EMBED_DLL)
+    AC_SUBST(VC_MANIFEST_EMBED_EXE)
 ])
 
 #------------------------------------------------------------------------
@@ -3823,6 +3856,8 @@ AC_DEFUN([TEA_LOAD_CONFIG], [
         $1_LIB_SPEC=${$1_BUILD_LIB_SPEC}
         $1_STUB_LIB_SPEC=${$1_BUILD_STUB_LIB_SPEC}
         $1_STUB_LIB_PATH=${$1_BUILD_STUB_LIB_PATH}
+        $1_INCLUDE_SPEC=${$1_BUILD_INCLUDE_SPEC}
+        $1_LIBRARY_PATH=${$1_LIBRARY_PATH}
     fi
 
     AC_SUBST($1_VERSION)

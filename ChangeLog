@@ -1,6 +1,27 @@
+2010-09-14  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: add extra if check for .manifest file generation
+	Add notice about package name and version being built.
+
+2010-09-09  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: [FREQ #3058486] TEA_LOAD_CONFIG doesn't set all BUILD_ vars
+	Slightly related: defining BUILD_$1 on all platforms - not only win -
+	allows the -fvisibility feature to be used in extensions as well, at
+	least if you compile against tcl >= 8.5.
+
 2010-08-26  Jeff Hobbs  <jeffh@ActiveState.com>
 
-	* tcl.m4: ensure safe quoting for auto-header usage
+	* tcl.m4: ensure safe quoting for autoheader usage
+
+2010-08-19  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: add TEA_ADD_CLEANFILES macro to make adding cleanfiles
+	easier, and add *.exp to CLEANFILES Windows default.
+	(TEA_MAKE_LIB): Enhanced to check for MSVC that requires manifests
+	and auto-embed it into proj DLL via MAKE_SHARED_LIB.  Also define
+	VC_MANIFEST_EMBED_DLL and VC_MANIFEST_EMBED_EXE that do the same
+	magic in case it is needed for extended TEA projects.
 
 2010-08-16  Jeff Hobbs  <jeffh@ActiveState.com>
 

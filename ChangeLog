@@ -1,3 +1,7 @@
+2010-09-16  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* tcl.m4: correct HP-UX LDFLAGS (only used when building big shell)
+
 2010-09-14  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: add extra if check for .manifest file generation

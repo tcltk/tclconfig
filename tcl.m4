@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.29 2010/09/16 19:12:23 hobbs Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.30 2010/09/16 20:45:53 hobbs Exp $
 
 AC_PREREQ(2.57)
 
@@ -1439,7 +1439,7 @@ dnl AC_CHECK_TOOL(AR, ar)
 	    ])
 	    AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
 	    AS_IF([test "$tcl_ok" = yes], [
-		LDFLAGS="$LDFLAGS -Wl,E"
+		LDFLAGS="$LDFLAGS -Wl,-E"
 		CC_SEARCH_FLAGS='-Wl,+s,+b,${LIB_RUNTIME_DIR}:.'
 		LD_SEARCH_FLAGS='+s +b ${LIB_RUNTIME_DIR}:.'
 		LD_LIBRARY_PATH_VAR="SHLIB_PATH"

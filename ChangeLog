@@ -1,3 +1,7 @@
+2010-11-23  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: add some cross-compile support, borrowed from Tcl 8.6
+
 2010-09-16  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* tcl.m4: correct HP-UX LDFLAGS (only used when building big shell)

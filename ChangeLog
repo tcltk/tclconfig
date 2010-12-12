@@ -1,3 +1,7 @@
+2010-12-12  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: Determine correctly a cross-compiler-windres
+
 2010-11-23  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4: add some cross-compile support, borrowed from Tcl 8.6

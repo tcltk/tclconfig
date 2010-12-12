@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.153 2010/11/23 09:46:00 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.154 2010/12/12 22:01:24 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1295,7 +1295,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 
 	    if test "$GCC" = "yes"; then
 		# mingw gcc mode
-		RC="windres"
+		AC_CHECK_TOOL(RC, windres)
 		CFLAGS_DEBUG="-g"
 		CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 		SHLIB_LD="$CC -shared"

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.32 2010/12/12 22:10:19 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.33 2010/12/14 13:53:13 nijtmans Exp $
 
 AC_PREREQ(2.57)
 
@@ -1170,7 +1170,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 			PATH64="${MSSDK}/Bin/Win64"
 			;;
 		esac
-		if test ! -d "${PATH64}" ; then
+		if test "$GCC" != "yes" -a ! -d "${PATH64}" ; then
 		    AC_MSG_WARN([Could not find 64-bit $MACHINE SDK to enable 64bit mode])
 		    AC_MSG_WARN([Ensure latest Platform SDK is installed])
 		    do64bit="no"

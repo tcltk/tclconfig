@@ -1,3 +1,7 @@
+2010-12-14  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: when using gcc, don't try to determine Win64 SDK
+
 2010-12-12  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4: Determine correctly a cross-compiler-windres

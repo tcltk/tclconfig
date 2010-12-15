@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.34 2010/12/15 04:23:56 stwo Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.35 2010/12/15 05:35:41 stwo Exp $
 
 AC_PREREQ(2.57)
 
@@ -3106,8 +3106,6 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
 
     AC_PROG_CC
     AC_PROG_CPP
-
-    AC_PROG_INSTALL
 
     #--------------------------------------------------------------------
     # Checks to see if the make program sets the $MAKE variable.

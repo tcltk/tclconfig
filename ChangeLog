@@ -1,3 +1,8 @@
+2010-12-15  Stuart Cassoff  <stwo@users.sourceforge.net>
+
+	* install-sh: Upgrade to newer install-sh and use it.
+	* tcl.m4:
+
 2010-12-14  Stuart Cassoff  <stwo@users.sourceforge.net>
 
 	* tcl.m4: Better building on OpenBSD.

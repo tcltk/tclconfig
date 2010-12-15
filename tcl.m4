@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: tcl.m4,v 1.115.2.33 2010/12/14 13:53:13 nijtmans Exp $
+# RCS: @(#) $Id: tcl.m4,v 1.115.2.34 2010/12/15 04:23:56 stwo Exp $
 
 AC_PREREQ(2.57)
 
@@ -1575,13 +1575,30 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    ;;
 	OpenBSD-*)
-	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
-	    SHLIB_SUFFIX=".so"
-	    AS_IF([test $doRpath = yes], [
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
-	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
-	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
+	    arch=`arch -s`
+	    case "$arch" in
+	    m88k|vax)
+		SHLIB_SUFFIX=""
+		SHARED_LIB_SUFFIX=""
+		;;
+	    *)
+		SHLIB_CFLAGS="-fPIC"
+		SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
+		SHLIB_SUFFIX=".so"
+		AS_IF([test $doRpath = yes], [
+		    CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
+		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
+		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so.${SHLIB_VERSION}'
+		;;
+	    esac
+	    case "$arch" in
+	    m88k|vax)
+		CFLAGS_OPTIMIZE="-O1"
+		;;
+	    *)
+		CFLAGS_OPTIMIZE="-O2"
+		;;
+	    esac
 	    AC_CACHE_CHECK([for ELF], tcl_cv_ld_elf, [
 		AC_EGREP_CPP(yes, [
 #ifdef __ELF__
@@ -1592,10 +1609,10 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		LDFLAGS=-Wl,-export-dynamic
 	    ], [LDFLAGS=""])
 	    AS_IF([test "${TCL_THREADS}" = "1"], [
-		# OpenBSD builds and links with -pthread, never -lpthread.
+		# On OpenBSD:	Compile with -pthread
+		#		Don't link with -lpthread
 		LIBS=`echo $LIBS | sed s/-lpthread//`
 		CFLAGS="$CFLAGS -pthread"
-		SHLIB_CFLAGS="$SHLIB_CFLAGS -pthread"
 	    ])
 	    # OpenBSD doesn't do version numbers with dots.
 	    UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'

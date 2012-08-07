@@ -845,7 +845,7 @@ AC_DEFUN([TEA_ENABLE_THREADS], [
 #
 #	Defines the following vars:
 #		CFLAGS_DEFAULT	Sets to $(CFLAGS_DEBUG) if true
-#				Sets to $(CFLAGS_OPTIMIZE) if false
+#				Sets to "$(CFLAGS_OPTIMIZE) -DNDEBUG" if false
 #		LDFLAGS_DEFAULT	Sets to $(LDFLAGS_DEBUG) if true
 #				Sets to $(LDFLAGS_OPTIMIZE) if false
 #		DBGX		Formerly used as debug library extension;
@@ -862,7 +862,7 @@ AC_DEFUN([TEA_ENABLE_SYMBOLS], [
 	[tcl_ok=$enableval], [tcl_ok=no])
     DBGX=""
     if test "$tcl_ok" = "no"; then
-	CFLAGS_DEFAULT="${CFLAGS_OPTIMIZE}"
+	CFLAGS_DEFAULT="${CFLAGS_OPTIMIZE} -DNDEBUG"
 	LDFLAGS_DEFAULT="${LDFLAGS_OPTIMIZE}"
 	AC_MSG_RESULT([no])
     else

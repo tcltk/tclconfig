@@ -1,5 +1,10 @@
 2012-08-07  Stuart Cassoff  <stwo@users.sourceforge.net>
 
+	* tcl.m4: [Bug 3555058]: Checkin [30736d63f0] broke
+	CFLAGS_DEFAULT, LDFLAGS_DEFAULT
+
+2012-08-07  Stuart Cassoff  <stwo@users.sourceforge.net>
+
 	* tcl.m4: [Bug 3511806]: Checkin [30736d63f0] broke CFLAGS
 
 2012-08-07  Jan Nijtmans  <nijtmans@users.sf.net>

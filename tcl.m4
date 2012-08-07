@@ -415,40 +415,15 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     AC_SUBST(TCL_STUB_LIB_SPEC)
 
     AC_MSG_CHECKING([platform])
-
-    cat >conftest.c <<_ACEOF
-int
-main ()
-{
-
+    hold_cc=$CC; CC="$TCL_CC"
+    AC_TRY_COMPILE(,[
 	    #ifdef _WIN32
 		#error win32
 	    #endif
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.o
-
-ac_compile='$TCL_CC -c conftest.c >&5'
-
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>conftest.er1
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; then
-  TEA_PLATFORM="unix"
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.c >&5
-
-TEA_PLATFORM="windows"
-
-fi
-
-
-
+    ], TEA_PLATFORM="unix",
+	    TEA_PLATFORM="windows"
+    )
+    CC=$hold_cc
     AC_MSG_RESULT($TEA_PLATFORM)
 
     # The BUILD_$pkg is to define the correct extern storage class
@@ -2883,6 +2858,13 @@ TEA version not specified.])
     else
 	AC_MSG_RESULT([ok (TEA ${TEA_VERSION})])
     fi
+
+    # If the user did not set CFLAGS, set it now to keep macros
+    # like AC_PROG_CC and AC_TRY_COMPILE from adding "-g -O2".
+    if test "${CFLAGS+set}" != "set" ; then
+	CFLAGS=""
+    fi
+
     case "`uname -s`" in
 	*win32*|*WIN32*|*MINGW32_*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
@@ -3225,12 +3207,6 @@ AC_DEFUN([TEA_PREFIX], [
 AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     # Don't put any macros that use the compiler (e.g. AC_TRY_COMPILE)
     # in this macro, they need to go into TEA_SETUP_COMPILER instead.
-
-    # If the user did not set CFLAGS, set it now to keep
-    # the AC_PROG_CC macro from adding "-g -O2".
-    if test "${CFLAGS+set}" != "set" ; then
-	CFLAGS=""
-    fi
 
     AC_PROG_CC
     AC_PROG_CPP

@@ -1,3 +1,7 @@
+2012-08-07  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* tcl.m4: [Bug 3511806]: Checkin [30736d63f0] broke CFLAGS
+
 2012-07-25  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4: My previous commit (2012-04-03) broke the ActiveTcl

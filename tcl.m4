@@ -415,15 +415,40 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
     AC_SUBST(TCL_STUB_LIB_SPEC)
 
     AC_MSG_CHECKING([platform])
-    hold_cc=$CC; CC="$TCL_CC"
-    AC_TRY_COMPILE(,[
+
+    cat >conftest.c <<_ACEOF
+int
+main ()
+{
+
 	    #ifdef _WIN32
 		#error win32
 	    #endif
-    ], TEA_PLATFORM="unix",
-	    TEA_PLATFORM="windows"
-    )
-    CC=$hold_cc
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.o
+
+ac_compile='$TCL_CC -c conftest.c >&5'
+
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  TEA_PLATFORM="unix"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.c >&5
+
+TEA_PLATFORM="windows"
+
+fi
+
+
+
     AC_MSG_RESULT($TEA_PLATFORM)
 
     # The BUILD_$pkg is to define the correct extern storage class

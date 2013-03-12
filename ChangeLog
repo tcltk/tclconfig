@@ -1,3 +1,8 @@
+2013-03-12  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4: Patch by Andrew Shadura, providing better support for
+	* three architectures they have in Debian.
+
 2012-08-07  Stuart Cassoff  <stwo@users.sourceforge.net>
 
 	* tcl.m4: Added "-DNDEBUG" to CFLAGS_DEFAULT

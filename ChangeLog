@@ -1,3 +1,8 @@
+2013-05-19  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4: Fix for FreeBSD, and remove support for old
+	FreeBSD versions. Patch by Pietro Cerutti 
+
 2013-03-12  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* unix/tcl.m4: Patch by Andrew Shadura, providing better support for

@@ -1,3 +1,8 @@
+2013-06-20  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4:  Use X11/Xlib.h for checking where X11 can be found
+	in stead of X11/XIntrinsic.h. Suggested by Pietro Cerutti.
+
 2013-06-04  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* unix/tcl.m4: Eliminate NO_VIZ macro as current

@@ -1,3 +1,7 @@
+2013-07-04  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4:  Bug [3324676]: AC_PROG_INSTALL incompat
+
 2013-07-02  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* unix/tcl.m4:  Bug [32afa6e256]: dirent64 check is incorrect in tcl.m4

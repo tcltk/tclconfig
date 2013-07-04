@@ -3209,6 +3209,9 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     AC_PROG_CC
     AC_PROG_CPP
 
+    INSTALL="\$(SHELL) \$(srcdir)/tclconfig/install-sh -c"
+    AC_SUBST(INSTALL)
+
     #--------------------------------------------------------------------
     # Checks to see if the make program sets the $MAKE variable.
     #--------------------------------------------------------------------

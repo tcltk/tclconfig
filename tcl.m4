@@ -2021,11 +2021,14 @@ dnl # preprocessing tests use only CPPFLAGS.
 	AC_CACHE_CHECK(for SEH support in compiler,
 	    tcl_cv_seh,
 	AC_TRY_RUN([
+	    #ifdef _WIN32
 	    #define WIN32_LEAN_AND_MEAN
 	    #include <windows.h>
 	    #undef WIN32_LEAN_AND_MEAN
+	    #endif
 
 	    int main(int argc, char** argv) {
+	    #ifdef _WIN32
 		int a, b = 0;
 		__try {
 		    a = 666 / b;
@@ -2034,6 +2037,9 @@ dnl # preprocessing tests use only CPPFLAGS.
 		    return 0;
 		}
 		return 1;
+	    #else
+		return 0;
+	    #endif
 	    }
 	],
 	    tcl_cv_seh=yes,

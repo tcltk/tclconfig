@@ -1,6 +1,7 @@
 2013-07-04  Jan Nijtmans  <nijtmans@users.sf.net>
 
-	* unix/tcl.m4:  Bug [3324676]: AC_PROG_INSTALL incompat
+	* unix/tcl.m4:  Bug [3324676]: AC_PROG_INSTALL incompat,
+	Bug [3606445]: Unneeded -DHAVE_NO_SEH=1 when not building on Windows
 
 2013-07-02  Jan Nijtmans  <nijtmans@users.sf.net>
 

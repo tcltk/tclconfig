@@ -2017,18 +2017,15 @@ dnl # preprocessing tests use only CPPFLAGS.
     # TEA specific: use PACKAGE_VERSION instead of VERSION
     UNSHARED_LIB_SUFFIX='${PACKAGE_VERSION}.a'])
 
-    if test "${GCC}" = "yes" ; then
+    if test "${GCC}" = "yes" -a ${SHLIB_SUFFIX} = ".dll"; then
 	AC_CACHE_CHECK(for SEH support in compiler,
 	    tcl_cv_seh,
 	AC_TRY_RUN([
-	    #ifdef _WIN32
-	    #define WIN32_LEAN_AND_MEAN
-	    #include <windows.h>
-	    #undef WIN32_LEAN_AND_MEAN
-	    #endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
 
 	    int main(int argc, char** argv) {
-	    #ifdef _WIN32
 		int a, b = 0;
 		__try {
 		    a = 666 / b;
@@ -2037,9 +2034,6 @@ dnl # preprocessing tests use only CPPFLAGS.
 		    return 0;
 		}
 		return 1;
-	    #else
-		return 0;
-	    #endif
 	    }
 	],
 	    tcl_cv_seh=yes,
@@ -2081,10 +2075,10 @@ dnl # preprocessing tests use only CPPFLAGS.
 	AC_CACHE_CHECK(for winnt.h that ignores VOID define,
 	    tcl_cv_winnt_ignore_void,
 	    AC_TRY_COMPILE([
-		#define VOID void
-		#define WIN32_LEAN_AND_MEAN
-		#include <windows.h>
-		#undef WIN32_LEAN_AND_MEAN
+#define VOID void
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
 	    ], [
 		CHAR c;
 		SHORT s;
@@ -2097,6 +2091,7 @@ dnl # preprocessing tests use only CPPFLAGS.
 	    AC_DEFINE(HAVE_WINNT_IGNORE_VOID, 1,
 		    [Defined when cygwin/mingw ignores VOID define in winnt.h])
 	fi
+    fi
 
 	# See if the compiler supports casting to a union type.
 	# This is used to stop gcc from printing a compiler
@@ -2116,7 +2111,6 @@ dnl # preprocessing tests use only CPPFLAGS.
 	    AC_DEFINE(HAVE_CAST_TO_UNION, 1,
 		    [Defined when compiler supports casting to union type.])
 	fi
-    fi
 
     AC_SUBST(CFLAGS_DEBUG)
     AC_SUBST(CFLAGS_OPTIMIZE)

@@ -1,3 +1,8 @@
+2013-10-01  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4:  Workaround for MinGW bug #2065:  "gcc --shared" links
+	with libgcc_s_dw2-1.dll when using 64-bit division in C 
+
 2013-07-04  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* unix/tcl.m4:  Bug [3324676]: AC_PROG_INSTALL incompat,

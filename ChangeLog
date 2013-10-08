@@ -1,3 +1,8 @@
+2013-10-08  Jan Nijtmans  <nijtmans@users.sf.net>
+
+	* unix/tcl.m4:  Bug [172223e008]: Wrong filename in
+	--disable-shared compile on MinGW
+
 2013-10-04  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* unix/tcl.m4:  stub library is no longer linked with msvcrt??.dll.

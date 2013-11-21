@@ -1426,6 +1426,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    SHLIB_LD='${CC} -shared'
 	    SHLIB_SUFFIX=".dll"
 	    EXEEXT=".exe"
+	    do64bit_ok=yes
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    ;;

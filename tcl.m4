@@ -2854,7 +2854,7 @@ AC_DEFUN([TEA_INIT], [
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
 	AC_MSG_ERROR([
-The PACKAGE_NAME variable must be defined by your TEA configure.in])
+The PACKAGE_NAME variable must be defined by your TEA configure.ac])
     fi
     if test x"$1" = x ; then
 	AC_MSG_ERROR([
@@ -3201,7 +3201,7 @@ AC_DEFUN([TEA_PREFIX], [
 # TEA_SETUP_COMPILER_CC --
 #
 #	Do compiler checks the way we want.  This is just a replacement
-#	for AC_PROG_CC in TEA configure.in files to make them cleaner.
+#	for AC_PROG_CC in TEA configure.ac files to make them cleaner.
 #
 # Arguments:
 #	none

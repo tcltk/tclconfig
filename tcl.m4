@@ -1235,7 +1235,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		    runtime=-MD
 	        fi
 	        case "x`echo \${VisualStudioVersion}`" in
-	            x14*)
+	            x1[4-9]*)
 		        lflags="${lflags} -nodefaultlib:libucrt.lib"
 		        TEA_ADD_LIBS([ucrt.lib])
 	            ;;

@@ -422,8 +422,12 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 	    #ifdef _WIN32
 		#error win32
 	    #endif
-    ], TEA_PLATFORM="unix",
+	], [
+	    TEA_PLATFORM="unix"
+	    CYGPATH=echo
+	], [
 	    TEA_PLATFORM="windows"
+	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -m, echo)	]
     )
     CC=$hold_cc
     AC_MSG_RESULT($TEA_PLATFORM)
@@ -2881,14 +2885,13 @@ TEA version not specified.])
 
     case "`uname -s`" in
 	*win32*|*WIN32*|*MINGW32_*)
-	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -w, echo)
+	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -m, echo)
 	    EXEEXT=".exe"
 	    TEA_PLATFORM="windows"
 	    ;;
 	*CYGWIN_*)
-	    CYGPATH=echo
 	    EXEEXT=".exe"
-	    # TEA_PLATFORM is determined later in LOAD_TCLCONFIG
+	    # CYGPATH and TEA_PLATFORM are determined later in LOAD_TCLCONFIG
 	    ;;
 	*)
 	    CYGPATH=echo
@@ -4097,12 +4100,12 @@ AC_DEFUN([TEA_EXPORT_CONFIG], [
 	eval $1_LIB_FLAG="-l$1`echo ${PACKAGE_VERSION} | tr -d .`${DBGX}"
 	eval $1_STUB_LIB_FLAG="-l$1stub`echo ${PACKAGE_VERSION} | tr -d .`${DBGX}"
     fi
-    $1_BUILD_LIB_SPEC="-L`pwd` ${$1_LIB_FLAG}"
-    $1_LIB_SPEC="-L${pkglibdir} ${$1_LIB_FLAG}"
-    $1_BUILD_STUB_LIB_SPEC="-L`pwd` [$]{$1_STUB_LIB_FLAG}"
-    $1_STUB_LIB_SPEC="-L${pkglibdir} [$]{$1_STUB_LIB_FLAG}"
-    $1_BUILD_STUB_LIB_PATH="`pwd`/[$]{PKG_STUB_LIB_FILE}"
-    $1_STUB_LIB_PATH="${pkglibdir}/[$]{PKG_STUB_LIB_FILE}"
+    $1_BUILD_LIB_SPEC="-L`$CYGPATH $(pwd)` ${$1_LIB_FLAG}"
+    $1_LIB_SPEC="-L`$CYGPATH ${pkglibdir}` ${$1_LIB_FLAG}"
+    $1_BUILD_STUB_LIB_SPEC="-L`$CYGPATH $(pwd)` [$]{$1_STUB_LIB_FLAG}"
+    $1_STUB_LIB_SPEC="-L`$CYGPATH ${pkglibdir}` [$]{$1_STUB_LIB_FLAG}"
+    $1_BUILD_STUB_LIB_PATH="`$CYGPATH $(pwd)`/[$]{PKG_STUB_LIB_FILE}"
+    $1_STUB_LIB_PATH="`$CYGPATH ${pkglibdir}`/[$]{PKG_STUB_LIB_FILE}"
 
     AC_SUBST($1_BUILD_LIB_SPEC)
     AC_SUBST($1_LIB_SPEC)

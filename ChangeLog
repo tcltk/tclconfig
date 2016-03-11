@@ -1,3 +1,7 @@
+2016-03-11 Sean Woods <yoda@etoyoc.com>
+  *tcl.m4 Fixed the search for Tcl and Wish shells under MinGW. Static builds and threaded builds
+  get an "s" or "t" added to the name.
+
 2015-08-28  Jan Nijtmans  <nijtmans@users.sf.net>
 
 	* tcl.m4:  Rfe [00189c4afc]: Allow semi-static UCRT build on

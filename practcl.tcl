@@ -5,7 +5,7 @@
 package require TclOO
 
 proc debug args {
-  puts stdout $args
+  ::practcl::cputs ::DEBUG_INFO $args
 }
 
 ###
@@ -557,8 +557,8 @@ lappend ::PATHSTACK $dir
       set idxbuf [::practcl::_pkgindex_directory $path]
       if {[string length $idxbuf]} {
         incr path_indexed($path)
-        append buffer "set dir \[file join \[lindex \$::PATHSTACK end\] $thisdir\]" \n
-        append buffer [string trimright $idxbuf] \n
+        append buffer "set dir \[set PKGDIR \[file join \[lindex \$::PATHSTACK end\] $thisdir\]\]" \n
+        append buffer [string map {$dir $PKGDIR} [string trimright $idxbuf]] \n
       } 
     }
   }
@@ -1224,6 +1224,13 @@ proc ::practcl::copyDir {d1 d2} {
     foreach mod [my link list subordinate] {
       ::practcl::cputs result [$mod generate-tcl]
     }
+    if {[my define get shared_library] ne {}} {
+      set LIBFILE [my define get shared_library]
+      set PKGINIT [my define get pkginit]
+      ::practcl::cputs result [string map \
+        [list @LIBFILE@ $LIBFILE @PKGINIT@ $PKGINIT] \
+        {load [file join [file dirname [file join [pwd] [info script]]] @LIBFILE@] @PKGINIT@}]
+    }
     return $result
   }
 }
@@ -1712,12 +1719,8 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
 ::oo::class create ::practcl::cheader {
   superclass ::practcl::product
 
-  method compile-products {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
-  }
-  method generate-cinit {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
-  }
+  method compile-products {} {}
+  method generate-cinit {} {}
 }
 
 ::oo::class create ::practcl::csource {
@@ -1810,11 +1813,11 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     }
     set output_tcl [my define get output_tcl]
     if {$output_tcl ne {}} {
-      set script "source \[file join \$dir $output_tcl] \; load \[file join \$dir [my define get shared_library]\] [my define get pkginit]"
+      set script "\[list source \[file join \$dir $output_tcl\]\]"
     } else {
-      set script "load \[file join \$dir [my define get shared_library]\] [my define get pkginit]"
+      set script "\[list load \[file join \$dir [my define get shared_library]\] [my define get pkginit]\]"
     }
-    set result [list package ifneeded $name $version $script]
+    set result "package ifneeded [list $name] [list $version] $script"
     foreach alias $args {
       set script "package require $name $version \; package provide $alias $version"
       append result \n\n [list package ifneeded $alias $version $script]
@@ -1970,6 +1973,10 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     ::practcl::cputs result "${NAME}_COMPILE		= \$(CC) \$(CFLAGS) \$(${NAME}_DEFS) \$(${NAME}_INCLUDES) \$(INCLUDES) \$(AM_CPPFLAGS) \$(CPPFLAGS) \$(AM_CFLAGS)"
 
     foreach {ofile info} [my compile-products] {
+      puts [list $ofile $info]
+      puts [list dict keys $info]
+      puts [dict keys $info]
+
       dict set products $ofile $info
       set agline {}
       if {[dict exists $info depend]} {
@@ -1977,7 +1984,12 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       } else {
         ::practcl::cputs result "\n${ofile}:"
       }
-      ::practcl::cputs result "\t\$\(${NAME}_COMPILE\) [dict get $info extra] -c [dict get $info cfile] -o \$@\n\t"
+      set cmd "\t\$\(${NAME}_COMPILE\)"
+      if {[dict exists $info extra]} {
+        append cmd " [dict get $info extra]"
+      }
+      append cmd " -c [dict get $info cfile] -o \$@\n\t"
+      ::practcl::cputs result  $cmd
     }
 
     set map {}
@@ -1995,7 +2007,9 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       lappend map "%${flag}%" "\$\{${flag}\}"
     }
     set outfile [string map $map $::project(PRACTCL_NAME_LIBRARY)]$::project(SHLIB_SUFFIX)
-    my define set shared_library $outfile
+    if {[my define get shared_library] eq {}} {
+      my define set shared_library $outfile
+    }
     ::practcl::cputs result "
 ${NAME}_SHLIB = $outfile
 ${NAME}_OBJS = [dict keys $products]
@@ -2015,6 +2029,28 @@ ${NAME}_OBJS = [dict keys $products]
     ::practcl::cputs result "\t-rm -rf $outfile"
     ::practcl::cputs result "\t[string map $map $::project(PRACTCL_STATIC_LIB)]"
     return $result
+  }
+  
+  method shared_library {} {
+    set name [string tolower [my define get name [my define get pkg_name]]]
+    set NAME [string toupper $name]
+    set version [my define get version [my define get pkg_vers]]
+    set map {}
+    lappend map %LIBRARY_NAME% $name    
+    lappend map %LIBRARY_VERSION% $version
+    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} $version]
+    lappend map %LIBRARY_PREFIX% [my define getnull libprefix]
+    foreach flag {
+      SHLIB_LD
+      STLIB_LD
+      SHLIB_LD_LIBS
+      SHLIB_SUFFIX
+      LDFLAGS_DEFAULT
+    } {
+      lappend map "%${flag}%" "\$\{${flag}\}"
+    }
+    set outfile [string map $map $::project(PRACTCL_NAME_LIBRARY)]$::project(SHLIB_SUFFIX)
+    return $outfile
   }
   
   method generate-loader {} {

@@ -61,6 +61,7 @@ proc ::practcl::os {} {
   } else {
     set system [exec uname -s]-[exec uname -r]
     set arch unknown
+    set ::project(TEACUP_OS) generic
   }
   set ::project(TEA_PLATFORM) $system
   set ::project(TEA_SYSTEM) $system
@@ -2814,10 +2815,9 @@ char *
   ###
   # Produce a static library
   ###
-  method generate-static-tclsh {outfile tclarray tkarray kitarray} {
+  method generate-static-tclsh {outfile tclarray tkarray args} {
     array set TCL $tclarray
     array set TK $tkarray
-    array set KIT $kitarray
     set path [file dirname $outfile]
     cd $path
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
@@ -2864,13 +2864,13 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       set RSOBJ [file join $path build tclkit.res.o]
       set RCSRC [my define get kit_resource_file]
       if {$RCSRC eq {} || ![file exists $RCSRC]} {
-        set RCSRC [file join $KIT(TK_SRC_DIR) win rc wish.rc]        
+        set RCSRC [file join $TK(src_dir) win rc wish.rc]        
       }
       set cmd [list  windres -o $RSOBJ -DSTATIC_BUILD]
-      lappend cmd         --include [file join $KIT(TCL_SRC_DIR) generic] \
-        --include [file join $KIT(TK_SRC_DIR) generic] \
-        --include [file join $KIT(TK_SRC_DIR) win] \
-        --include [file join $KIT(TK_SRC_DIR) win rc]
+      lappend cmd         --include [file join $TCL(src_dir) generic] \
+        --include [file join $TK(src_dir) generic] \
+        --include [file join $TK(src_dir) win] \
+        --include [file join $TK(src_dir) win rc]
       foreach item [my define get resource_include] {
         lappend cmd --include $item
       }

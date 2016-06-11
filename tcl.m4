@@ -689,9 +689,12 @@ AC_DEFUN([TEA_PROG_WISH], [
 #
 #	Sets the following vars:
 #		SHARED_BUILD	Value of 1 or 0
-#               USE_TCL_STUBS   Value true: if SHARED_BUILD
+#               STUBS_BUILD     Value if 1 or 0
+#               USE_TCL_STUBS   Value true: if SHARED_BUILD or --enable-stubs
+#               USE_TCLOO_STUBS Value true: if SHARED_BUILD or --enable-stubs
+#               USE_TK_STUBS    Value true: if SHARED_BUILD or --enable-stubs
+#                                AND TEA_WINDOWING_SYSTEM != ""
 #------------------------------------------------------------------------
-
 AC_DEFUN([TEA_ENABLE_SHARED], [
     AC_MSG_CHECKING([how to build libraries])
     AC_ARG_ENABLE(shared,

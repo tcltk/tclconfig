@@ -689,9 +689,12 @@ AC_DEFUN([TEA_PROG_WISH], [
 #
 #	Sets the following vars:
 #		SHARED_BUILD	Value of 1 or 0
-#               USE_TCL_STUBS   Value true: if SHARED_BUILD
+#               STUBS_BUILD     Value if 1 or 0
+#               USE_TCL_STUBS   Value true: if SHARED_BUILD or --enable-stubs
+#               USE_TCLOO_STUBS Value true: if SHARED_BUILD or --enable-stubs
+#               USE_TK_STUBS    Value true: if SHARED_BUILD or --enable-stubs
+#                                AND TEA_WINDOWING_SYSTEM != ""
 #------------------------------------------------------------------------
-
 AC_DEFUN([TEA_ENABLE_SHARED], [
     AC_MSG_CHECKING([how to build libraries])
     AC_ARG_ENABLE(shared,
@@ -712,7 +715,7 @@ AC_DEFUN([TEA_ENABLE_SHARED], [
 	[stubs_ok=$enableval], [stubs_ok=yes])
 
     if test "${enable_stubs+set}" = set; then
-	enableval="$enable_shared"
+	enableval="$enable_stubs"
 	stubs_ok=$enableval
     else
 	stubs_ok=yes
@@ -723,28 +726,24 @@ AC_DEFUN([TEA_ENABLE_SHARED], [
 	AC_MSG_RESULT([shared])
 	SHARED_BUILD=1
         STUBS_BUILD=1
-        AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
-	if test "${TEA_WINDOWINGSYSTEM}" != ""; then
-          AC_DEFINE(USE_TK_STUBS, 1, [Use Tcl stubs])
-        fi
     else
 	AC_MSG_RESULT([static])
 	SHARED_BUILD=0
 	AC_DEFINE(STATIC_BUILD, 1, [This a static build])
         if test "$stubs_ok" = "yes" ; then
           STUBS_BUILD=1
-          AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
-          if test "${TEA_WINDOWINGSYSTEM}" != ""; then
-            AC_DEFINE(USE_TK_STUBS, 1, [Use Tcl stubs])
-          fi
         else
           STUBS_BUILD=0
-          #AC_DEFINE(USE_TCL_STUBS, 0, [Do not use Tcl stubs])
-          #if test "${TEA_WINDOWINGSYSTEM}" != ""; then
-          #  AC_DEFINE(USE_TK_STUBS, 0, [Do not use Tcl stubs])
-          #fi
         fi
     fi
+    if test "${STUBS_BUILD}" = "1" ; then
+      AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
+      AC_DEFINE(USE_TCLOO_STUBS, 1, [Use TclOO stubs])
+      if test "${TEA_WINDOWINGSYSTEM}" != ""; then
+        AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
+      fi
+    fi
+
     AC_SUBST(SHARED_BUILD)
     AC_SUBST(STUBS_BUILD)
 ])

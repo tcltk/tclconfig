@@ -20,6 +20,9 @@ dnl TEA_VERSION="3.10"
 # TEA_WINDOWINGSYSTEM - win32 aqua x11 (mirrors 'tk windowingsystem')
 # TEA_PLATFORM        - windows unix
 # TEA_TK_EXTENSION    - True if this is a Tk extension
+# TEACUP_OS           - windows macosx linux generic
+# TEACUP_TOOLSET      - Toolset in use (gcc,mingw,msvc,llvm)
+# TEACUP_PROFILE      - win32  
 #
 
 #------------------------------------------------------------------------
@@ -2917,7 +2920,6 @@ AC_DEFUN([TEA_INIT], [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
     TEA_VERSION="3.10"
-
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
 	AC_MSG_ERROR([
@@ -3488,7 +3490,9 @@ print("manifest needed")
     # Some packages build their own stubs libraries
     eval eval "PKG_STUB_LIB_FILE=lib${PACKAGE_LIB_PREFIX}${PACKAGE_NAME}stub${UNSHARED_LIB_SUFFIX}"
   fi
-
+  
+  # Store the raw CFLAGS before we add the trimmings
+  PRACTCL_CFLAGS=${CFLAGS}    
   # These are escaped so that only CFLAGS is picked up at configure time.
   # The other values will be substituted at make time.
   CFLAGS="${CFLAGS} \${CFLAGS_DEFAULT} \${CFLAGS_WARNING}"
@@ -3503,13 +3507,14 @@ print("manifest needed")
   AC_SUBST(RANLIB_STUB)
   AC_SUBST(VC_MANIFEST_EMBED_DLL)
   AC_SUBST(VC_MANIFEST_EMBED_EXE)
+  AC_SUBST(PRACTCL_CFLAGS)
   AC_SUBST(PRACTCL_TOOLSET)
   AC_SUBST(PRACTCL_SHARED_LIB)
   AC_SUBST(PRACTCL_STATIC_LIB)
   AC_SUBST(PRACTCL_STUB_LIB)
   AC_SUBST(PRACTCL_VC_MANIFEST_EMBED_DLL)
   AC_SUBST(PRACTCL_VC_MANIFEST_EMBED_EXE)
-	AC_SUBST(PRACTCL_NAME_LIBRARY)
+  AC_SUBST(PRACTCL_NAME_LIBRARY)
 ])
 
 #------------------------------------------------------------------------
@@ -4271,6 +4276,100 @@ AC_DEFUN([TEA_PATH_CELIB], [
 	fi
     fi
 ])
+
+#--------------------------------------------------------------------
+# TEA_CONFIG_TEAPOT
+#
+#	Try to determine the canonical name for this package's binary
+# target
+#
+# Arguments:
+#	none
+AC_DEFUN([TEA_CONFIG_TEAPOT], [
+	TEACUP_OS=$system
+	TEACUP_ARCH="unknown"
+	TEACUP_TOOLSET="gcc"
+	TEACUP_PROFILE="unknown"
+	arch="unknown"
+	if test "${TEA_PLATFORM}" = "windows" ; then
+		if test "$GCC" = "yes" ; then
+			TEACUP_TOOLSET="gcc"
+		else
+			TEACUP_TOOLSET="msvc"
+		fi
+		if test "$do64bit" != "no" ; then
+ 		  case "$do64bit" in
+		    amd64|x64|yes)
+					arch="x86_64"
+					TEACUP_PROFILE="win32-x86_64"
+				;;
+				ia64)
+					arch="ia64"
+					TEACUP_PROFILE="win32-ia64"
+				;;
+			esac
+		else
+			arch="ix86"
+			TEACUP_PROFILE="win32-ix86"
+		fi
+	else
+    case $system in
+			Linux*)
+				TEACUP_OS="linux"
+				arch=`uname -m`
+				TEACUP_PROFILE="linux-glibc2.3-$arch"
+			;;
+			GNU*)
+				TEACUP_OS="gnu"
+				arch=`uname -m`
+			;;
+			NetBSD-Debian)
+				TEACUP_OS="netbsd-debian"
+				arch=`uname -m`
+			;;
+			OpenBSD-*)
+				TEACUP_OS="openbsd"
+				arch=`arch -s`
+			;;
+			Darwin*)
+				TEACUP_OS="macosx"
+				TEACUP_PROFILE="macosx-universal"
+				arch=`uname -m`
+				if test $arch = "x86_64"; then
+					TEACUP_PROFILE="macosx10.5-i386-x86_84"
+				fi
+			;;
+			OpenBSD*)
+				TEACUP_OS="openbsd"
+				arch=`arch -s`
+			;;
+		esac
+	fi
+	TEACUP_ARCH=$arch
+	if test "$TEACUP_PROFILE" = "unknown"; then
+		if test $arch = "unknown"; then
+		  arch=`uname -m`
+		fi
+		case $arch in
+			i*86)
+				arch="ix86"
+			;;
+			amd64)
+				arch="x86_64"
+			;;
+		esac
+		TEACUP_PROFILE="$TEACUP_OS-$arch"
+	fi
+	TEA_SYSTEM=$system
+	AC_SUBST(TEA_SYSTEM)
+  AC_SUBST(TEA_PLATFORM)
+  AC_SUBST(TEA_WINDOWINGSYSTEM)
+	AC_SUBST(TEACUP_OS)
+	AC_SUBST(TEACUP_ARCH)
+	AC_SUBST(TEACUP_TOOLSET)
+	AC_SUBST(TEACUP_PROFILE)
+])
+
 # Local Variables:
 # mode: autoconf
 # End:

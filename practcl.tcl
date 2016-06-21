@@ -20,9 +20,13 @@ proc ::dotclexec args {
   exec [info nameofexecutable] {*}$args >&@ stdout
 }
 
-proc ::domake {args} {
+proc ::domake {path args} {
+  set PWD [pwd]
+  cd $path
+  puts [list *** $path ***]
   puts [list make {*}$args]
   exec make {*}$args >&@ stdout
+  cd $PWD
 }
 
 proc ::fossil {path args} {
@@ -40,69 +44,97 @@ proc ::fossil {path args} {
 namespace eval ::practcl {}
 
 proc ::practcl::os {} {
-  if {[info exists ::project(TEACUP_OS)] && $::project(TEACUP_OS) ne "@TEACUP_OS@"} {
+  if {[info exists ::project(TEACUP_OS)] && $::project(TEACUP_OS) ni {"@TEACUP_OS@" {}}} {
     return $::project(TEACUP_OS)
   }
-  guess
-  return $::project(TEACUP_OS)
+  set info [::practcl::config.tcl $::project(builddir)]
+  if {[dict exists $info TEACUP_OS]} {
+    return [dict get $info TEACUP_OS]
+  }
+  return unknown
 }
 
 ###
 # Detect local platform
 ###
-proc ::practcl::guess {} {
+proc ::practcl::config.tcl {path} {
+  dict set result buildpath $path
+  set result {}
+  if {[file exists [file join $path config.tcl]]} {
+    set fin [open [file join $path config.tcl] r]
+    set bufline {}
+    set rawcount 0
+    set linecount 0
+    while {[gets $fin thisline]>=0} {
+      incr rawcount
+      append bufline \n $thisline
+      if {![info complete $bufline]} continue
+      set line [string trimleft $bufline]
+      set bufline {}
+      if {[string index [string trimleft $line] 0] eq "#"} continue
+      incr linecount
+      set key [lindex $line 0]
+      set value [lindex $line 1]
+      dict set result $key $value
+    }
+    dict set result sandbox  [file dirname [dict get $result srcdir]]
+    dict set result download [file join [dict get $result sandbox] download]
+    dict set result teapot   [file join [dict get $result sandbox] teapot]
+    
+    # Add some template defaults
+  }
   # If data is available from autoconf, defer to that 
-  if {[info exists ::project(TEACUP_OS)] && $::project(TEACUP_OS) ne "@TEACUP_OS@"} {
-    return [list TEACUP_OS $::project(TEACUP_OS)]
+  if {[dict exists $result TEACUP_OS] && [dict get $result TEACUP_OS] ni {"@TEACUP_OS@" {}}} {
+    return $result  
   }
   # If autoconf hasn't run yet, assume we are not cross compiling
   # and defer to local checks
-  set ::project(TEACUP_PROFILE) unknown
-  set ::project(TEACUP_OS) unknown
-  set ::project(EXEEXT) {}
+  dict set result TEACUP_PROFILE unknown
+  dict set result TEACUP_OS unknown
+  dict set result EXEEXT {}
   if {$::tcl_platform(platform) eq "windows"} {
     set system "windows"
     set arch ix86
-    set ::project(TEACUP_PROFILE) win32-ix86
-    set ::project(TEACUP_OS) windows
-    set ::project(EXEEXT) .exe
+    dict set result TEACUP_PROFILE win32-ix86
+    dict set result TEACUP_OS windows
+    dict set result EXEEXT .exe
   } else {
     set system [exec uname -s]-[exec uname -r]
     set arch unknown
-    set ::project(TEACUP_OS) generic
+    dict set result TEACUP_OS generic
   }
-  set ::project(TEA_PLATFORM) $system
-  set ::project(TEA_SYSTEM) $system
+  dict set result TEA_PLATFORM $system
+  dict set result TEA_SYSTEM $system
   switch -glob $system {
     Linux* {
-      set ::project(TEACUP_OS) linux
+      dict set result TEACUP_OS linux
       set arch [exec uname -m]
-      set ::project(TEACUP_PROFILE) "linux-glibc2.3-$arch"
+      dict set result TEACUP_PROFILE "linux-glibc2.3-$arch"
     }
     GNU* {
       set arch [exec uname -m]
-      set ::project(TEACUP_OS) "gnu"
+      dict set result TEACUP_OS "gnu"
     }
     NetBSD-Debian {
       set arch [exec uname -m]
-      set ::project(TEACUP_OS) "netbsd-debian"
+      dict set result TEACUP_OS "netbsd-debian"
     }
     OpenBSD-* {
       set arch [exec arch -s]
-      set ::project(TEACUP_OS) "openbsd"
+      dict set result TEACUP_OS "openbsd"
     }
     Darwin* {
       set arch [exec uname -m]
-      set ::project(TEACUP_OS) "macosx"
+      dict set result TEACUP_OS "macosx"
       if {$arch eq "x86_64"} {
-        set ::project(TEACUP_PROFILE) "macosx10.5-i386-x86_84"
+        dict set result TEACUP_PROFILE "macosx10.5-i386-x86_84"
       } else {
-        set ::project(TEACUP_PROFILE) "macosx-universal"
+        dict set result TEACUP_PROFILE "macosx-universal"
       }
     }
     OpenBSD* {
       set arch [exec arch -s]
-      set ::project(TEACUP_OS) "openbsd"
+      dict set result TEACUP_OS "openbsd"
     }
   }
   if {$arch eq "unknown"} {
@@ -116,11 +148,11 @@ proc ::practcl::guess {} {
       set arch "x86_64"
     }
   }
-  set ::project(TEACUP_ARCH) $arch
-  if {$::project(TEACUP_PROFILE) eq "unknown"} {
-    set ::project(TEACUP_PROFILE) $::project(TEACUP_OS)-$arch
+  dict set result TEACUP_ARCH $arch
+  if {[dict get $result TEACUP_PROFILE] eq "unknown"} {
+    dict set result TEACUP_PROFILE [dict get $result TEACUP_OS]-$arch
   }
-  return $::project(TEACUP_OS)
+  return $result
 }
 
 ###
@@ -552,16 +584,20 @@ proc ::practcl::fossil_sandbox {pkg args} {
   dict set result tag $tag
   try {
     if {[file exists [file join $srcroot .fslckout]]} {
-      catch {
-      puts "FOSSIL UPDATE"
-      cd $srcroot
-      doexec fossil update $tag
+      if {[dict exists $info update] && [dict get $info update]==1} {
+        catch {
+        puts "FOSSIL UPDATE"
+        cd $srcroot
+        doexec fossil update $tag
+        }
       }
     } elseif {[file exists [file join $srcroot _FOSSIL_]]} {
-      catch {
-      puts "FOSSIL UPDATE"
-      cd $srcroot
-      doexec fossil update $tag
+      if {[dict exists $info update] && [dict get $info update]==1} {
+        catch {
+        puts "FOSSIL UPDATE"
+        cd $srcroot
+        doexec fossil update $tag
+        }
       }
     } else {
       puts "OPEN AND UNPACK"
@@ -684,6 +720,7 @@ proc ::practcl::read_sh_file {filename {localdat {}}} {
 proc ::practcl::read_Config.sh filename {
   set fin [open $filename r]
   set result {}
+  set linecount 0
   while {[gets $fin line] >= 0} {
     set line [string trim $line]
     if {[string index $line 0] eq "#"} continue
@@ -695,6 +732,7 @@ proc ::practcl::read_Config.sh filename {
         set value [string trim [string range $line [expr {$eq+1}] end] ']
         #set value [read_sh_subst [string range $line [expr {$eq+1}] end] $local]
         dict set result $field $value
+        incr $linecount
       }
     } err opts
     if {[dict get $opts -code] != 0} {
@@ -702,6 +740,10 @@ proc ::practcl::read_Config.sh filename {
       puts "Error reading line:\n$line\nerr: $err\n***"
       return $err {*}$opts
     }
+  }
+  puts [list *** $filename $linecount]
+  foreach {field val} $result {
+    puts "$field: $val"   
   }
   return $result
 }
@@ -1161,8 +1203,8 @@ proc ::practcl::copyDir {d1 d2} {
         if {[llength $args]==0} {
           return [array get links]
         }
-        if {[llength $args] ne 1} { error "Usage: link list LINKTYPE"}
-        lassign $args linktype
+        if {[llength $args] != 1} { error "Usage: link list LINKTYPE"}
+        set linktype [lindex $args 0]
         if {![info exists links($linktype)]} {
           return {}
         }
@@ -1272,20 +1314,24 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
   set statpkglist {}
   dict set statpkglist Tk Tk_Init
   foreach {ofile info} [${MAINPROJ} compile-products] {
+    if {![dict exists $info object]} continue
     set cobj [dict get $info object]
-    set statpkg [$cobj define get static_pkg]
-    if {$statpkg eq {}} continue
-    puts [list STATIC PACKAGE IN $ofile]
-    dict set statpkglist $statpkg [$cobj define get initfunc]
+    foreach {pkg initfunc} [$cobj static-packages] {
+      puts [list STATIC PACKAGE $pkg IN $ofile]
+      dict set statpkglist $pkg $initfunc
+    }
   }
-  foreach cobj ${PKG_OBJS} {
-    set statpkg [$cobj define get static_pkg]
-    if {$statpkg eq {}} continue
-    dict set statpkglist $statpkg [$cobj define get initfunc]
+  foreach cobj [list {*}${PKG_OBJS} $MAINPROJ] {
+    foreach {pkg initfunc} [$cobj static-packages] {
+      puts [list STATIC PACKAGE $pkg IN $ofile]
+      dict set statpkglist $pkg $initfunc
+    }
   }
+  
   if {$statpkglist eq {}} {
     return
   }
+  set buffer {}
   set fout [open $filename w]
   puts $fout "#include <tcl.h>"
   foreach {statpkg initfunc} $statpkglist {
@@ -1309,6 +1355,7 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
 proc ::practcl::build::static-tclsh {outfile PROJECT TCLOBJ TKOBJ PKG_OBJS} {
   puts " BUILDING STATIC TCLSH "
   array set TCL [$TCLOBJ config.sh]
+  parray TCL *CFLAG*
   array set TK  [$TKOBJ config.sh]
   set path [file dirname $outfile]
   cd $path
@@ -1332,6 +1379,12 @@ proc ::practcl::build::static-tclsh {outfile PROJECT TCLOBJ TKOBJ PKG_OBJS} {
     }
   }
   lappend includedir [::practcl::file_relative $path [file normalize ../tcl/compat/zlib]]
+  foreach include [$PROJECT generate-include-directory] {
+    set cpath [::practcl::file_relative $path [file normalize $include]]
+    if {$cpath ni $includedir} {
+      lappend includedir $cpath
+    }
+  }
   set INCLUDES  "-I[join $includedir " -I"]"
   set COMPILE "$TCL(cc) $TCL(shlib_cflags) $TCL(cflags_optimize) \
 $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
@@ -1392,27 +1445,10 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     set LDFLAGS_CONSOLE {}
     set LDFLAGS_WINDOW  {}
   }
-  
-  #if {[${PROJECT} define get platform] eq "windows"} {
-    # Aggregate all of the extensions into a master
-    # static library
-  #  parray TCL
-  #  set AR [$PROJECT define get AR ar]
-  #  set RANLIB [$PROJECT define get RANLIB]
-  #  mkdir build.pkg
-  #  if {$RANLIB in {: {}}} {
-  #    set RANLIB ranlib
-  #  }
-  #  
-  #  set extlib [file join [file dirname $outfile] tclkit_pkgs.a]
-  #  set cmd [subst $TCL(stlib_ld)]
-  #  append cmd " $extlib"
-  #
-  #  puts "LINK PKGS: $cmd"
-  #  exec {*}$cmd >&@ stdout
-  #  puts "RANLIB $extlib"
-  #  exec $RANLIB $extlib >&@ stdout
-  ##}
+  puts "***"
+  foreach obj $PKG_OBJS {
+    puts "LINKTER PRODUCTS $obj [$obj linker-products $config($obj)]"
+  }
   
   set cmd "$TCL(cc) $TCL(shlib_cflags) $TCL(cflags_optimize) \
 $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
@@ -1520,7 +1556,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       my select
       my initialize
     }
-  }  
+  }
 
   method target {method args} {
     switch $method {
@@ -1603,7 +1639,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method Ofile filename {
-    return build/[my <module> define get localpath]_[file rootname [file tail $filename]].o
+    return [my <module> define get localpath]_[file rootname [file tail $filename]].o
   }
   
   method compile-products {} {
@@ -1627,7 +1663,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   method generate-include-directory {} {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result [my define get include_dir]
-    foreach obj [my link list subordinate] {
+    foreach obj [my link list product] {
       foreach path [$obj generate-include-directory] {
         lappend result $path
       }
@@ -1652,7 +1688,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     if {[info exists code(header)]} {
       ::practcl::cputs result $code(header)
     }
-    foreach obj [my link list subordinate] {
+    foreach obj [my link list product] {
       ::practcl::cputs result "/* BEGIN [$obj define get filename] generate-cheader */"
       ::practcl::cputs result [$obj generate-cheader]
       ::practcl::cputs result "/* END [$obj define get filename] generate-cheader */"
@@ -1695,7 +1731,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(public-define)
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-define]
     }
     return $result
@@ -1709,7 +1745,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(public-macro)
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-macro]
     }
     return $result
@@ -1734,7 +1770,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       }
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-typedef]
     }
     return $result
@@ -1756,7 +1792,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       }
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-structure]
     }
     return $result
@@ -1783,7 +1819,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(public)
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-headers]
     }
     return $result
@@ -1793,7 +1829,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cfunct tcltype
     set result {}
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       foreach {funct def} [$mod generate-stub-function] {
         dict set result $funct $def
       }
@@ -1822,7 +1858,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       }
     } 
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-function]
     }
     return $result
@@ -1836,7 +1872,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         lappend includes $item
       }
     }
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       foreach item [$mod generate-public-includes] {
         if {$item ni $includes} {
           lappend includes $item
@@ -1853,7 +1889,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         lappend includes $item
       }
     }
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       foreach item [$mod generate-public-verbatim] {
         if {$item ni $includes} {
           lappend includes $item
@@ -1958,8 +1994,23 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(tcl)
     }
     set result [::practcl::_tagblock $result tcl [my define get filename]]
-    foreach mod [my link list subordinate] {
+    foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-tcl]
+    }
+    return $result
+  }
+  
+  method static-packages {} {
+    set result [my define get static_packages]
+    set statpkg  [my define get static_pkg]
+    set initfunc [my define get initfunc]
+    if {$statpkg ne {} && $initfunc ne {}} {
+      dict set result $statpkg $initfunc
+    }
+    foreach item [my link list subordinate] {
+      foreach {pkg func} [$item static-packages] {
+        dict set result $pkg $func
+      }
     }
     return $result
   }
@@ -1995,7 +2046,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result "  if([my define get initfunc](interp)!=TCL_OK) return TCL_ERROR\;"
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach obj [my link list subordinate] {
+    foreach obj [my link list product] {
       ::practcl::cputs result [$obj generate-cinit]
     }
     return $result
@@ -2051,7 +2102,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method linktype {} {
-    return {subordinate dynamic}
+    return {subordinate product dynamic}
   }
   method compile_products {} {}
   
@@ -2321,7 +2372,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       ::practcl::cputs result "  \}"
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
-    foreach obj [my link list subordinate] {
+    foreach obj [my link list product] {
       ::practcl::cputs result [$obj generate-cinit]
     }
     return $result
@@ -2477,14 +2528,10 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
 ::oo::class create ::practcl::clibrary {
   superclass ::practcl::product
   
-  method compile-products {} {
-    set filename [my define get filename]
-    set result {}
-    if {$filename ne {}} {
-      lappend result $filename [list library 1]
-    }
-    return $result
+  method linker-products {configdict} {
+    return [my define get filename]
   }
+  
 }
 
 ###
@@ -2496,7 +2543,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   superclass ::practcl::dynamic
 
   method linktype {} {
-    return {subordinate dynamic module}
+    return {subordinate product dynamic module}
   }
   
   
@@ -2522,7 +2569,6 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       debug [list /[self] [self method] [self class]]
       return
     }
-    file mkdir [file join $path build]
     set cout [open [file join $path [file rootname $filename].c] w]
     puts $cout [subst {/*
 ** This file is generated by the [info script] script
@@ -2649,8 +2695,13 @@ package provide @PKG_NAME@ @PKG_VERSION@
     }
     set output_mk [my define getnull output_mk]
     if {$output_mk eq {}} {
-      set output_mk [file rootname $output_mk].mk
+      set output_mk [file rootname $output_c].mk
       my define set output_mk $output_mk
+    }
+    set initfunc [my define getnull initfunc]
+    if {$initfunc eq {}} {
+      set initfunc [string totitle $name]_Init
+      my define set initfunc $initfunc
     }
     set output_decls [my define getnull output_decls]
     if {$output_decls eq {}} {
@@ -2666,11 +2717,16 @@ package provide @PKG_NAME@ @PKG_VERSION@
     debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
   }
   
-  method implement path {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
-    my go
-    foreach item [my link list subordinate] {
-      $item implement $path
+  method ImplementCommon path {
+    foreach item [my link list dynamic] {
+      if {[catch {$item implement $path} err]} {
+        puts "Skipped $item: $err"
+      }
+    }
+    foreach item [my link list module] {
+      if {[catch {$item implement $path} err]} {
+        puts "Skipped $item: $err"
+      }
     }
     set cout [open [file join $path [my define get output_c]] w]
     puts $cout [subst {/*
@@ -2700,7 +2756,14 @@ package provide @PKG_NAME@ @PKG_VERSION@
 ###"
     puts $tclout [my generate-tcl]
     close $tclout
-    
+  }
+  
+  method implement path {
+    puts [list [self] implement $path]
+    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    my go
+    my ImplementCommon $path
+    puts "MAKEFILE [file join $path [my define get output_mk]]"
     set mkout [open [file join $path [my define get output_mk]] w]
     puts $mkout "###
 # This file is generated by the [info script] script
@@ -2713,6 +2776,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
   }  
 
   method generate-make {path} {
+    puts [list [self] GENERATE MAKE $path]
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     ::practcl::build::DEFS [self] [my define get DEFS] name version defs
     set includedir .
@@ -2772,7 +2836,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
     }
 
     if {[string is true [my define get SHARED_BUILD]]} {
-      set outfile $::project(libfile)
+      set outfile [my define get libfile]
     } else {
       set outfile [my shared_library]
     }
@@ -2786,21 +2850,21 @@ ${NAME}_OBJS = [dict keys $products]
     lappend map %OUTFILE% $outfile
     lappend map %LIBRARY_OBJECTS% "\$(${NAME}_OBJS)"
     ::practcl::cputs result "$outfile: \$(${NAME}_OBJS)" 
-    ::practcl::cputs result "\t[string map $map $::project(PRACTCL_SHARED_LIB)]"
-    if {$::project(PRACTCL_VC_MANIFEST_EMBED_DLL) ni {: {}}} {
-      ::practcl::cputs result "\t[string map $map $::project(PRACTCL_VC_MANIFEST_EMBED_DLL)]"
+    ::practcl::cputs result "\t[string map $map [my define get PRACTCL_SHARED_LIB]]"
+    if {[my define get PRACTCL_VC_MANIFEST_EMBED_DLL] ni {: {}}} {
+      ::practcl::cputs result "\t[string map $map [my define get PRACTCL_VC_MANIFEST_EMBED_DLL]]"
     }
     ::practcl::cputs result {}
     if {[string is true [my define get SHARED_BUILD]]} {
       #set outfile [my static_library]
       set outfile $name.a
     } else {
-      set outfile $::project(libfile)
+      set outfile [my define get libfile]
     }
     my define set static_library $outfile
     dict set map %OUTFILE% $outfile
     ::practcl::cputs result "$outfile: \$(${NAME}_OBJS)"
-    ::practcl::cputs result "\t[string map $map $::project(PRACTCL_STATIC_LIB)]"
+    ::practcl::cputs result "\t[string map $map [my define get PRACTCL_STATIC_LIB]]"
     ::practcl::cputs result {}
     return $result
   }
@@ -2827,7 +2891,7 @@ ${NAME}_OBJS = [dict keys $products]
       }
     }
     set INCLUDES  "-I[join $includedir " -I"]"
-    set COMPILE "$::project(CC) $::project(PRACTCL_CFLAGS) $::project(CFLAGS_DEFAULT) $::project(CFLAGS_WARNING) $INCLUDES"
+    set COMPILE "[my define get CC] [my define get PRACTCL_CFLAGS] [my define get CFLAGS_DEFAULT] [my define get CFLAGS_WARNING] $INCLUDES"
     append COMPILE " " $defs
     ###
     # Compile the C sources
@@ -2869,16 +2933,16 @@ ${NAME}_OBJS = [dict keys $products]
       SHLIB_LD_LIBS
       SHLIB_SUFFIX
     } {
-      lappend map "%${flag}%" [string map $map $::project($flag)]
+      lappend map "%${flag}%" [string map $map [my define get $flag]]
     }
     lappend map %OUTFILE% $outfile
     lappend map %LIBRARY_OBJECTS% $OBJECTS
     #set outfile $name.a
     dict set map %OUTFILE% $outfile
     file delete $outfile
-    doexec {*}[string map $map $::project(PRACTCL_SHARED_LIB)]
-    if {$::project(RANLIB) ni { {} : } } {
-      doexec {*}$::project(RANLIB) $outfile
+    doexec {*}[string map $map [my define get PRACTCL_SHARED_LIB]]
+    if {[my define get RANLIB] ni { {} : } } {
+      doexec {*}[my define get RANLIB] $outfile
     }
   }
   
@@ -2903,7 +2967,7 @@ ${NAME}_OBJS = [dict keys $products]
       }
     }
     set INCLUDES  "-I[join $includedir " -I"]"
-    set COMPILE "$::project(CC) $::project(PRACTCL_CFLAGS) $::project(CFLAGS_DEFAULT) $::project(CFLAGS_WARNING) $INCLUDES"
+    set COMPILE "[my define get CC] [my define get PRACTCL_CFLAGS] [my define get CFLAGS_DEFAULT] [my define get CFLAGS_WARNING] $INCLUDES"
     append COMPILE " " $defs
     ###
     # Compile the C sources
@@ -2941,16 +3005,16 @@ ${NAME}_OBJS = [dict keys $products]
       STLIB_LD
       LDFLAGS_DEFAULT
     } {
-      lappend map "%${flag}%" [string map $map $::project($flag)]
+      lappend map "%${flag}%" [string map $map [my define get $flag]]
     }
     lappend map %OUTFILE% $outfile
     lappend map %LIBRARY_OBJECTS% $OBJECTS
     #set outfile $name.a
     dict set map %OUTFILE% $outfile
     file delete $outfile
-    doexec {*}[string map $map $::project(PRACTCL_STATIC_LIB)]
-    if {$::project(RANLIB) ni { {} : } } {
-      doexec {*}$::project(RANLIB) $outfile
+    doexec {*}[string map $map [my define get PRACTCL_STATIC_LIB]]
+    if {[my define get RANLIB] ni { {} : } } {
+      doexec {*}[my define get RANLIB] $outfile
     }
   }
 
@@ -2972,7 +3036,7 @@ ${NAME}_OBJS = [dict keys $products]
     } {
       lappend map "%${flag}%" "\$\{${flag}\}"
     }
-    set outfile [string map $map $::project(PRACTCL_NAME_LIBRARY)]$::project(SHLIB_SUFFIX)
+    set outfile [string map $map [my define get PRACTCL_NAME_LIBRARY][my define get SHLIB_SUFFIX]
     return $outfile
   }
   
@@ -2994,7 +3058,7 @@ ${NAME}_OBJS = [dict keys $products]
     } {
       lappend map "%${flag}%" "\$\{${flag}\}"
     }
-    set outfile [string map $map $::project(PRACTCL_NAME_LIBRARY)]$::project(SHLIB_SUFFIX)
+    set outfile [string map $map [my define get PRACTCL_NAME_LIBRARY]][my define get SHLIB_SUFFIX]
     return $outfile
   }
   
@@ -3002,7 +3066,7 @@ ${NAME}_OBJS = [dict keys $products]
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     ::practcl::cputs result  "
-extern int DLLEXPORT [my define get init_funct]( Tcl_Interp *interp ) \{"
+extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     ::practcl::cputs result  {
   /* Initialise the stubs tables. */
   #ifdef USE_TCL_STUBS
@@ -3013,7 +3077,7 @@ extern int DLLEXPORT [my define get init_funct]( Tcl_Interp *interp ) \{"
       ::practcl::cputs result  {    if (Tk_InitStubs(interp, "8.6", 0)==NULL) return TCL_ERROR;}
     }
     ::practcl::cputs result {  #endif}
-    foreach item [my link list subordinate] {
+    foreach item [my link list product] {
       ::practcl::cputs result [$item generate-cinit]
     }
     if {[my define exists pkg_name]} {
@@ -3050,7 +3114,7 @@ extern int DLLEXPORT [my define get init_funct]( Tcl_Interp *interp ) \{"
   foreach {func header} $stubfuncts {
     puts $fout [list declare [incr functcount] $header]
   }
-  puts $fout [list export "int [my define get init_funct](Tcl_Inter *interp)"]
+  puts $fout [list export "int [my define get initfunc](Tcl_Inter *interp)"]
   puts $fout [list export "char *[string totitle [my define get name]]_InitStubs(Tcl_Inter *interp, char *version, int exact)"]
 
   close $fout
@@ -3125,7 +3189,7 @@ char *
     }
     set filename [my define get output_c]
     if {$filename ne {}} {
-      set ofile build/[file rootname [file tail $filename]]_main.o
+      set ofile [file rootname [file tail $filename]]_main.o
       lappend result $ofile [list cfile $filename extra [my define get extra] external [string is true -strict [my define get external]]]
     }
     return $result
@@ -3133,7 +3197,7 @@ char *
   
   method SUBPACKAGE {pkg info {oodefine {}}} {
     upvar 1 os os
-    set fossilinfo [list download $::project(download) tag trunk sandbox $::project(sandbox)]
+    set fossilinfo [list download [my define get download] tag trunk sandbox [my define get sandbox]]
     if {[dict exists $info os] && ($os ni [dict get $info os])} return
     # Select which tag to use here.
     # For production builds: tag-release
@@ -3147,6 +3211,7 @@ char *
     set obj [::practcl::subproject create ::PKG.$pkg [self] [dict merge $fossilinfo [list name $pkg pkg_name $pkg static 0] $info]]
     my link object $obj
     oo::objdefine $obj $oodefine
+    $obj define set masterpath $::CWD
     $obj go
     return $obj
   }
@@ -3155,42 +3220,19 @@ char *
 ::oo::class create ::practcl::tclkit {
   superclass ::practcl::library
   
-  ## method DEFS
-  # This method populates 4 variables:
-  # name - The name of the package
-  # version - The version of the package
-  # defs - C flags passed to the compiler
-  # includedir - A list of paths to feed to the compiler for finding headers
-  #
-  method DEFS {namevar versionvar defsvar} {
-    upvar 1 $namevar name $versionvar version NAME NAME $defsvar defs
-    set name [string tolower [my define get name [my define get pkg_name]]]
-    set NAME [string toupper $name]
-    set version [my define get version [my define get pkg_vers]]
-    if {$version eq {}} {
-      set version 0.1a
-    }
-    set defs {}
-    set NAME [string toupper $name]
-    foreach item $::TCL(defs) {
-      if {[string range $item 0 9] eq "-DPACKAGE_"} continue
-      set eqidx [string first = $item ]
-      if {$eqidx < 0} {
-        append defs { } $item      
-        continue
-      }
-      set field [string range $item 0 [expr {$eqidx-1}]]
-      set value [string range $item [expr {$eqidx+1}] end]
-      set emap {}
-      lappend emap \x5c \x5c\x5c \x20 \x5c\x20 \x22 \x5c\x22 \x28 \x5c\x28 \x29 \x5c\x29
-      if {[string is integer -strict $value]} {
-        append defs " ${field}=$value"
-      } else {
-	append defs " ${field}=[string map $emap $value]"
-      }
-    }
-    append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
-    append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
+  method implement path {
+    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    my go
+    my ImplementCommon $path
+    
+    set mkout [open [file join $path [my define get output_mk]] w]
+    puts $mkout "###
+# This file is generated by the [info script] script
+# any changes will be overwritten the next time it is run
+###"
+    puts $mkout [my generate-make $path]
+    close $mkout
+    debug [list /[self] [self method] [self class]]
   }
   
   ## Wrap an executable
@@ -3268,12 +3310,8 @@ oo::class create ::practcl::subproject {
     return {subordinate package}
   }
   
-  method linker-products {configdict} {
-    set srcdir [my define get localsrcdir]
-    if {[dict exists $configdict libfile]} {
-      return " [file join $srcdir [dict get $configdict libfile]]"
-    }
-  }
+  method linker-products {configdict} {}
+
   method linker-external {configdict} {
     if {[dict exists $configdict PRACTCL_LIBS]} {
       return [dict get $configdict PRACTCL_LIBS]
@@ -3285,8 +3323,27 @@ oo::class create ::practcl::subproject {
   method unpack {} {
     set name [my define get name]
     puts [list UNPACK [my define get tag]]
-    #my define set [::practcl::fossil_sandbox $name [my define dump]]
+    my define set [::practcl::fossil_sandbox $name [my define dump]]
   }
+  
+  method update {} {
+    set name [my define get name]
+    puts [list UPDATE [my define get tag]]
+    my define set [::practcl::fossil_sandbox $name [dict merge [my define dump] {update 1}]]
+  }
+}
+
+###
+# A project which the kit compiles and integrates
+# the source for itself
+###
+oo::class create ::practcl::subproject.source {
+  superclass ::practcl::subproject ::practcl::library
+
+  method linktype {} {
+    return {subordinate package source}
+  }
+  
 }
 
 # a copy from the teapot
@@ -3309,10 +3366,6 @@ oo::class create ::practcl::subproject.teapot {
     package require zipfile::decode
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $DEST $prefix lib $pkg]
   }
-}
-# 
-oo::class create ::practcl::subproject.practcl {
-  superclass ::practcl::dynamic ::practcl::library 
 }
 
 oo::class create ::practcl::subproject.sak {
@@ -3346,8 +3399,14 @@ oo::class create ::practcl::subproject.binary {
 
   method compile-products {} {}
 
+  method go {} {
+    next
+    my define set builddir [my BuildDir [my define get masterpath]]
+  }
+  
   method ConfigureOpts {} {
     set opts {}
+    set builddir [my define get builddir]
     if {[my define get broken_destroot 0]} {
       set PREFIX [my <project> define get prefix_broken_destdir]
     } else {
@@ -3357,18 +3416,20 @@ oo::class create ::practcl::subproject.binary {
       lappend opts --host=[my <project> define get TARGET]
     }
     if {[my <project> define exists tclsrcdir]} {
-      set TCLSRCDIR [my <project> define get tclsrcdir]
-      lappend opts --with-tcl=$TCLSRCDIR --with-tclinclude=[file join $TCLSRCDIR .. generic]
+      set TCLSRCDIR  [::practcl::file_relative $builddir [file normalize [my <project> define get tclsrcdir]]]
+      set TCLGENERIC [::practcl::file_relative $builddir [file normalize [file join [my <project> define get tclsrcdir] .. generic]]]
+      lappend opts --with-tcl=$TCLSRCDIR --with-tclinclude=$TCLGENERIC 
     }
     if {[my <project> define exists tksrcdir]} {
-      set TKSRCDIR [my <project> define get tksrcdir]
-      lappend opts --with-tk=$TKSRCDIR --with-tkinclude=[file join $TKSRCDIR .. generic]
+      set TKSRCDIR  [::practcl::file_relative $builddir [file normalize [my <project> define get tksrcdir]]]
+      set TKGENERIC [::practcl::file_relative $builddir [file normalize [file join [my <project> define get tksrcdir] .. generic]]]
+      lappend opts --with-tk=$TKSRCDIR --with-tkinclude=$TKGENERIC
     }
     lappend opts {*}[my define get config_opts]
     lappend opts --prefix=$PREFIX
     #--exec_prefix=$PREFIX
     if {[my define get static 1]} {
-      lappend opts --disable-shared 
+      lappend opts --disable-shared --disable-stubs
     } else {
       lappend opts --enable-shared
     }
@@ -3386,21 +3447,21 @@ oo::class create ::practcl::subproject.binary {
     }
     set result {}
     set name [my define get name]
+    set PWD $::CWD
+    set builddir [my define get builddir]
     set localsrcdir [my define get localsrcdir]
-
-    set filename [file join $localsrcdir practcl.rc]
+    puts [list [self] CONFIG.SH build: $builddir src: $localsrcdir]
+    set filename [file join $builddir config.tcl]
     # Project uses the practcl template. Use the leavings from autoconf
     if {[file exists $filename]} {
-      set interp [namespace current]::interp
-      interp create $interp
-      $interp eval [list source [file join $localsrcdir practcl.rc]]
-      foreach {item value} [lsort -stride 2 -dictionary [$interp eval {array get ::project}]] {
+      set dat [::practcl::config.tcl $builddir]
+      foreach {item value} [lsort -stride 2 -dictionary $dat] {
         dict set result $item $value
       }
       set conf_result $result
       return $result
     }
-    set filename [file join $localsrcdir ${name}Config.sh]
+    set filename [file join $builddir ${name}Config.sh]
     if {[file exists $filename]} {
       set l [expr {[string length $name]+1}]
       foreach {field dat} [::practcl::read_Config.sh $filename] {
@@ -3416,7 +3477,7 @@ oo::class create ::practcl::subproject.binary {
     ###
     # Oh man... we have to guess
     ###
-    set filename [file join $localsrcdir Makefile]
+    set filename [file join $builddir Makefile]
     if {![file exists $filename]} {
       error "Could not locate any configuration data in $localsrcdir"
     }
@@ -3438,12 +3499,16 @@ oo::class create ::practcl::subproject.binary {
     }
   }
 
-  method compile {} {
-    set PWD [pwd]
-    file mkdir [file join $PWD build]
+  method BuildDir {PWD} {
     set name [my define get name]
+    return [my define get builddir [file join $PWD pkg.$name]]
+  }
+  
+  method compile {} {
+    set name [my define get name]
+    set PWD $::CWD
     my go
-    set localsrcdir [my define get localsrcdir]
+    set localsrcdir [file normalize [my define get localsrcdir]]
     ###
     # Build a starter VFS for both Tcl and wish
     ###
@@ -3454,17 +3519,24 @@ oo::class create ::practcl::subproject.binary {
     } else {
       puts "BUILDING Dynamic $name $localsrcdir"
     }
-    cd $localsrcdir
     if {[my define get USEMSVC 0]} {
+      cd $localsrcdir
       doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
     } else {
-      if {![file exists [file join $localsrcdir Makefile]]} {
+      set builddir [my define get builddir]
+      file mkdir $builddir
+      if {![file exists [file join $builddir Makefile]]} {
+        cd $localsrcdir
         my PreConfigure $srcroot
         set opts [my ConfigureOpts]
+        puts [list [self] CONFIGURE]
+        puts [list LOCALSRC $localsrcdir]
+        puts [list BUILDDIR $builddir]
         puts [list CONFIGURE {*}$opts]
-        doexec sh configure {*}$opts
+        cd $builddir
+        doexec sh [file join $localsrcdir configure] {*}$opts
       }
-      domake all
+      domake $builddir all
     }
     cd $PWD
   }
@@ -3495,16 +3567,19 @@ oo::class create ::practcl::subproject.dynamiclib {
       }
     }
     my compile
-    set localsrcdir [my define get localsrcdir]
-    cd $localsrcdir
+
     if {[my define get USEMSVC 0]} {
+      set localsrcdir [my define get localsrcdir]
+      cd $localsrcdir
       puts "[self] VFS INSTALL $PKGROOT"
       doexec nmake -f makefile.vc INSTALLDIR=$PKGROOT install
     } elseif {[my define get broken_destroot 0] == 0} {
+      set builddir [my define get builddir]
       # Most modern TEA projects understand DESTROOT in the makefile
       puts "[self] VFS INSTALL $PKGROOT"
-      domake install DESTDIR=$PKGROOT
+      domake $builddir install DESTDIR=$PKGROOT
     } else {
+      set builddir [my define get builddir]
       # But some require us to do an install into a fictitious filesystem
       # and then extract the gooey parts within.
       # (*cough*) TkImg
@@ -3512,7 +3587,7 @@ oo::class create ::practcl::subproject.dynamiclib {
       set BROKENROOT [::practcl::msys_to_tclpath [my <project> define get prefix_broken_destdir]]
       file delete -force $BROKENROOT
       file mkdir $BROKENROOT
-      domake install
+      domake $builddir $install
       ::practcl::copyDir $BROKENROOT  [file join $PKGROOT [string trimleft $PREFIX /]]
       file delete -force $BROKENROOT
     }
@@ -3521,12 +3596,25 @@ oo::class create ::practcl::subproject.dynamiclib {
 }
 
 oo::class create ::practcl::subproject.staticlib {
-  superclass ::practcl::subproject.binary  
+  superclass ::practcl::subproject.binary
+  
+  method linker-products {configdict} {
+    set srcdir [my define get builddir]
+    if {[dict exists $configdict libfile]} {
+      return " [file join $srcdir [dict get $configdict libfile]]"
+    }
+  }
 }
 
 oo::class create ::practcl::subproject.core {
   superclass ::practcl::subproject.staticlib
 
+  # On the windows platform MinGW must build
+  # from the platform directory in the source repo
+  method BuildDir {PWD} {
+    return [my define get localsrcdir]
+  }
+  
   method linktype {} {
     return {subordinate core.library}
   }
@@ -3552,8 +3640,9 @@ oo::class create ::practcl::subproject.core {
         my define add include_dir [file join $srcroot $name unix]
       }
     }
+    my define set builddir [my define get localsrcdir]
+
   }
 }
-
 
 package provide practcl 0.4

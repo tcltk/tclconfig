@@ -577,7 +577,26 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 
 AC_DEFUN([TEA_PROG_TCLSH], [
     AC_MSG_CHECKING([for tclsh])
-    if test -f "${TCL_BIN_DIR}/Makefile" ; then
+		
+    AC_ARG_WITH(tclsh, [  --with-tclsh      Specify a local tcl shell to use for dynamic code], with_tclsh=${withval})
+ 	  # Use the value from --with-tclsh, if it was given
+		TCLSH_PROG=0
+		if test x"${with_tclsh}" != x ; then
+	    if test -f "${with_tclsh}" ; then
+		TCLSH_PROG=${with_tclsh}
+	    else
+	      if test -f "${with_tclsh}/tcl8.6" ; then
+		TCLSH_PROG="${with_tclsh}/tcl8.6"
+			  else
+	        if test -f "${with_tclsh}/tclsh86.exe" ; then
+		TCLSH_PROG="${with_tclsh}/tclsh86.exe"
+				  else
+		AC_MSG_ERROR([${with_tclsh} does not point to a valid Tcl executable])
+		      fi
+				fi
+	    fi
+		else
+      if test -f "${TCL_BIN_DIR}/Makefile" ; then
         # tclConfig.sh is in Tcl build directory
         if test "${TEA_PLATFORM}" = "windows"; then
           if test -f "${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}" ; then
@@ -592,7 +611,7 @@ AC_DEFUN([TEA_PROG_TCLSH], [
         else
             TCLSH_PROG="${TCL_BIN_DIR}/tclsh"
         fi
-    else
+      else
         # tclConfig.sh is in install location
         if test "${TEA_PLATFORM}" = "windows"; then
             TCLSH_PROG="tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}"
@@ -609,7 +628,8 @@ AC_DEFUN([TEA_PROG_TCLSH], [
             fi
         done
         TCLSH_PROG="${REAL_TCL_BIN_DIR}${TCLSH_PROG}"
-    fi
+      fi
+		fi
     AC_MSG_RESULT([${TCLSH_PROG}])
     AC_SUBST(TCLSH_PROG)
 ])

@@ -741,10 +741,6 @@ proc ::practcl::read_Config.sh filename {
       return $err {*}$opts
     }
   }
-  puts [list *** $filename $linecount]
-  foreach {field val} $result {
-    puts "$field: $val"   
-  }
   return $result
 }
 
@@ -1334,15 +1330,16 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
   set buffer {}
   set fout [open $filename w]
   puts $fout "#include <tcl.h>"
+  set body {}
   foreach {statpkg initfunc} $statpkglist {
     if {$initfunc eq {}} {
       set initfunc [string totitle ${statpkg}]_Init
     }
     puts $fout "extern Tcl_PackageInitProc $initfunc\;"
-    #append body "\n  ${initfunc}(interp)\;"
-    append body "\n  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
+    append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
   }
   puts $fout "int Tclkit_Packages_Init(Tcl_Interp *interp) \{"
+  puts $fout "printf(\"Tclkit_Packages_Init\\n\")\;"
   puts $fout $body
   puts $fout "  return TCL_OK\;"
   puts $fout "\}"
@@ -1390,7 +1387,7 @@ proc ::practcl::build::static-tclsh {outfile PROJECT TCLOBJ TKOBJ PKG_OBJS} {
 $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   append COMPILE " " $defs
   
-  set c_pkg_idex [file join $path build tclkit_packages.c]
+  set c_pkg_idex [file join $path tclkit_packages.c]
   puts [list BUILDING $c_pkg_idex]
   ::practcl::build::tclkit_packages_c $c_pkg_idex $PROJECT $PKG_OBJS
   ${PROJECT} add class csource filename $c_pkg_idex external 1
@@ -1689,6 +1686,8 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(header)
     }
     foreach obj [my link list product] {
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} continue
       ::practcl::cputs result "/* BEGIN [$obj define get filename] generate-cheader */"
       ::practcl::cputs result [$obj generate-cheader]
       ::practcl::cputs result "/* END [$obj define get filename] generate-cheader */"
@@ -1967,12 +1966,12 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         ::practcl::cputs result "#include $inc"        
       }
     }
-    foreach {method children} {
-      generate-cheader      subordinate
-      generate-cstruct      dynamic
-      generate-constant     dynamic
-      generate-cfunct       dynamic
-      generate-cmethod      dynamic
+    foreach {method} {
+      generate-cheader
+      generate-cstruct
+      generate-constant
+      generate-cfunct
+      generate-cmethod      
     } {
       ::practcl::cputs result "/* BEGIN $method [my define get filename] */"
       ::practcl::cputs result [my $method]
@@ -2062,7 +2061,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   superclass ::practcl::product
   
   method compile-products {} {
-    set filename [my define get cfile]
+    set filename [my define get output_c]
     set result {}
     if {$filename ne {}} {
       if {[my define exists ofile]} {
@@ -2078,13 +2077,23 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     }
     return $result
   }
-  #method compile-products {} {
-  #  set result {}
-  #  foreach item [my link list subordinate] {
-  #    lappend result {*}[$item compile-products]
-  #  }
-  #  return $result
-  #}
+  
+  method implement path {
+    my go
+    if {[my define get output_c] eq {}} return
+    set filename [file join $path [my define get output_c]]
+    my define set cfile $filename
+    set fout [open $filename w]
+    puts $fout [my generate-c]
+    puts $fout "extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
+    puts $fout [my generate-cinit]
+    if {[my define get pkg_name] ne {}} {
+      puts $fout "   Tcl_PkgProvide(interp, \"[my define get pkg_name]\", \"[my define get pkg_vers]\");"
+    }
+    puts $fout "  return TCL_OK\;"
+    puts $fout "\}"
+    close $fout
+  }
   
   method initialize {} {
     set filename [my define get filename]
@@ -2104,7 +2113,6 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   method linktype {} {
     return {subordinate product dynamic}
   }
-  method compile_products {} {}
   
   ###
   # Populate const static data structures
@@ -2117,6 +2125,8 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result $code(struct)
     }
     foreach obj [my link list dynamic] {
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} continue
       ::practcl::cputs result [$obj generate-cstruct]
     }
     return $result
@@ -2200,6 +2210,8 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       }
     }
     foreach obj [my link list dynamic] {
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} continue
       ::practcl::cputs result [$obj generate-constant]
     }
     return $result
@@ -2222,6 +2234,10 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       }
     }
     foreach obj [my link list dynamic] {
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} {
+        continue
+      }
       ::practcl::cputs result [$obj generate-cfunct]
     }
     return $result
@@ -2270,7 +2286,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   Tcl_Class curClass;		/* Tcl_Class representing the current class */
 
   /* 
-   * Find the wallset class, and attach an 'init' method to it.
+   * Find the "@TCLCLASS@" class, and attach an 'init' method to it.
    */
 
   nameObj = Tcl_NewStringObj("@TCLCLASS@", -1);
@@ -2311,9 +2327,15 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
       ::practcl::cputs result "  return TCL_OK\;\n\}\n"  
     }
     foreach obj [my link list dynamic] {
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} continue
       ::practcl::cputs result [$obj generate-cmethod]
     }
     return $result
+  }
+
+  method generate-cinit-external {} {
+    return "  if([my define get initfunc](interp)) return TCL_ERROR\;"
   }
   
   ###
@@ -2373,7 +2395,12 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
     foreach obj [my link list product] {
-      ::practcl::cputs result [$obj generate-cinit]
+      # Exclude products that will generate their own C files
+      if {[$obj define get output_c] ne {}} {
+        ::practcl::cputs result [$obj generate-cinit-external]
+      } else {
+        ::practcl::cputs result [$obj generate-cinit]
+      }
     }
     return $result
   }
@@ -2763,7 +2790,6 @@ package provide @PKG_NAME@ @PKG_VERSION@
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my go
     my ImplementCommon $path
-    puts "MAKEFILE [file join $path [my define get output_mk]]"
     set mkout [open [file join $path [my define get output_mk]] w]
     puts $mkout "###
 # This file is generated by the [info script] script
@@ -3017,28 +3043,6 @@ ${NAME}_OBJS = [dict keys $products]
       doexec {*}[my define get RANLIB] $outfile
     }
   }
-
-  method shared_library {} {
-    set name [string tolower [my define get name [my define get pkg_name]]]
-    set NAME [string toupper $name]
-    set version [my define get version [my define get pkg_vers]]
-    set map {}
-    lappend map %LIBRARY_NAME% [string totitle $name]    
-    lappend map %LIBRARY_VERSION% $version
-    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} $version]
-    lappend map %LIBRARY_PREFIX% [my define getnull libprefix]
-    foreach flag {
-      SHLIB_LD
-      STLIB_LD
-      SHLIB_LD_LIBS
-      SHLIB_SUFFIX
-      LDFLAGS_DEFAULT
-    } {
-      lappend map "%${flag}%" "\$\{${flag}\}"
-    }
-    set outfile [string map $map [my define get PRACTCL_NAME_LIBRARY][my define get SHLIB_SUFFIX]
-    return $outfile
-  }
   
   method shared_library {} {
     set name [string tolower [my define get name [my define get pkg_name]]]
@@ -3078,7 +3082,12 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     }
     ::practcl::cputs result {  #endif}
     foreach item [my link list product] {
-      ::practcl::cputs result [$item generate-cinit]
+      puts [list $item [$item define get filename] [$item define get output_c]]
+      if {[$item define get output_c] ne {}} {
+        ::practcl::cputs result [$item generate-cinit-external]
+      } else {
+        ::practcl::cputs result [$item generate-cinit]
+      }
     }
     if {[my define exists pkg_name]} {
       ::practcl::cputs result  "    if (Tcl_PkgProvide(interp, \"[my define get pkg_name]\" , \"[my define get pkg_vers]\" )) return TCL_ERROR\;"

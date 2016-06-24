@@ -582,6 +582,7 @@ proc ::practcl::fossil_sandbox {pkg args} {
     set tag [dict get $info tag]
   }
   dict set result tag $tag
+
   try {
     if {[file exists [file join $srcroot .fslckout]]} {
       if {[dict exists $info update] && [dict get $info update]==1} {
@@ -1312,15 +1313,13 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
   foreach {ofile info} [${MAINPROJ} compile-products] {
     if {![dict exists $info object]} continue
     set cobj [dict get $info object]
-    foreach {pkg initfunc} [$cobj static-packages] {
-      puts [list STATIC PACKAGE $pkg IN $ofile]
-      dict set statpkglist $pkg $initfunc
+    foreach {pkg info} [$cobj static-packages] {
+      dict set statpkglist $pkg $info
     }
   }
   foreach cobj [list {*}${PKG_OBJS} $MAINPROJ] {
-    foreach {pkg initfunc} [$cobj static-packages] {
-      puts [list STATIC PACKAGE $pkg IN $ofile]
-      dict set statpkglist $pkg $initfunc
+    foreach {pkg info} [$cobj static-packages] {
+      dict set statpkglist $pkg $info
     }
   }
   
@@ -1330,16 +1329,31 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
   set buffer {}
   set fout [open $filename w]
   puts $fout "#include <tcl.h>"
+  set tclbody {}
   set body {}
-  foreach {statpkg initfunc} $statpkglist {
+  foreach {statpkg info} $statpkglist {
+    if {![dict exists $info initfunc]} {
+      set initfunc {}
+    } else {
+      set initfunc [dict get $info initfunc]
+    }
     if {$initfunc eq {}} {
       set initfunc [string totitle ${statpkg}]_Init
     }
+    # We employ a NULL to prevent the package system from thinking the
+    # package is actually loaded into the interpreter
     puts $fout "extern Tcl_PackageInitProc $initfunc\;"
-    append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+    if {[dict get $info autoload]} {
+      append body "\n  if(${initfunc}(interp)) return TCL_ERROR\;"      
+      append body "\n  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
+    } else {
+      append body "\n  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\",TCL_GLOBAL_ONLY)\;"
+      append body "\n  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\")\;"
+      append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+    }
   }
+  
   puts $fout "int Tclkit_Packages_Init(Tcl_Interp *interp) \{"
-  puts $fout "printf(\"Tclkit_Packages_Init\\n\")\;"
   puts $fout $body
   puts $fout "  return TCL_OK\;"
   puts $fout "\}"
@@ -1388,7 +1402,6 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   append COMPILE " " $defs
   
   set c_pkg_idex [file join $path tclkit_packages.c]
-  puts [list BUILDING $c_pkg_idex]
   ::practcl::build::tclkit_packages_c $c_pkg_idex $PROJECT $PKG_OBJS
   ${PROJECT} add class csource filename $c_pkg_idex external 1
 
@@ -1397,7 +1410,6 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   ###
   foreach {ofile info} [${PROJECT} compile-products] {
     if {[dict exists $info external] && [dict get $info external]==1} {
-      puts "EXTERNAL OBJ FILE $ofile"
       lappend EXTERN_OBJS $ofile      
     } else {
       lappend OBJECTS $ofile      
@@ -2003,12 +2015,17 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     set result [my define get static_packages]
     set statpkg  [my define get static_pkg]
     set initfunc [my define get initfunc]
-    if {$statpkg ne {} && $initfunc ne {}} {
-      dict set result $statpkg $initfunc
+    if {$initfunc ne {}} {
+      set pkg_name [my define get pkg_name]
+      if {$pkg_name ne {}} {
+        dict set result $pkg_name initfunc $initfunc
+        dict set result $pkg_name version [my define get version [my define get pkg_vers]]
+        dict set result $pkg_name autoload [my define get autoload 0]
+      }
     }
     foreach item [my link list subordinate] {
-      foreach {pkg func} [$item static-packages] {
-        dict set result $pkg $func
+      foreach {pkg info} [$item static-packages] {
+        dict set result $pkg $info
       }
     }
     return $result
@@ -2635,25 +2652,18 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     my initialize
   }
   
-  method generate-tcl {} {
-    set result [next]
+  method generate-tcl-loader {} {
+    set result {}
     set PKGINIT [my define get pkginit]
     set PKG_NAME [my define get name [my define get pkg_name]]
     set PKG_VERSION [my define get pkg_vers [my define get version]]
     set LIBFILE [my define get libfile]
-    if {[string is true [my define get SHARED_BUILD]]} {
-      ::practcl::cputs result [string map \
+    ::practcl::cputs result [string map \
       [list @LIBFILE@ $LIBFILE @PKGINIT@ $PKGINIT @PKG_NAME@ $PKG_NAME @PKG_VERSION@ $PKG_VERSION] {
+# Shared Library Style
 load [file join [file dirname [file join [pwd] [info script]]] @LIBFILE@] @PKGINIT@
 package provide @PKG_NAME@ @PKG_VERSION@
 }]
-    } else {
-    ::practcl::cputs result [string map \
-      [list @LIBFILE@ $LIBFILE @PKGINIT@ $PKGINIT @PKG_NAME@ $PKG_NAME @PKG_VERSION@ $PKG_VERSION] {
-load {} @PKGINIT@
-package provide @PKG_NAME@ @PKG_VERSION@
-}]
-    }
     return $result
   }
   
@@ -2782,11 +2792,12 @@ package provide @PKG_NAME@ @PKG_VERSION@
 # any changes will be overwritten the next time it is run
 ###"
     puts $tclout [my generate-tcl]
+    puts $tclout [my generate-tcl-loader]
+
     close $tclout
   }
   
   method implement path {
-    puts [list [self] implement $path]
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my go
     my ImplementCommon $path
@@ -2802,7 +2813,6 @@ package provide @PKG_NAME@ @PKG_VERSION@
   }  
 
   method generate-make {path} {
-    puts [list [self] GENERATE MAKE $path]
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     ::practcl::build::DEFS [self] [my define get DEFS] name version defs
     set includedir .
@@ -3082,7 +3092,6 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     }
     ::practcl::cputs result {  #endif}
     foreach item [my link list product] {
-      puts [list $item [$item define get filename] [$item define get output_c]]
       if {[$item define get output_c] ne {}} {
         ::practcl::cputs result [$item generate-cinit-external]
       } else {
@@ -3229,6 +3238,25 @@ char *
 ::oo::class create ::practcl::tclkit {
   superclass ::practcl::library
   
+  method go {} {
+    my define set SHARED_BUILD 0
+    next
+  }
+
+  method generate-tcl-loader {} {
+    set result {}
+    set PKGINIT [my define get pkginit]
+    set PKG_NAME [my define get name [my define get pkg_name]]
+    set PKG_VERSION [my define get pkg_vers [my define get version]]
+    ::practcl::cputs result [string map \
+      [list @PKGINIT@ $PKGINIT @PKG_NAME@ $PKG_NAME @PKG_VERSION@ $PKG_VERSION] {
+# Tclkit Style
+load {} @PKGINIT@
+package provide @PKG_NAME@ @PKG_VERSION@
+}]
+    return $result
+  }
+  
   method implement path {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my go
@@ -3331,13 +3359,11 @@ oo::class create ::practcl::subproject {
   
   method unpack {} {
     set name [my define get name]
-    puts [list UNPACK [my define get tag]]
     my define set [::practcl::fossil_sandbox $name [my define dump]]
   }
   
   method update {} {
     set name [my define get name]
-    puts [list UPDATE [my define get tag]]
     my define set [::practcl::fossil_sandbox $name [dict merge [my define dump] {update 1}]]
   }
 }
@@ -3446,6 +3472,38 @@ oo::class create ::practcl::subproject.binary {
   }
   
 
+  method static-packages {} {
+    set result [my define get static_packages]
+    set statpkg  [my define get static_pkg]
+    set initfunc [my define get initfunc]
+    if {$initfunc ne {}} {
+      set pkg_name [my define get pkg_name]
+      if {$pkg_name ne {}} {
+        dict set result $pkg_name initfunc $initfunc
+        set version [my define get version]
+        if {$version eq {}} {
+          set info [my config.sh]
+          set version [dict get $info version]
+          set pl {}
+          if {[dict exists $info patch_level]} {
+            set pl [dict get $info patch_level]
+            append version $pl
+          }
+          my define set version $version
+          puts [list [self] $statpkg version $version pl $pl]
+        }
+        dict set result $pkg_name version $version
+        dict set result $pkg_name autoload [my define get autoload 0]
+      }
+    }
+    foreach item [my link list subordinate] {
+      foreach {pkg info} [$item static-packages] {
+        dict set result $pkg $info
+      }
+    }
+    return $result
+  }
+
   ###
   # find or fake a key/value list describing this project
   ###
@@ -3459,7 +3517,6 @@ oo::class create ::practcl::subproject.binary {
     set PWD $::CWD
     set builddir [my define get builddir]
     set localsrcdir [my define get localsrcdir]
-    puts [list [self] CONFIG.SH build: $builddir src: $localsrcdir]
     set filename [file join $builddir config.tcl]
     # Project uses the practcl template. Use the leavings from autoconf
     if {[file exists $filename]} {

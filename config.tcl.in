@@ -8,6 +8,15 @@ srcdir  {@srcdir@}
 prefix  {@prefix@}
 exec_prefix {@exec_prefix@}
 exeext  {@EXEEXT@}
+
+bindir {@bindir@}
+libdir {@libdir@}
+includedir {@includedir@}
+datarootdir	{@datarootdir@}
+datadir {@datadir@}
+mandir  {@mandir@}
+cleanfiles {@CLEANFILES@}
+
 CC		{@CC@}
 AR		{@AR@}
 CFLAGS_DEBUG	{@CFLAGS_DEBUG@}

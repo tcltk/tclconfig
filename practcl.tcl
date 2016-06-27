@@ -749,7 +749,6 @@ proc ::practcl::read_Config.sh filename {
 # to pulling data from a Makefile
 ###
 proc ::practcl::read_Makefile filename {
-  puts [list READING $filename]
   set fin [open $filename r]
   set result {}
   while {[gets $fin line] >= 0} {
@@ -2856,6 +2855,16 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   }
   
   method implement path {
+    foreach item [my link list dynamic] {
+      if {[catch {$item implement $path} err]} {
+        puts "Skipped $item: $err"
+      }
+    }
+    foreach item [my link list module] {
+      if {[catch {$item implement $path} err]} {
+        puts "Skipped $item: $err"
+      }
+    }
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set filename [my define get output_c]
     if {$filename eq {}} {
@@ -3467,7 +3476,6 @@ oo::class create ::practcl::subproject.binary {
             append version $pl
           }
           my define set version $version
-          puts [list [self] $statpkg version $version pl $pl]
         }
         dict set result $pkg_name version $version
         dict set result $pkg_name autoload [my define get autoload 0]

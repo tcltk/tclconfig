@@ -3541,8 +3541,8 @@ oo::class create ::practcl::subproject.binary {
     lappend opts --prefix=$PREFIX
     #--exec_prefix=$PREFIX
     if {[my define get static 1]} {
-      lappend opts --disable-shared
-      #--disable-stubs
+      lappend opts --disable-shared --disable-stubs
+      #
     } else {
       lappend opts --enable-shared
     }

@@ -1350,8 +1350,8 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
       append body "\n  if(${initfunc}(interp)) return TCL_ERROR\;"      
       append body "\n  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
     } else {
-      append body "\n  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{puts \{loaded $statpkg\} ; load {} $statpkg\}\",TCL_GLOBAL_ONLY)\;"
-      append body "\n  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{puts \{loaded $statpkg\} ; load {} $statpkg\}\")\;"
+      append body "\n  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\",TCL_GLOBAL_ONLY)\;"
+      append body "\n  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\")\;"
       append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
     }
   }

@@ -1335,6 +1335,13 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
   puts $fout "#include <tcl.h>"
   set tclbody {}
   set body {}
+  ::practcl::cputs body {
+  Tcl_Namespace *modPtr;
+  modPtr=Tcl_FindNamespace(interp,"::zipkit",NULL,TCL_NAMESPACE_ONLY);
+  if(!modPtr) {
+    modPtr = Tcl_CreateNamespace(interp, "::zipkit", NULL, NULL);
+  }
+}
   foreach {statpkg info} $statpkglist {
     set initfunc {}
     if {[dict exists $info initfunc]} {
@@ -1347,13 +1354,18 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
     # package is actually loaded into the interpreter
     puts $fout "extern Tcl_PackageInitProc $initfunc\;"
     if {[dict get $info autoload]} {
-      append body "\n  if(${initfunc}(interp)) return TCL_ERROR\;"      
-      append body "\n  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
+      ::practcl::cputs body "  if(${initfunc}(interp)) return TCL_ERROR\;"      
+      ::practcl::cputs body "  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
     } else {
-      append body "\n  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\",TCL_GLOBAL_ONLY)\;"
-      append body "\n  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{load {} $statpkg\}\")\;"
-      append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+      ::practcl::cputs body "  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{::zipkit::load_$statpkg\}\",TCL_GLOBAL_ONLY)\;"
+      ::practcl::cputs body "  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{::zipkit::load_$statpkg\}\")\;"
+      #append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+      ::practcl::cputs body "  Tcl_CreateObjCommand(interp,\"::zipkit::load_$statpkg\",ZipKitLoad_$statpkg,NULL,NULL);"
+      puts $fout "int ZipKitLoad_${statpkg}(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv\[\]) {
+  return ${initfunc}(interp)\;
+      }"
     }
+    append body "\n"
   }
   
   puts $fout "int Tclkit_Packages_Init(Tcl_Interp *interp) \{"
@@ -1732,12 +1744,15 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       set RCSRC [file join $TK(src_dir) win rc wish.rc]        
     }
     set cmd [list  windres -o $RSOBJ -DSTATIC_BUILD]
-    lappend cmd         --include [file join $TCL(src_dir) generic] \
-      --include [file join $TK(src_dir) generic] \
-      --include [file join $TK(src_dir) win] \
-      --include [file join $TK(src_dir) win rc]
+    set TCLSRC [file normalize $TCL(src_dir)]
+    set TKSRC [file normalize $TK(src_dir)]
+
+    lappend cmd         --include [::practcl::file_relative $path [file join $TCLSRC generic]] \
+      --include [::practcl::file_relative $path [file join $TKSRC generic]] \
+      --include [::practcl::file_relative $path [file join $TKSRC win]] \
+      --include [::practcl::file_relative $path [file join $TKSRC win rc]]
     foreach item [${PROJECT} define get resource_include] {
-      lappend cmd --include $item
+      lappend cmd --include [::practcl::file_relative $path [file normalize $item]]
     }
     lappend cmd $RCSRC
     doexec {*}$cmd

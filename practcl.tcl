@@ -1441,11 +1441,11 @@ int %mainhook%(int *argc, char ***argv)
 
   
   ::practcl::cputs zvfsboot "  if(!Tclzipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
-  ::practcl::cputs {
+  ::practcl::cputs zvfsboot {
     Tcl_Obj *vfsinitscript;
     vfsinitscript=Tcl_NewStringObj("%vfs_main%",-1);
+    Tcl_IncrRefCount(vfsinitscript);
     if(Tcl_FSAccess(vfsinitscript,F_OK)==0) {
-      Tcl_IncrRefCount(vfsinitscript);
       /* Startup script should be set before calling Tcl_AppInit */
       Tcl_SetStartupScript(vfsinitscript,NULL);
     }

@@ -1278,6 +1278,13 @@ proc ::practcl::depends {args} {
 proc ::practcl::target {name info} {
   set obj [::practcl::target_obj new $name $info]
   dict set ::make_objects $name $obj
+  if {[dict exists $info aliases]} {
+    foreach item [dict get $info aliases] {
+      if {![dict exists $::make_objects $item]} {
+        dict set ::make_objects $item $obj
+      }
+    }
+  }
   set ::make($name) 0
   set ::trigger($name) 0
   set filename [$obj define get filename]
@@ -1781,10 +1788,12 @@ $proj(CFLAGS_WARNING) \
   lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} $proj(version)]
   lappend map %OUTFILE% $outfile
   lappend map %LIBRARY_OBJECTS% $products
+  lappend map {${CFLAGS}} "$proj(CFLAGS_DEFAULT) $proj(CFLAGS_WARNING)"
 
   if {[string is true [$PROJECT define get SHARED_BUILD 1]]} {
-    set cmd [string map $map [$PROJECT define get PRACTCL_SHARED_LIB]]
+    set cmd [$PROJECT define get PRACTCL_SHARED_LIB]
     append cmd " [$PROJECT define get PRACTCL_LIBS]"
+    set cmd [string map $map $cmd]
     puts $cmd
     exec {*}$cmd >&@ stdout
     if {[$PROJECT define get PRACTCL_VC_MANIFEST_EMBED_DLL] ni {: {}}} {
@@ -1944,25 +1953,32 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method check {} {
-    my variable triggered domake
-    if {$triggered} {
-      return $domake
+    my variable needs_make domake
+    if {$domake} {
+      return 1
     }
-    set domake 0
+    if {[info exists needs_make]} {
+      return $needs_make
+    }
+    set needs_make 0
     foreach item [my define get depends] {
       if {![dict exists $::make_objects $item]} continue
       set depobj [dict get $::make_objects $item]
+      if {$depobj eq [self]} {
+        puts "WARNING [self] depends on itself"
+        continue
+      }
       if {[$depobj check]} {
-        set domake 1
+        set needs_make 1
       }
     }
-    if {!$domake} {
+    if {!$needs_make} {
       set filename [my define get filename]
       if {$filename ne {} && ![file exists $filename]} {
-        set domake 1
+        set needs_make 1
       }
     }
-    return $domake
+    return $needs_make
   }
   
   method triggers {} {
@@ -1970,11 +1986,21 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     if {$triggered} {
       return $domake
     }
+    set triggered 1
     foreach item [my define get depends] {
+      puts [list $item [dict exists $::make_objects $item]]
       if {![dict exists $::make_objects $item]} continue
       set depobj [dict get $::make_objects $item]
-      if {[$depobj check]} {
-        $depobj triggers
+      if {$depobj eq [self]} {
+        puts "WARNING [self] triggers itself"
+        continue
+      } else {
+        set r [$depobj check]
+        puts [list $depobj check $r]
+        if {$r} {
+          puts [list $depobj TRIGGER]
+          $depobj triggers
+        }
       }
     }
     if {[info exists ::make($define(name))] && $::make($define(name))} {
@@ -2615,9 +2641,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     if {[my define get localpath] eq {}} {
       my define set localpath [my <module> define get localpath]_[my define get name]
     }
-    debug 
-    debug [self] SOURCE $filename
-    my source $filename
+    ::source $filename
   }
   
   method linktype {} {
@@ -2922,6 +2946,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     my variable code
     ::practcl::cputs code(header) $body
   }
+
   method c_code body {
     my variable code
     ::practcl::cputs code(funct) $body
@@ -3022,6 +3047,12 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     }
     debug [list /[self] [self method] [self class]]
   }
+
+  # Once an object marks itself as some
+  # flavor of dynamic, stop trying to morph
+  # it into something else
+  method select {} {}
+
   
   method tcltype {name argdat} {
     my variable tcltype
@@ -3463,9 +3494,7 @@ char *
     }
     tailcall ${obj} {*}$args
   }
-  
-  method select {} {}
-  
+    
   method shared_library {} {
     set name [string tolower [my define get name [my define get pkg_name]]]
     set NAME [string toupper $name]
@@ -3718,24 +3747,6 @@ oo::class create ::practcl::subproject.binary {
   method go {} {
     next
     my define set builddir [my BuildDir [my define get masterpath]]
-    set static 1
-    set os [my <project> define get TEACUP_OS]
-    if 0 {
-    if {$os eq "macosx"} {
-      # OSX Does not support static binaries
-      # we might as well not event try
-      set static 0
-    } else {
-      set static [my define get static]
-    }
-    if {$static} {
-      my define set static 1
-       ::oo::objdefine [self] class ::practcl::subproject.staticlib
-    } else {
-      my define set static 0
-       ::oo::objdefine [self] class ::practcl::subproject.dynamiclib      
-    }
-    }
   }
   
   method linker-products {configdict} {

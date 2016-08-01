@@ -47,7 +47,6 @@ proc ::fossil {path args} {
   cd $PWD
 }
 
-
 ###
 # Build utility functions
 ###
@@ -830,6 +829,17 @@ proc ::practcl::cputs {varname args} {
   append buffer [string trimleft [lindex $args 0] \n] {*}[lrange $args 1 end]
 }
 
+
+proc ::practcl::tcl_to_c {body} {
+  set result {}
+  foreach rawline [split $body \n] {
+    set line [string map [list \" \\\" \\ \\\\] $rawline]
+    cputs result "\n        \"$line\\n\" \\"
+  }
+  return [string trimright $result \\]
+}
+
+
 proc ::practcl::_tagblock {text {style tcl} {note {}}} {
   if {[string length [string trim $text]]==0} {
     return {}
@@ -1319,40 +1329,138 @@ proc ::practcl::build::DEFS {PROJECT DEFS namevar versionvar defsvar} {
   return [string map [list \x5c\x5c \x5c] $defs]
 }
   
-proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
+proc ::practcl::build::tclkit_main {PROJECT PKG_OBJS} {
   ###
   # Build static package list
   ###
   set statpkglist {}
   dict set statpkglist Tk {autoload 0}
-  foreach {ofile info} [${MAINPROJ} compile-products] {
+  foreach {ofile info} [${PROJECT} compile-products] {
     if {![dict exists $info object]} continue
     set cobj [dict get $info object]
     foreach {pkg info} [$cobj static-packages] {
       dict set statpkglist $pkg $info
     }
   }
-  foreach cobj [list {*}${PKG_OBJS} $MAINPROJ] {
+  foreach cobj [list {*}${PKG_OBJS} $PROJECT] {
     foreach {pkg info} [$cobj static-packages] {
       dict set statpkglist $pkg $info
     }
   }
   
-  if {$statpkglist eq {}} {
-    return
+  set result {}
+  $PROJECT include {<tcl.h>}
+  $PROJECT include {"tclInt.h"}
+  $PROJECT include {"tclFileSystem.h"}
+  $PROJECT include {<assert.h>}
+  $PROJECT include {<stdio.h>}
+  $PROJECT include {<stdlib.h>}
+  $PROJECT include {<string.h>}
+  $PROJECT include {<math.h>}
+  
+  $PROJECT code header {
+#ifndef MODULE_SCOPE
+#   define MODULE_SCOPE extern
+#endif
+
+/*
+** Provide a dummy Tcl_InitStubs if we are using this as a static
+** library.
+*/
+#ifndef USE_TCL_STUBS
+# undef  Tcl_InitStubs
+# define Tcl_InitStubs(a,b,c) TCL_VERSION
+#endif
+#define STATIC_BUILD 1
+#undef USE_TCL_STUBS
+
+/* Make sure the stubbed variants of those are never used. */
+#undef Tcl_ObjSetVar2
+#undef Tcl_NewStringObj
+#undef Tk_Init
+#undef Tk_MainEx
+#undef Tk_SafeInit
+}
+  
+  # Build an area of the file for #define directives and
+  # function declarations
+  set define {}
+  set mainhook   [$PROJECT define get TCL_LOCAL_MAIN_HOOK Tclkit_MainHook]
+  set mainfunc   [$PROJECT define get TCL_LOCAL_APPINIT Tclkit_AppInit]
+  set mainscript [$PROJECT define get main.tcl main.tcl]
+  set vfsroot    [$PROJECT define get vfsroot  zipfs:/app]
+  set vfs_main "${vfsroot}/${mainscript}"
+  set vfs_tcl_library "${vfsroot}/boot/tcl"
+  set vfs_tk_library "${vfsroot}/boot/tk"
+  
+  set map {}
+  foreach var {
+    vfsroot mainhook mainfunc vfs_main vfs_tcl_library vfs_tk_library
+  } {
+    dict set map %${var}% [set $var]
   }
-  set buffer {}
-  set fout [open $filename w]
-  puts $fout "#include <tcl.h>"
-  set tclbody {}
-  set body {}
-  ::practcl::cputs body {
-  Tcl_Namespace *modPtr;
-  modPtr=Tcl_FindNamespace(interp,"::zipkit",NULL,TCL_NAMESPACE_ONLY);
-  if(!modPtr) {
-    modPtr = Tcl_CreateNamespace(interp, "::zipkit", NULL, NULL);
+  set preinitscript {
+set ::odie(boot_vfs) {%vfsroot%}
+set ::SRCDIR {%vfsroot%}
+if {[file exists {%vfs_tcl_library%}]} {
+  set ::tcl_library {%vfs_tcl_library%}
+  set ::auto_path {}
+}
+if {[file exists {%vfs_tk_library%}]} {
+  set ::tk_library {%vfs_tk_library%}
+}
+  }
+  set zvfsboot {
+/*
+ * %mainhook% --
+ * Performs the argument munging for the shell
+ */
+#ifdef _WIN32
+int %mainhook%(int *argc, TCHAR ***argv)
+#else
+int %mainhook%(int *argc, char ***argv)
+#endif
+  }
+  ::practcl::cputs zvfsboot "\x7B"
+  ::practcl::cputs zvfsboot {
+  Tcl_FindExecutable(*argv[0]);
+  CONST char *archive=Tcl_GetNameOfExecutable();
+
+  Tclzipfs_Init(NULL);
+  }
+  # We have to initialize the virtual filesystem before calling
+  # Tcl_Init().  Otherwise, Tcl_Init() will not be able to find
+  # its startup script files.
+
+  
+  ::practcl::cputs zvfsboot "  if(!Tclzipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
+  ::practcl::cputs {
+    Tcl_Obj *vfsinitscript;
+    vfsinitscript=Tcl_NewStringObj("%vfs_main%",-1);
+    if(Tcl_FSAccess(vfsinitscript,F_OK)==0) {
+      Tcl_IncrRefCount(vfsinitscript);
+      /* Startup script should be set before calling Tcl_AppInit */
+      Tcl_SetStartupScript(vfsinitscript,NULL);
+    }
+  }
+  ::practcl::cputs zvfsboot "    TclSetPreInitScript([::practcl::tcl_to_c $preinitscript])\;"
+  ::practcl::cputs zvfsboot "  \x7D"
+  ::practcl::cputs zvfsboot "  return TCL_OK;\n\x7D"
+  
+  $PROJECT code funct [string map $map $zvfsboot]
+
+  
+  practcl::cputs appinit "int %mainfunc%(Tcl_Interp *interp) \x7B"
+  
+  # Build AppInit()
+  set appinit {}
+  practcl::cputs appinit {  
+  if ((Tcl_Init)(interp) == TCL_ERROR) {
+      return TCL_ERROR;
   }
 }
+  set main_init_script {}
+  
   foreach {statpkg info} $statpkglist {
     set initfunc {}
     if {[dict exists $info initfunc]} {
@@ -1363,28 +1471,32 @@ proc ::practcl::build::tclkit_packages_c {filename MAINPROJ PKG_OBJS} {
     }
     # We employ a NULL to prevent the package system from thinking the
     # package is actually loaded into the interpreter
-    puts $fout "extern Tcl_PackageInitProc $initfunc\;"
+    $PROJECT code header "extern Tcl_PackageInitProc $initfunc\;\n"
+    set script [list package ifneeded $statpkg [dict get $info version] [list ::load {} $statpkg]]
+    append main_init_script \n [list set ::kitpkg(${statpkg}) $script]
     if {[dict get $info autoload]} {
-      ::practcl::cputs body "  if(${initfunc}(interp)) return TCL_ERROR\;"      
-      ::practcl::cputs body "  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
+      ::practcl::cputs appinit "  if(${initfunc}(interp)) return TCL_ERROR\;"      
+      ::practcl::cputs appinit "  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
     } else {
-      ::practcl::cputs body "  Tcl_SetVar2(interp,\"::kitpkg\",\"${statpkg}\",\"package ifneeded [list $statpkg] [list [dict get $info version]] \{::zipkit::load_$statpkg\}\",TCL_GLOBAL_ONLY)\;"
-      ::practcl::cputs body "  Tcl_Eval(interp,\"package ifneeded [list $statpkg] [list [dict get $info version]] \{::zipkit::load_$statpkg\}\")\;"
-      #append body "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
-      ::practcl::cputs body "  Tcl_CreateObjCommand(interp,\"::zipkit::load_$statpkg\",ZipKitLoad_$statpkg,NULL,NULL);"
-      puts $fout "int ZipKitLoad_${statpkg}(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv\[\]) {
-  return ${initfunc}(interp)\;
-      }"
+      ::practcl::cputs appinit "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+      append main_init_script \n $script
     }
-    append body "\n"
   }
-  
-  puts $fout "int Tclkit_Packages_Init(Tcl_Interp *interp) \{"
-  puts $fout $body
-  puts $fout "  return TCL_OK\;"
-  puts $fout "\}"
-  puts $fout {}
-  close $fout
+  append main_init_script \n {
+if {[file exists [file join $::SRCDIR packages.tcl]]} {
+  #In a wrapped exe, we don't go out to the environment
+  set dir $::SRCDIR
+  source [file join $::SRCDIR packages.tcl]
+}
+# Specify a user-specific startup file to invoke if the application
+# is run interactively.  Typically the startup file is "~/.apprc"
+# where "app" is the name of the application.  If this line is deleted
+# then no user-specific startup file will be run under any conditions.
+  }
+  append main_init_script \n [list set tcl_rcFileName [$PROJECT define get tcl_rcFileName ~/.tclshrc]]
+  practcl::cputs appinit "  Tcl_Eval(interp,[::practcl::tcl_to_c  $main_init_script]);"
+  practcl::cputs appinit {  return TCL_OK;}
+  $PROJECT c_function [string map $map "int %mainfunc%(Tcl_Interp *interp)"] [string map $map $appinit]
 }
 
 proc ::practcl::build::compile-sources {PROJECT COMPILE {CPPCOMPILE {}}} {
@@ -1694,6 +1806,8 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
   puts " BUILDING STATIC TCLSH "
   set TCLOBJ [$PROJECT project TCLCORE]
   set TKOBJ  [$PROJECT project TKCORE]
+  set ODIEOBJ  [$PROJECT project odie]
+
   set PKG_OBJS {}
   foreach item [$PROJECT link list package] {
     if {[string is true [$item define get static]]} {
@@ -1719,12 +1833,15 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
   set thisline {}
   set OBJECTS {}
   set EXTERN_OBJS {}
-  set includedir .
   foreach obj $PKG_OBJS {
     $obj compile
     set config($obj) [$obj config.sh]
   }
-  
+  set os [$PROJECT define get os]
+  set TCLSRCDIR [$TCLOBJ define get srcroot]
+  set TKSRCDIR [$TKOBJ define get srcroot]
+
+  set includedir .
   foreach include [$TCLOBJ generate-include-directory] {
     set cpath [::practcl::file_relative $path [file normalize $include]]
     if {$cpath ni $includedir} {
@@ -1738,6 +1855,7 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
       lappend includedir $cpath
     }
   }
+  
   set INCLUDES  "-I[join $includedir " -I"]"
   if {$debug} {
       set COMPILE "$TCL(cc) $TCL(shlib_cflags) $TCL(cflags_debug) -ggdb \
@@ -1746,25 +1864,18 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       set COMPILE "$TCL(cc) $TCL(shlib_cflags) $TCL(cflags_optimize) \
 $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"    
   }
-
-
   append COMPILE " " $defs
-  
-  set c_pkg_idex [file join $path tclkit_packages.c]
-  ::practcl::build::tclkit_packages_c $c_pkg_idex $PROJECT $PKG_OBJS
-  ${PROJECT} add class csource filename $c_pkg_idex external 1
-
   lappend OBJECTS {*}[compile-sources $PROJECT $COMPILE $COMPILE]
   
   if {[${PROJECT} define get platform] eq "windows"} {
     set RSOBJ [file join $path build tclkit.res.o]
     set RCSRC [${PROJECT} define get kit_resource_file]
     if {$RCSRC eq {} || ![file exists $RCSRC]} {
-      set RCSRC [file join $TK(src_dir) win rc wish.rc]        
+      set RCSRC [file join $TKSRCDIR win rc wish.rc]        
     }
     set cmd [list  windres -o $RSOBJ -DSTATIC_BUILD]
-    set TCLSRC [file normalize $TCL(src_dir)]
-    set TKSRC [file normalize $TK(src_dir)]
+    set TCLSRC [file normalize $TCLSRCDIR]
+    set TKSRC [file normalize $TKSRCDIR]
 
     lappend cmd         --include [::practcl::file_relative $path [file join $TCLSRC generic]] \
       --include [::practcl::file_relative $path [file join $TKSRC generic]] \
@@ -2282,6 +2393,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   # which implements the loader for a batch of tools
   ###
   method generate-c {} {
+    puts [list [self] GENERATE C]
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {
 /* This file was generated by practcl */
@@ -2346,12 +2458,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     }
     ::practcl::cputs result {  #endif}
     set TCLINIT [my generate-tcl]
-    ::practcl::cputs result "  Tcl_Eval(interp,"
-    foreach rawline [split $TCLINIT \n] {
-      set line [string map [list \" \\\" \\ \\\\] $rawline]
-      ::practcl::cputs result "\n        \"$line\\n\" \\"
-    }
-    ::practcl::cputs result ")\;"
+    ::practcl::cputs result "  Tcl_Eval(interp,[::practcl::tcl_to_c $TCLINIT]);"
     foreach item [my link list product] {
       if {[$item define get output_c] ne {}} {
         ::practcl::cputs result [$item generate-cinit-external]
@@ -2481,18 +2588,19 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   
   method implement path {
     my go
+    puts [list [self] IMPLEMENT $path]
     if {[my define get output_c] eq {}} return
     set filename [file join $path [my define get output_c]]
     my define set cfile $filename
     set fout [open $filename w]
     puts $fout [my generate-c]
-    puts $fout "extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
+    puts $fout "extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \x7B"
     puts $fout [my generate-cinit]
     if {[my define get pkg_name] ne {}} {
       puts $fout "   Tcl_PkgProvide(interp, \"[my define get pkg_name]\", \"[my define get pkg_vers]\");"
     }
     puts $fout "  return TCL_OK\;"
-    puts $fout "\}"
+    puts $fout "\x7D"
     close $fout
   }
   
@@ -3211,7 +3319,6 @@ package provide @PKG_NAME@ @PKG_VERSION@
     puts $tclout [my generate-tcl-loader]
     close $tclout
   }
-  
 
   method generate-decls {pkgname path} {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
@@ -3379,20 +3486,32 @@ char *
   method go {} {
     my define set SHARED_BUILD 0
     next
+    set name [my define get name]
+    if {![my define exists TCL_LOCAL_APPINIT]} {
+      my define set TCL_LOCAL_APPINIT Tclkit_AppInit
+    }
+    if {![my define exists TCL_LOCAL_MAIN_HOOK]} {
+      my define set TCL_LOCAL_MAIN_HOOK Tclkit_MainHook
+    }
   }
-
-  method generate-tcl-loader {} {
-    set result {}
-    set PKGINIT [my define get pkginit]
-    set PKG_NAME [my define get name [my define get pkg_name]]
-    set PKG_VERSION [my define get pkg_vers [my define get version]]
-    ::practcl::cputs result [string map \
-      [list @PKGINIT@ $PKGINIT @PKG_NAME@ $PKG_NAME @PKG_VERSION@ $PKG_VERSION] {
-# Tclkit Style
-load {} @PKGINIT@
-package provide @PKG_NAME@ @PKG_VERSION@
-}]
-    return $result
+  
+  method implement path {
+    set PROJECT [self]    
+    set os [$PROJECT define get os]
+    set TCLOBJ [$PROJECT project TCLCORE]
+    set TKOBJ  [$PROJECT project TKCORE]
+    set ODIEOBJ  [$PROJECT project odie]
+  
+    set TCLSRCDIR [$TCLOBJ define get srcroot]
+    set TKSRCDIR [$TKOBJ define get srcroot]
+    set PKG_OBJS {}
+    foreach item [$PROJECT link list package] {
+      if {[string is true [$item define get static]]} {
+        lappend PKG_OBJS $item
+      }
+    }
+    ::practcl::build::tclkit_main $PROJECT $PKG_OBJS
+    next $path
   }
   
   ## Wrap an executable

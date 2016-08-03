@@ -1333,7 +1333,8 @@ proc ::practcl::build::DEFS {PROJECT DEFS namevar versionvar defsvar} {
   }
   append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
   append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
-  return [string map [list \x5c\x5c \x5c] $defs]
+  #return [string map [list \x5c\x5c \x5c] $defs]
+  return $defs
 }
   
 proc ::practcl::build::tclkit_main {PROJECT PKG_OBJS} {

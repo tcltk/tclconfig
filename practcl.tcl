@@ -1097,28 +1097,38 @@ proc ::practcl::build::DEFS {PROJECT DEFS namevar versionvar defsvar} {
     set version 0.1a
   }
   set defs {}
+  append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
+  append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
   set NAME [string toupper $name]
-  foreach item $DEFS {
-    if {[string range $item 0 9] eq "-DPACKAGE_"} continue
-    if {[string index $item 0] ne "-"} continue
-    set eqidx [string first = $item ]
-    if {$eqidx < 0} {
-      append defs { } $item      
+  set idx 0
+  set count 0
+  while {$idx>=0} {
+    set ndx [string first " -D" $DEFS $idx+1]
+    set item [string range $DEFS $idx $ndx]
+    set item [string trim $item]
+    set item [string trimleft $item -D]
+    if {[string range $item 0 7] eq "PACKAGE_"} {
+      set idx $ndx
       continue
     }
+    set eqidx [string first = $item ]
+    if {$eqidx < 0} {
+      append defs { } $item
+      set idx $ndx
+      continue
+    }
+
     set field [string range $item 0 [expr {$eqidx-1}]]
     set value [string range $item [expr {$eqidx+1}] end]
     set emap {}
     lappend emap \x5c \x5c\x5c \x20 \x5c\x20 \x22 \x5c\x22 \x28 \x5c\x28 \x29 \x5c\x29
     if {[string is integer -strict $value]} {
-      append defs " ${field}=$value"
+      append defs " -D${field}=$value"
     } else {
-      append defs " ${field}=[string map $emap $value]"
+      append defs " -D${field}=[string map $emap $value]"
     }
+    set idx $ndx
   }
-  append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
-  append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
-  #return [string map [list \x5c\x5c \x5c] $defs]
   return $defs
 }
   

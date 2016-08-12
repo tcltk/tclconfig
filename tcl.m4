@@ -211,6 +211,7 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
     if test x"${no_tk}" = x ; then
 	# we reset no_tk in case something fails here
 	no_tk=true
+  TEA_TK_EXTENSION=0
 	AC_ARG_WITH(tk,
 	    AC_HELP_STRING([--with-tk],
 		[directory containing tk configuration (tkConfig.sh)]),
@@ -330,6 +331,7 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 	    AC_MSG_ERROR([Can't find Tk configuration definitions. Use --with-tk to specify a directory containing tkConfig.sh])
 	else
 	    no_tk=
+		  TEA_TK_EXTENSION=1
 	    TK_BIN_DIR="${ac_cv_c_tkconfig}"
 	    AC_MSG_RESULT([found ${TK_BIN_DIR}/tkConfig.sh])
 	fi
@@ -2959,7 +2961,8 @@ TEA version not specified.])
     if test "${CFLAGS+set}" != "set" ; then
 	CFLAGS=""
     fi
-
+		TEA_TK_EXTENSION=0
+		AC_SUBST(TEA_TK_EXTENSION)
     case "`uname -s`" in
 	*win32*|*WIN32*|*MINGW32_*)
 	    AC_CHECK_PROG(CYGPATH, cygpath, cygpath -m, echo)

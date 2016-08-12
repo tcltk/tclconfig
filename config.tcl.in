@@ -8,6 +8,7 @@ srcdir  {@srcdir@}
 prefix  {@prefix@}
 exec_prefix {@exec_prefix@}
 exeext  {@EXEEXT@}
+tk      {@TEA_TK_EXTENSION@}
 
 bindir {@bindir@}
 libdir {@libdir@}
@@ -53,6 +54,8 @@ TCL_VERSION {@TCL_VERSION@}
 TCL_PATCH_LEVEL {@TCL_PATCH_LEVEL@}
 TCL_BIN_DIR	{@TCL_BIN_DIR@}
 TCL_SRC_DIR	{@TCL_SRC_DIR@}
+TEA_TK_EXTENSION {@TEA_TK_EXTENSION@}
+
 TK_VERSION {@TK_VERSION@}
 TK_PATCH_LEVEL {@TK_PATCH_LEVEL@}
 TK_BIN_DIR	{@TK_BIN_DIR@}

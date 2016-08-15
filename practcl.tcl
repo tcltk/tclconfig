@@ -3877,7 +3877,7 @@ oo::class create ::practcl::subproject.binary {
       if {[file exists [file join $builddir make.tcl]]} {
         # Practcl builds can inject right to where we need them
         puts "[self] VFS INSTALL $PKGROOT (Practcl)"
-        domake.tcl $builddir install $PKGROOT
+        domake.tcl $builddir install-package $PKGROOT
       } elseif {[my define get broken_destroot 0] == 0} {
         # Most modern TEA projects understand DESTROOT in the makefile
         puts "[self] VFS INSTALL $PKGROOT (TEA)"

@@ -2550,7 +2550,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   @DELETEPROC@,
   @CLONEPROC@
 };
-#define @MACRO@(OBJCONTEXT) (@NAME@ *) Tcl_ObjectGetMetadata(Tcl_ObjectContextObject(objectContext),&@NAME@DataType)
+#define @MACRO@(OBJCONTEXT) (@NAME@ *) Tcl_ObjectGetMetadata(OBJCONTEXT,&@NAME@DataType)
 }]
       }
     }
@@ -2833,7 +2833,8 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     foreach {f v} $arginfo {
       dict set methods $name $f $v
     }
-    dict set methods $name body $body
+    dict set methods $name body "Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext); /* The current connection object */
+$body"
   }
   
   method c_tclproc_nspace nspace {

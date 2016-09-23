@@ -4,6 +4,10 @@
 ###
 puts [list LOADED practcl.tcl from [info script]]
 package require TclOO
+
+# Do nothing. A handy way of 
+proc ::noop args {}
+
 proc ::debug args {
   #puts $args
   ::practcl::cputs ::DEBUG_INFO $args
@@ -2015,9 +2019,12 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     foreach obj [my link list product] {
       # Exclude products that will generate their own C files
       if {[$obj define get output_c] ne {}} continue
-      ::practcl::cputs result "/* BEGIN [$obj define get filename] generate-cheader */"
-      ::practcl::cputs result [$obj generate-cheader]
-      ::practcl::cputs result "/* END [$obj define get filename] generate-cheader */"
+      set dat [$obj generate-cheader]
+      if {[string length [string trim $dat]]} {
+        ::practcl::cputs result "/* BEGIN [$obj define get filename] generate-cheader */"
+        ::practcl::cputs result $dat
+        ::practcl::cputs result "/* END [$obj define get filename] generate-cheader */"
+      }
     }
     debug [list cfunct [info exists cfunct]]
     if {[info exists cfunct]} {
@@ -2087,6 +2094,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     if {[info exists cstruct]} {
       # Add defintion for native c data structures
       foreach {name info} $cstruct {
+        if {[dict get $info public]==0} continue
         ::practcl::cputs result "typedef struct $name ${name}\;"
         if {[dict exists $info aliases]} {
           foreach n [dict get $info aliases] {
@@ -2102,6 +2110,32 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     return $result
   }
   
+  method generate-private-typedef {} {
+    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    my variable code cstruct
+    set result {}
+    if {[info exists code(private-typedef)]} {
+      ::practcl::cputs result $code(private-typedef)
+    }
+    if {[info exists cstruct]} {
+      # Add defintion for native c data structures
+      foreach {name info} $cstruct {
+        if {[dict get $info public]==1} continue
+        ::practcl::cputs result "typedef struct $name ${name}\;"
+        if {[dict exists $info aliases]} {
+          foreach n [dict get $info aliases] {
+            ::practcl::cputs result "typedef struct $name ${n}\;"
+          }
+        }
+      }
+    }
+    set result [::practcl::_tagblock $result c [my define get filename]]
+    foreach mod [my link list product] {
+      ::practcl::cputs result [$mod generate-private-typedef]
+    }
+    return $result
+  }
+  
   method generate-public-structure {} {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct
@@ -2111,6 +2145,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     }
     if {[info exists cstruct]} {
       foreach {name info} $cstruct {
+        if {[dict get $info public]==0} continue
         if {[dict exists $info comment]} {
           ::practcl::cputs result [dict get $info comment]
         }
@@ -2123,6 +2158,31 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     }
     return $result
   }
+  
+  
+  method generate-private-structure {} {
+    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    my variable code cstruct
+    set result {}
+    if {[info exists code(private-structure)]} {
+      ::practcl::cputs result $code(private-structure)
+    }
+    if {[info exists cstruct]} {
+      foreach {name info} $cstruct {
+        if {[dict get $info public]==1} continue
+        if {[dict exists $info comment]} {
+          ::practcl::cputs result [dict get $info comment]
+        }
+        ::practcl::cputs result "struct $name \{[dict get $info body]\}\;"
+      }
+    }
+    set result [::practcl::_tagblock $result c [my define get filename]]
+    foreach mod [my link list product] {
+      ::practcl::cputs result [$mod generate-private-structure]
+    }
+    return $result
+  }
+  
   method generate-public-headers {} {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code tcltype
@@ -2239,16 +2299,25 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         ::practcl::cputs result "#include $inc"        
       }
     }
-    foreach file [my generate-public-verbatim] {
-      ::practcl::cputs result "/* BEGIN $file */"
-      ::practcl::cputs result [::practcl::cat $file]
-      ::practcl::cputs result "/* END $file */"
-    }
+
     foreach method {
       generate-public-define
       generate-public-macro
       generate-public-typedef
       generate-public-structure
+    } {
+      ::practcl::cputs result "/* BEGIN SECTION $method */"
+      ::practcl::cputs result [my $method]
+      ::practcl::cputs result "/* END SECTION $method */"
+    }
+    
+    foreach file [my generate-public-verbatim] {
+      ::practcl::cputs result "/* BEGIN $file */"
+      ::practcl::cputs result [::practcl::cat $file]
+      ::practcl::cputs result "/* END $file */"
+    }
+    
+    foreach method {
       generate-public-headers
       generate-public-function
     } {
@@ -2257,6 +2326,18 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       ::practcl::cputs result "/* END SECTION $method */"
     }
     return $result
+  }
+  
+  method IncludeAdd {headervar args} {
+    upvar 1 $headervar headers
+    foreach inc $args {
+      if {[string index $inc 0] ni {< \"}} {
+        set inc "\"$inc\""
+      }
+      if {$inc ni $headers} {
+        lappend headers $inc
+      }
+    }
   }
   
   ###
@@ -2269,42 +2350,44 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
 /* This file was generated by practcl */
     }
     set includes {}
-    lappend headers <tcl.h> <tclOO.h>
-    if {[my define get tk 0]} {
-      lappend headers <tk.h>
-    }
-    lappend headers {*}[my define get include]
-    if {[my define get output_h] ne {}} {
-      lappend headers "\"[my define get output_h]\""
-    }
+    
     foreach mod [my link list product] {
       # Signal modules to formulate final implementation
       $mod go
     }
-    foreach mod [my link list dynamic] {
-      foreach inc [$mod define get include] {
-        if {$inc ni $headers} {
-          lappend headers $inc
-        }
-      }
+    set headers {}
+    
+    my IncludeAdd headers <tcl.h> <tclOO.h>
+    if {[my define get tk 0]} {
+      my IncludeAdd headers <tk.h>
     }
+    if {[my define get output_h] ne {}} {
+      my IncludeAdd headers [my define get output_h]
+    }
+    my IncludeAdd headers {*}[my define get include]
+
+    foreach mod [my link list dynamic] {
+      my IncludeAdd headers {*}[$mod define get include]
+    }
+    puts [list [my define get filename] HEADERS $headers]
     foreach inc $headers {
-      if {[string index $inc 0] ni {< \"}} {
-        ::practcl::cputs result "#include \"$inc\""
-      } else {
-        ::practcl::cputs result "#include $inc"        
-      }
+      ::practcl::cputs result "#include $inc"
     }
     foreach {method} {
       generate-cheader
+      generate-private-typedef
+      generate-private-structure
       generate-cstruct
       generate-constant
       generate-cfunct
       generate-cmethod      
     } {
-      ::practcl::cputs result "/* BEGIN $method [my define get filename] */"
-      ::practcl::cputs result [my $method]
-      ::practcl::cputs result "/* END $method [my define get filename] */"
+      set dat [my $method]
+      if {[string length [string trim $dat]]} {
+        ::practcl::cputs result "/* BEGIN $method [my define get filename] */"
+        ::practcl::cputs result $dat
+        ::practcl::cputs result "/* END $method [my define get filename] */"
+      }
     }
     debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     return $result
@@ -2327,14 +2410,20 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
       ::practcl::cputs result  {    if (Tk_InitStubs(interp, "8.6", 0)==NULL) return TCL_ERROR;}
     }
     ::practcl::cputs result {  #endif}
-    set TCLINIT [my generate-tcl]
-    ::practcl::cputs result "  if(Tcl_Eval(interp,[::practcl::tcl_to_c $TCLINIT])) return TCL_ERROR ;"
+    set TCLINIT [my generate-tcl-pre]
+    if {[string length $TCLINIT]} {
+      ::practcl::cputs result "  if(Tcl_Eval(interp,[::practcl::tcl_to_c $TCLINIT])) return TCL_ERROR ;"
+    }
     foreach item [my link list product] {
       if {[$item define get output_c] ne {}} {
         ::practcl::cputs result [$item generate-cinit-external]
       } else {
         ::practcl::cputs result [$item generate-cinit]
       }
+    }
+    set TCLINIT [my generate-tcl-post]
+    if {[string length $TCLINIT]} {
+      ::practcl::cputs result "  if(Tcl_Eval(interp,[::practcl::tcl_to_c $TCLINIT])) return TCL_ERROR ;"
     }
     if {[my define exists pkg_name]} {
       ::practcl::cputs result  "    if (Tcl_PkgProvide(interp, \"[my define get pkg_name [my define get name]]\" , \"[my define get pkg_vers [my define get version]]\" )) return TCL_ERROR\;"
@@ -2347,16 +2436,31 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   # This methods generates any Tcl script file
   # which is required to pre-initialize the C library
   ###
-  method generate-tcl {} {
+  method generate-tcl-pre {} {
     debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     my variable code
     if {[info exists code(tcl)]} {
-      ::practcl::cputs result $code(tcl)
+      set result [::practcl::_tagblock $code(tcl) tcl [my define get filename]]
     }
-    set result [::practcl::_tagblock $result tcl [my define get filename]]
+    if {[info exists code(tcl-pre)]} {
+      set result [::practcl::_tagblock $code(tcl) tcl [my define get filename]]
+    }
     foreach mod [my link list product] {
-      ::practcl::cputs result [$mod generate-tcl]
+      ::practcl::cputs result [$mod generate-tcl-pre]
+    }
+    return $result
+  }
+
+  method generate-tcl-post {} {
+    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    set result {}
+    my variable code
+    if {[info exists code(tcl-post)]} {
+      set result [::practcl::_tagblock $code(tcl-post) tcl [my define get filename]]
+    }
+    foreach mod [my link list product] {
+      ::practcl::cputs result [$mod generate-tcl-post]
     }
     return $result
   }
@@ -2405,6 +2509,9 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     dict set cstruct $name body $definition
     foreach {f v} $argdat {
       dict set cstruct $name $f $v
+    }
+    if {![dict exists $cstruct $name public]} {
+      dict set cstruct $name public 1
     }
   }
   
@@ -2473,13 +2580,15 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     my define set cfile $filename
     set fout [open $filename w]
     puts $fout [my generate-c]
-    puts $fout "extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \x7B"
-    puts $fout [my generate-cinit]
-    if {[my define get pkg_name] ne {}} {
-      puts $fout "   Tcl_PkgProvide(interp, \"[my define get pkg_name]\", \"[my define get pkg_vers]\");"
+    if {[my define get initfunc] ne {}} {
+      puts $fout "extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \x7B"
+      puts $fout [my generate-cinit]
+      if {[my define get pkg_name] ne {}} {
+        puts $fout "   Tcl_PkgProvide(interp, \"[my define get pkg_name]\", \"[my define get pkg_vers]\");"
+      }
+      puts $fout "  return TCL_OK\;"
+      puts $fout "\x7D"
     }
-    puts $fout "  return TCL_OK\;"
-    puts $fout "\x7D"
     close $fout
   }
   
@@ -2617,7 +2726,8 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     }
     if {[info exists cfunct]} {
       foreach {funcname info} $cfunct {
-        ::practcl::cputs result "[dict get $info header]\{[dict get $info body]\}\;"
+        ::practcl::cputs result "/* $funcname */"
+        ::practcl::cputs result "\n[dict get $info header]\{[dict get $info body]\}"
       }
     }
     foreach obj [my link list dynamic] {
@@ -2648,6 +2758,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
         set callproc [dict get $info callproc]
         set header [dict get $info header]
         set body [dict get $info body]
+        ::practcl::cputs result "/* Tcl Proc $name */"
         ::practcl::cputs result "${header} \{${body}\}"
       }
     }
@@ -2660,9 +2771,11 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
         set callproc [dict get $info callproc]
         set header [dict get $info header]
         set body [dict get $info body]
+        ::practcl::cputs result "/* OO Method $thisclass $name */"
         ::practcl::cputs result "${header} \{${body}\}"
       }
       # Build the OO_Init function
+      ::practcl::cputs result "/* Loader for $thisclass */"
       ::practcl::cputs result "static int ${thisclass}_OO_Init(Tcl_Interp *interp) \{"
       ::practcl::cputs result [string map [list @CCLASS@ $thisclass @TCLCLASS@ [my define get class]] {
   /*
@@ -2804,7 +2917,8 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     my variable code
     ::practcl::cputs code(funct) $body
   }
-  method c_function {header body} {
+  method c_function {header body {info {}}} {
+    set header [string map "\t \  \n \ \ \  \ " $header]
     my variable code cfunct
     foreach regexp {
          {(.*) ([a-zA-Z_][a-zA-Z0-9_]*) *\((.*)\)}
@@ -2815,11 +2929,17 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
         dict set cfunct $funcname body $body
         dict set cfunct $funcname keywords $keywords
         dict set cfunct $funcname arglist $arglist
+        dict set cfunct $funcname inline [expr {"inline" ni $keywords}]
         dict set cfunct $funcname public [expr {"static" ni $keywords}]
         dict set cfunct $funcname export [expr {"STUB_EXPORT" in $keywords}]
-
+        foreach {f v} $info {
+          dict set cfunct $f $v
+        }
         return
       }
+    }
+    foreach {f v} $info {
+      dict set cfunct $f $v
     }
     ::practcl::cputs code(header) "$header\;"
     # Could not parse that block as a function
@@ -2875,7 +2995,7 @@ $body"
           dict set methods $name header "static int ${callproc}(ClientData clientData, Tcl_Interp *interp, Tcl_ObjectContext objectContext ,int objc ,Tcl_Obj *const *objv)"
         }
         if {![dict exists $info methodtype]} {
-          set methodtype [string map {{ } _ : _} MethodType_${thisclass}_${name}]
+          set methodtype [string map {{ } _ : _} OOMethodType_${thisclass}_${name}]
           dict set methods $name methodtype $methodtype
         }
       }
@@ -2889,7 +3009,7 @@ $body"
       debug [self] tclprocs [dict keys $tclprocs]
       foreach {name info} $tclprocs {
         if {![dict exists $info callproc]} {
-          set callproc [string map {____ _ ___ _ __ _} [string map {{ } _ : _} Tclcmd_${thisnspace}_${name}]]
+          set callproc [string map {____ _ ___ _ __ _} [string map {{ } _ : _} TclCmd_${thisnspace}_${name}]]
           dict set tclprocs $name callproc $callproc
         } else {
           set callproc [dict get $info callproc]
@@ -3287,8 +3407,9 @@ package provide @PKG_NAME@ @PKG_VERSION@
 # This file is generated by the [info script] script
 # any changes will be overwritten the next time it is run
 ###"
-      puts $tclout [my generate-tcl]
+      puts $tclout [my generate-tcl-pre]
       puts $tclout [my generate-tcl-loader]
+      puts $tclout [my generate-tcl-post]
       close $tclout
     }
   }

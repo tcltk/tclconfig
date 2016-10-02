@@ -145,12 +145,27 @@ proc ::practcl::config.tcl {path} {
   if {[dict exists $result TEACUP_OS] && [dict get $result TEACUP_OS] ni {"@TEACUP_OS@" {}}} {
     return $result  
   }
-  # If autoconf hasn't run yet, assume we are not cross compiling
-  # and defer to local checks
+  
+  if {[file exists [file join $path config.site]]} {
+    foreach {f v} [::practcl::de_shell [::practcl::read_sh_file [file join $path config.site]]] {
+      dict set result $f $v
+    }
+    dict set result CONFIG_SITE [file join $path config.site]
+  }
+
+  # We are not cross compiling
+  # defer to local checks
   dict set result TEACUP_PROFILE unknown
   dict set result TEACUP_OS unknown
   dict set result EXEEXT {}
+  set windows 0
   if {$::tcl_platform(platform) eq "windows"} {
+    set windows 1
+  }
+  if {[dict exist $result CC] && [regexp mingw [dict get $result CC]]} {
+    set windows 1
+  }
+  if {$windows} {
     set system "windows"
     set arch ix86
     dict set result TEACUP_PROFILE win32-ix86
@@ -1436,20 +1451,23 @@ proc ::practcl::de_shell {data} {
   lappend map {${PKG_STUB_OBJECTS}} %LIBRARY_STUB_OBJECTS%
   lappend map {$(PKG_STUB_OBJECTS)} %LIBRARY_STUB_OBJECTS%
   
-  lappend map %LIBRARY_NAME% [dict get $data name]   
-  lappend map %LIBRARY_VERSION% [dict get $data version]
-  lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} [dict get $data version]]
-  if {[dict exists $data libprefix]} {
-    lappend map %LIBRARY_PREFIX% [dict get $data libprefix]
-  } else {
-    lappend map %LIBRARY_PREFIX% [dict get $data prefix]
+  if {[dict exists $data name]} {
+    lappend map %LIBRARY_NAME% [dict get $data name]   
+    lappend map %LIBRARY_VERSION% [dict get $data version]
+    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} [dict get $data version]]
+    if {[dict exists $data libprefix]} {
+      lappend map %LIBRARY_PREFIX% [dict get $data libprefix]
+    } else {
+      lappend map %LIBRARY_PREFIX% [dict get $data prefix]
+    }
   }
   foreach flag [dict keys $data] {
     if {$flag in {TCL_DEFS TK_DEFS DEFS}} continue
-
-    dict set map "%${flag}%" [dict get $data $flag]
-    dict set map "\$\{${flag}\}" [dict get $data $flag]
-    dict set map "\$\(${flag}\)" [dict get $data $flag]
+    set value [string trim [dict get $data $flag] \"]
+    dict set map "%${flag}%" $value
+    dict set map "\$\{${flag}\}" $value
+    dict set map "\$\(${flag}\)" $value
+    dict set map "\$${flag}" $value
     dict set values $flag [dict get $data $flag]
     #dict set map "\$\{${flag}\}" $proj($flag)
   }
@@ -3822,13 +3840,15 @@ oo::class create ::practcl::subproject.binary {
   method ConfigureOpts {} {
     set opts {}
     set builddir [my define get builddir]
+    set config.site [my <project> define get config.site]
     if {[my define get broken_destroot 0]} {
       set PREFIX [my <project> define get prefix_broken_destdir]
     } else {
       set PREFIX [my <project> define get prefix]
     }
-    if {[my <project> define get HOST] != [my <project> define get TARGET]} {
-      lappend opts --host=[my <project> define get TARGET]
+    if {[my <project> define get CONFIG_SITE] != {}} {
+      lappend opts --host=[my <project> define get HOST]
+      lappend opts --with-tclsh=[info nameofexecutable]
     }
     if {[my <project> define exists tclsrcdir]} {
       set TCLSRCDIR  [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tclsrcdir]]]]
@@ -3963,6 +3983,9 @@ oo::class create ::practcl::subproject.binary {
     puts [list BUILDDIR $builddir]
     puts [list CONFIGURE {*}$opts]
     cd $builddir
+    if {[my <project> define get CONFIG_SITE] ne {}} {
+      set ::env(CONFIG_SITE) [my <project> define get CONFIG_SITE]
+    }
     exec sh [file join $srcroot configure] {*}$opts >& [file join $builddir practcl.log]
     cd $::CWD
   }
@@ -4040,13 +4063,17 @@ oo::class create ::practcl::subproject.binary {
         # On windows there's no practical way to execute
         # autoconf. We'll have to trust that configure
         # us up to date
-        foreach template {configure.ac configure.in} {
-          set input [file join $srcroot $template]
-          if {[file exists $input]} {
-            puts "autoconf -f $input > [file join $srcroot configure]"
-            exec autoconf -f $input > [file join $srcroot configure]
-          }
-        }
+        #
+        # Actually... re-running autoconf seems like a bad idea in
+        # practice... lets just comment this out 
+        #
+        #foreach template {configure.ac configure.in} {
+        #  set input [file join $srcroot $template]
+        #  if {[file exists $input]} {
+        #    puts "autoconf -f $input > [file join $srcroot configure]"
+        #    exec autoconf -f $input > [file join $srcroot configure]
+        #  }
+        #}
         cd $pwd
       }
     }
@@ -4075,6 +4102,9 @@ oo::class create ::practcl::subproject.core {
     puts [list BUILDDIR $builddir]
     puts [list CONFIGURE {*}$opts]
     cd $localsrcdir
+    if {[my <project> define get CONFIG_SITE] ne {}} {
+      set ::env(CONFIG_SITE) [my <project> define get CONFIG_SITE]
+    }
     exec sh [file join $localsrcdir configure] {*}$opts >& [file join $builddir practcl.log]
   }
 
@@ -4082,8 +4112,9 @@ oo::class create ::practcl::subproject.core {
     set opts {}
     set builddir [file normalize [my define get builddir]]
     set PREFIX [my <project> define get prefix]
-    if {[my <project> define get HOST] != [my <project> define get TARGET]} {
-      lappend opts --host=[my <project> define get TARGET]
+    if {[my <project> define get CONFIG_SITE] != {}} {
+      lappend opts --host=[my <project> define get HOST]
+      lappend opts --with-tclsh=[info nameofexecutable]
     }
     lappend opts {*}[my define get config_opts]
     lappend opts --prefix=$PREFIX

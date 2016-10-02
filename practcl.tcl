@@ -1248,15 +1248,20 @@ if {[file exists {%vfs_tk_library%}]} {
   CONST char *archive;
   Tcl_FindExecutable(*argv[0]);
   archive=Tcl_GetNameOfExecutable();
-
-  Tclzipfs_Init(NULL);
   }
   # We have to initialize the virtual filesystem before calling
   # Tcl_Init().  Otherwise, Tcl_Init() will not be able to find
   # its startup script files.
-  $PROJECT include {"tclZipfs.h"}
-  
-  ::practcl::cputs zvfsboot "  if(!Tclzipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
+  if {[$PROJECT define get tip_430 0]} {
+    $PROJECT code header {
+#define ZIPFS_VOLUME "zipfs:/"
+    }
+    ::practcl::cputs zvfsboot "  if(!TclZipfsMount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
+  } else {
+    $PROJECT include {"tclZipfs.h"}
+    ::practcl::cputs zvfsboot {  Tclzipfs_Init(NULL);}
+    ::practcl::cputs zvfsboot "  if(!Tclzipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
+  }
   ::practcl::cputs zvfsboot {
     Tcl_Obj *vfsinitscript;
     vfsinitscript=Tcl_NewStringObj("%vfs_main%",-1);
@@ -1650,6 +1655,8 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
     puts $cmd
     exec {*}$cmd >&@ stdout    
   }
+  set ranlib [$PROJECT define get RANLIB]
+  exec $ranlib $outfile
 }
 
 ###
@@ -1718,14 +1725,14 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   append COMPILE " " $defs
   lappend OBJECTS {*}[compile-sources $PROJECT $COMPILE $COMPILE]
-  
   if {[${PROJECT} define get platform] eq "windows"} {
+    set windres [$PROJECT define get RC windres]
     set RSOBJ [file join $path build tclkit.res.o]
     set RCSRC [${PROJECT} define get kit_resource_file]
     if {$RCSRC eq {} || ![file exists $RCSRC]} {
       set RCSRC [file join $TKSRCDIR win rc wish.rc]        
     }
-    set cmd [list  windres -o $RSOBJ -DSTATIC_BUILD]
+    set cmd [list $windres -o $RSOBJ -DSTATIC_BUILD]
     set TCLSRC [file normalize $TCLSRCDIR]
     set TKSRC [file normalize $TKSRCDIR]
 
@@ -3598,6 +3605,7 @@ char *
     
     set PROJECT [self]
     set os [$PROJECT define get os]
+    puts [list BUILDING KIT FOR OS $os]
     set TCLOBJ [$PROJECT project TCLCORE]
     set TKOBJ  [$PROJECT project TKCORE]
     set ODIEOBJ  [$PROJECT project odie]
@@ -3637,10 +3645,14 @@ char *
     # Pre 8.7, Tcl doesn't include a Zipfs implementation
     # in the core. Grab the one from odielib
     ###
-    set zipfs [file join $TCLSRCDIR generic zvfs.c]
-    if {![file exists $zipfs]} {
+    set zipfs [file join $TCLSRCDIR generic tclZipfs.c]
+    if {[file exists $zipfs]} {
+      $TCLOBJ define set tip_430 1
+      my define set tip_430 1
+    } else {
       # The Odie project maintains a mirror of the version
       # released with the Tcl core
+      my define set tip_430 0
       my add_project odie {
         tag trunk
         class subproject
@@ -3651,10 +3663,9 @@ char *
       set cdir [file join $ODIESRCROOT compat zipfs]
       my define add include_dir $cdir
       set zipfs [file join $cdir zvfs.c]
+      my add class csource filename $zipfs initfunc Tclzipfs_Init pkg_name zipfs pkg_vers 1.0 autoload 1
     }
     
-    my add class csource filename $zipfs initfunc Tclzipfs_Init pkg_name zipfs pkg_vers 1.0 autoload 1
-
     my define add include_dir [file join $TKSRCDIR generic]
     my define add include_dir [file join $TKSRCDIR $PLATFORM_SRC_DIR]
     my define add include_dir [file join $TKSRCDIR bitmaps]

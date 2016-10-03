@@ -149,6 +149,7 @@ proc ::practcl::config.tcl {path} {
   if {[file exists [file join $path config.site]]} {
     foreach {f v} [::practcl::de_shell [::practcl::read_sh_file [file join $path config.site]]] {
       dict set result $f $v
+      dict set result XCOMPILE_${f} $v
     }
     dict set result CONFIG_SITE [file join $path config.site]
   }
@@ -1469,10 +1470,10 @@ proc ::practcl::de_shell {data} {
   foreach flag [dict keys $data] {
     if {$flag in {TCL_DEFS TK_DEFS DEFS}} continue
     set value [string trim [dict get $data $flag] \"]
-    dict set map "%${flag}%" $value
     dict set map "\$\{${flag}\}" $value
     dict set map "\$\(${flag}\)" $value
-    dict set map "\$${flag}" $value
+    #dict set map "\$${flag}" $value
+    dict set map "%${flag}%" $value
     dict set values $flag [dict get $data $flag]
     #dict set map "\$\{${flag}\}" $proj($flag)
   }
@@ -1656,7 +1657,9 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
     exec {*}$cmd >&@ stdout    
   }
   set ranlib [$PROJECT define get RANLIB]
-  exec $ranlib $outfile
+  if {$ranlib ni {{} :}} {
+    exec $ranlib $outfile
+  }
 }
 
 ###

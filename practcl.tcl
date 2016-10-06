@@ -131,15 +131,16 @@ proc ::practcl::config.tcl {path} {
       set line [string trimleft $bufline]
       set bufline {}
       if {[string index [string trimleft $line] 0] eq "#"} continue
-      incr linecount
-      set key [lindex $line 0]
-      set value [lindex $line 1]
-      dict set result $key $value
+      append result \n $line
+      #incr linecount
+      #set key [lindex $line 0]
+      #set value [lindex $line 1]
+      #dict set result $key $value
     }
     dict set result sandbox  [file dirname [dict get $result srcdir]]
     dict set result download [file join [dict get $result sandbox] download]
     dict set result teapot   [file join [dict get $result sandbox] teapot]
-    set result [::practcl::de_shell $result]    
+    set result [::practcl::de_shell $result]
   }
   # If data is available from autoconf, defer to that 
   if {[dict exists $result TEACUP_OS] && [dict get $result TEACUP_OS] ni {"@TEACUP_OS@" {}}} {
@@ -1414,11 +1415,11 @@ proc ::practcl::de_shell {data} {
   set values {}
   foreach flag {DEFS TCL_DEFS TK_DEFS} {
     if {[dict exists $data $flag]} {
-      set value {}
-      foreach item [dict get $data $flag] {
-        append value " " [string map {{ } {\ }} $item]
-      }
-      dict set values $flag $value
+      #set value {}
+      #foreach item [dict get $data $flag] {
+      #  append value " " [string map {{ } {\ }} $item]
+      #}
+      dict set values $flag [dict get $data $flag]
     }
   }
   set map {}
@@ -1586,7 +1587,7 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
 
     if {[info exists proc(CXX)]} {
       set COMPILECPP "$proj(CXX) $defs $INCLUDES $proj(CFLAGS_DEBUG) -ggdb \
-  $proj(DEFS) $proj(CFLAGS_WARNING)"
+  $defs $proj(CFLAGS_WARNING)"
     } else {
       set COMPILECPP $COMPILE
     }    
@@ -1594,7 +1595,7 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
     set COMPILE "$proj(CC) $proj(CFLAGS) $defs $INCLUDES "
 
     if {[info exists proc(CXX)]} {
-      set COMPILECPP "$proj(CXX) $defs $INCLUDES $proj(CFLAGS) $proj(DEFS)"
+      set COMPILECPP "$proj(CXX) $defs $INCLUDES $proj(CFLAGS) $defs"
     } else {
       set COMPILECPP $COMPILE
     }
@@ -3209,12 +3210,18 @@ $body"
   constructor args {
     my variable define
     if {[llength $args] == 1} {
-      if {[catch {uplevel 1 [list subst [lindex $args 0]]} contents]} {
-        set contents [lindex $args 0]
-      }
+      set rawcontents [lindex $args 0]
     } else {
-      if {[catch {uplevel 1 [list subst $args]} contents]} {
-        set contents $args
+      set rawcontents $args
+    }
+    if {[catch {uplevel 1 [list subst $rawcontents]} contents]} {
+      set contents $rawcontents
+    }
+    # DEFS fields need to be passed unchanged and unsubstituted
+    # as we need to preserve their escape characters
+    foreach field {TCL_DEFS DEFS TK_DEFS} {
+      if {[dict exists $rawcontents $field]} {
+        dict set contents $field [dict get $rawcontents $field]
       }
     }
     array set define $contents

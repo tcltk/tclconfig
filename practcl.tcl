@@ -5,10 +5,36 @@
 puts [list LOADED practcl.tcl from [info script]]
 package require TclOO
 
-# Do nothing. A handy way of 
-proc ::noop args {}
+###
+# Seek out Tcllib if it's available
+###
+set tcllib_path {}
+foreach path {.. ../.. ../../..} {
+  foreach path [glob -nocomplain [file join [file normalize $path] tcllib* modules]] {
+    set tclib_path $path
+    lappend ::auto_path $path
+    break
+  }
+  if {$tcllib_path ne {}} break
+}
 
-proc ::debug args {
+###
+# Build utility functions
+###
+namespace eval ::practcl {}
+
+###
+# A command to do nothing. A handy way of
+# negating an instruction without
+# having to comment it completely out.
+# It's also a handy attachment point for
+# an object to be named later
+###
+if {[info command ::noop] eq {}} {
+  proc ::noop args {}
+}
+
+proc ::practcl::debug args {
   #puts $args
   ::practcl::cputs ::DEBUG_INFO $args
 }
@@ -16,17 +42,17 @@ proc ::debug args {
 ###
 # Drop in a static copy of Tcl
 ###
-proc ::doexec args {
+proc ::practcl::doexec args {
   puts [list {*}$args]
   exec {*}$args >&@ stdout
 }
 
-proc ::dotclexec args {
+proc ::practcl::dotclexec args {
   puts [list [info nameofexecutable] {*}$args]
   exec [info nameofexecutable] {*}$args >&@ stdout
 }
 
-proc ::domake {path args} {
+proc ::practcl::domake {path args} {
   set PWD [pwd]
   cd $path
   puts [list *** $path ***]
@@ -35,7 +61,7 @@ proc ::domake {path args} {
   cd $PWD
 }
 
-proc ::domake.tcl {path args} {
+proc ::practcl::domake.tcl {path args} {
   set PWD [pwd]
   cd $path
   puts [list *** $path ***]
@@ -44,7 +70,7 @@ proc ::domake.tcl {path args} {
   cd $PWD
 }
 
-proc ::fossil {path args} {
+proc ::practcl::fossil {path args} {
   set PWD [pwd]
   cd $path
   puts [list {*}$args]
@@ -53,7 +79,7 @@ proc ::fossil {path args} {
 }
 
 
-proc ::fossil_status {dir} {
+proc ::practcl::fossil_status {dir} {
   if {[info exists ::fosdat($dir)]} {
     return $::fosdat($dir)
   }
@@ -83,24 +109,6 @@ version {}
   set ::fosdat($dir) $result
   return $result
 }
-###
-# Seek out Tcllib if it's available
-###
-set tcllib_path {}
-foreach path {.. ../.. ../../..} {
-  foreach path [glob -nocomplain [file join [file normalize $path] tcllib* modules]] {
-    set tclib_path $path
-    lappend ::auto_path $path
-    break
-  }
-  if {$tcllib_path ne {}} break
-}
-
-
-###
-# Build utility functions
-###
-namespace eval ::practcl {}
 
 proc ::practcl::os {} {
   if {[info exists ::project(TEACUP_OS)] && $::project(TEACUP_OS) ni {"@TEACUP_OS@" {}}} {
@@ -865,15 +873,17 @@ proc ::practcl::installDir {d1 d2} {
   }
 }
 
-proc ::practcl::copyDir {d1 d2} {
-  #puts [list $d1 -> $d2]
+proc ::practcl::copyDir {d1 d2 {toplevel 1}} {
+  if {$toplevel} {
+    puts [list ::practcl::copyDir $d1 -> $d2]
+  }
   #file delete -force -- $d2
   file mkdir $d2
 
   foreach ftail [glob -directory $d1 -nocomplain -tails *] {
     set f [file join $d1 $ftail]
     if {[file isdirectory $f] && [string compare CVS $ftail]} {
-      copyDir $f [file join $d2 $ftail]
+      copyDir $f [file join $d2 $ftail] 0
     } elseif {[file isfile $f]} {
       file copy -force $f [file join $d2 $ftail]
     }
@@ -1718,7 +1728,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       lappend cmd --include [::practcl::file_relative $path [file normalize $item]]
     }
     lappend cmd $RCSRC
-    doexec {*}$cmd
+    ::practcl::doexec {*}$cmd
 
     lappend OBJECTS $RSOBJ
     set LDFLAGS_CONSOLE {-mconsole -pipe -static-libgcc}
@@ -3671,9 +3681,10 @@ char *
         ::practcl::copyDir [file join $libsrcroot library] [file join $vfspath boot $name]
       }
     }
-    if {[my define get installdir] ne {}} {
-      ::practcl::copyDir [file join [my define get installdir] [string trimleft [my define get prefix] /] lib] [file join $vfspath lib]
-    }
+    # Assume the user will populate the VFS path
+    #if {[my define get installdir] ne {}} {
+    #  ::practcl::copyDir [file join [my define get installdir] [string trimleft [my define get prefix] /] lib] [file join $vfspath lib]
+    #}
     foreach arg $args {
        ::practcl::copyDir $arg $vfspath
     }
@@ -3812,7 +3823,7 @@ oo::class create ::practcl::subproject.sak {
     set DEST [my <project> define get installdir]
     set prefix [string trimleft [my <project> define get prefix] /]
     set srcroot [my define get srcroot]
-    ::dotclexec [file join $srcroot installer.tcl] \
+    ::practcl::dotclexec [file join $srcroot installer.tcl] \
       -pkg-path [file join $DEST $prefix lib $pkg]  \
       -no-examples -no-html -no-nroff \
       -no-wait -no-gui -no-apps
@@ -3939,7 +3950,7 @@ oo::class create ::practcl::subproject.binary {
     }
     if {[my define get USEMSVC 0]} {
       cd $srcroot
-      doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
+      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
     } else {
       cd $::CWD
       set builddir [file normalize [my define get builddir]]
@@ -3948,9 +3959,9 @@ oo::class create ::practcl::subproject.binary {
         my Configure
       }
       if {[file exists [file join $builddir make.tcl]]} {
-        domake.tcl $builddir library
+        ::practcl::domake.tcl $builddir library
       } else {
-        domake $builddir all
+        ::practcl::domake $builddir all
       }
     }
     cd $PWD
@@ -4007,17 +4018,17 @@ oo::class create ::practcl::subproject.binary {
       set srcroot [my define get srcroot]
       cd $srcroot
       puts "[self] VFS INSTALL $PKGROOT"
-      doexec nmake -f makefile.vc INSTALLDIR=$PKGROOT install
+      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$PKGROOT install
     } else {
       set builddir [my define get builddir]
       if {[file exists [file join $builddir make.tcl]]} {
         # Practcl builds can inject right to where we need them
         puts "[self] VFS INSTALL $PKGROOT (Practcl)"
-        domake.tcl $builddir install-package $PKGROOT
+        ::practcl::domake.tcl $builddir install-package $PKGROOT
       } elseif {[my define get broken_destroot 0] == 0} {
         # Most modern TEA projects understand DESTROOT in the makefile
         puts "[self] VFS INSTALL $PKGROOT (TEA)"
-        domake $builddir install DESTDIR=$PKGROOT
+        ::practcl::domake $builddir install DESTDIR=$PKGROOT
       } else {
         # But some require us to do an install into a fictitious filesystem
         # and then extract the gooey parts within.
@@ -4026,7 +4037,7 @@ oo::class create ::practcl::subproject.binary {
         set BROKENROOT [::practcl::msys_to_tclpath [my <project> define get prefix_broken_destdir]]
         file delete -force $BROKENROOT
         file mkdir $BROKENROOT
-        domake $builddir $install
+        ::practcl::domake $builddir $install
         ::practcl::copyDir $BROKENROOT  [file join $PKGROOT [string trimleft $PREFIX /]]
         file delete -force $BROKENROOT
       }
@@ -4140,4 +4151,4 @@ oo::class create ::practcl::subproject.core {
   }
 }
 
-package provide practcl 0.5
+package provide practcl 0.6

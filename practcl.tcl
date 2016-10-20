@@ -1956,14 +1956,14 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method go {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable links
     foreach {linktype objs} [array get links] {
       foreach obj $objs {
         $obj go
       }
     }
-    debug [list /[self] [self method] [self class]]
+    ::practcl::debug [list /[self] [self method] [self class]]
   }
     
   method code {section body} {
@@ -1998,7 +1998,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-include-directory {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result [my define get include_dir]
     foreach obj [my link list product] {
       foreach path [$obj generate-include-directory] {
@@ -2019,7 +2019,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
 
   # Empty template methods
   method generate-cheader {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cfunct cstruct methods tcltype tclprocs
     set result {}
     if {[info exists code(header)]} {
@@ -2035,14 +2035,14 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         ::practcl::cputs result "/* END [$obj define get filename] generate-cheader */"
       }
     }
-    debug [list cfunct [info exists cfunct]]
+    ::practcl::debug [list cfunct [info exists cfunct]]
     if {[info exists cfunct]} {
       foreach {funcname info} $cfunct {
         if {[dict get $info public]} continue
         ::practcl::cputs result "[dict get $info header]\;"
       }
     }
-    debug [list tclprocs [info exists tclprocs]]
+    ::practcl::debug [list tclprocs [info exists tclprocs]]
     if {[info exists tclprocs]} {
       foreach {name info} $tclprocs {
         if {[dict exists $info header]} {
@@ -2050,7 +2050,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         }
       }
     }
-    debug [list methods [info exists methods] [my define get cclass]]
+    ::practcl::debug [list methods [info exists methods] [my define get cclass]]
 
     if {[info exists methods]} {
       set thisclass [my define get cclass]
@@ -2066,7 +2066,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-define {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code
     set result {}
     if {[info exists code(public-define)]} {
@@ -2080,7 +2080,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-macro {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code
     set result {}
     if {[info exists code(public-macro)]} {
@@ -2094,7 +2094,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-typedef {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct
     set result {}
     if {[info exists code(public-typedef)]} {
@@ -2120,7 +2120,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-private-typedef {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct
     set result {}
     if {[info exists code(private-typedef)]} {
@@ -2146,7 +2146,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-structure {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct
     set result {}
     if {[info exists code(public-structure)]} {
@@ -2170,7 +2170,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   
   
   method generate-private-structure {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct
     set result {}
     if {[info exists code(private-structure)]} {
@@ -2193,7 +2193,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-headers {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code tcltype
     set result {}
     if {[info exists code(public-header)]} {
@@ -2221,7 +2221,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-stub-function {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cfunct tcltype
     set result {}
     foreach mod [my link list product] {
@@ -2239,7 +2239,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-function {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]    
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]    
     my variable code cfunct tcltype
     set result {}
     
@@ -2260,7 +2260,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   
   method generate-public-includes {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]    
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]    
     set includes {}
     foreach item [my define get public-include] {
       if {$item ni $includes} {
@@ -2277,7 +2277,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     return $includes
   }
   method generate-public-verbatim {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set includes {}
     foreach item [my define get public-verbatim] {
       if {$item ni $includes} {
@@ -2298,7 +2298,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   # which describes the public API of this module
   ###
   method generate-h {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     set includes [my generate-public-includes]
     foreach inc $includes {
@@ -2354,7 +2354,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   # which implements the loader for a batch of tools
   ###
   method generate-c {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {
 /* This file was generated by practcl */
     }
@@ -2398,13 +2398,13 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
         ::practcl::cputs result "/* END $method [my define get filename] */"
       }
     }
-    debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     return $result
   }
 
 
   method generate-loader {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     if {[my define get initfunc] eq {}} return
     ::practcl::cputs result  "
@@ -2446,7 +2446,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   # which is required to pre-initialize the C library
   ###
   method generate-tcl-pre {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     my variable code
     if {[info exists code(tcl)]} {
@@ -2462,7 +2462,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   }
 
   method generate-tcl-post {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     my variable code
     if {[info exists code(tcl-post)]} {
@@ -2525,7 +2525,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   }
   
   method generate-cinit {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code
     set result {}
     if {[info exists code(cinit)]} {
@@ -2623,7 +2623,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   # Populate const static data structures
   ###
   method generate-cstruct {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cstruct methods tcltype
     set result {}
     if {[info exists code(struct)]} {
@@ -2638,7 +2638,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   }
   
   method generate-constant {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     my variable code cstruct methods tcltype
     if {[info exists code(constant)]} {
@@ -2727,7 +2727,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   # Tcl API methods
   ###
   method generate-cfunct {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code cfunct
     set result {}
     if {[info exists code(funct)]} {
@@ -2754,7 +2754,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   # calls
   ###
   method generate-cmethod {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code methods tclprocs
     set result {}
     if {[info exists code(method)]} {
@@ -2855,7 +2855,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   # initialized into the interpreter
   ###
   method generate-cinit {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
     my variable code methods tclprocs
     if {[info exists code(nspace)]} {
@@ -2986,11 +2986,11 @@ $body"
   }
 
   method go {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     next
     my variable methods code cstruct tclprocs
     if {[info exists methods]} {
-      debug [self] methods [my define get cclass]
+      ::practcl::debug [self] methods [my define get cclass]
       set thisclass [my define get cclass]
       foreach {name info} $methods {   
         # Provide a callproc
@@ -3015,7 +3015,7 @@ $body"
     set thisnspace [my define get nspace]
 
     if {[info exists tclprocs]} {
-      debug [self] tclprocs [dict keys $tclprocs]
+      ::practcl::debug [self] tclprocs [dict keys $tclprocs]
       foreach {name info} $tclprocs {
         if {![dict exists $info callproc]} {
           set callproc [string map {____ _ ___ _ __ _} [string map {{ } _ : _} TclCmd_${thisnspace}_${name}]]
@@ -3028,7 +3028,7 @@ $body"
         }
       }
     }
-    debug [list /[self] [self method] [self class]]
+    ::practcl::debug [list /[self] [self method] [self class]]
   }
 
   # Once an object marks itself as some
@@ -3116,7 +3116,7 @@ $body"
     if {[my define get localpath] eq {}} {
       my define set localpath [my <project> define get name]_[my define get name]
     }
-    debug [self] SOURCE $filename
+    ::practcl::debug [self] SOURCE $filename
     my source $filename
   }
   
@@ -3133,10 +3133,10 @@ $body"
         puts "Skipped $item: $err"
       }
     }
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set filename [my define get output_c]
     if {$filename eq {}} {
-      debug [list /[self] [self method] [self class]]
+      ::practcl::debug [list /[self] [self method] [self class]]
       return
     }
     set cout [open [file join $path [file rootname $filename].c] w]
@@ -3147,7 +3147,7 @@ $body"
     puts $cout [my generate-c]
     puts $cout [my generate-loader]
     close $cout
-    debug [list /[self] [self method] [self class]]
+    ::practcl::debug [list /[self] [self method] [self class]]
   }
 
   method linktype {} {
@@ -3333,7 +3333,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
   }
   
   method go {} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set name [my define getnull name]
     if {$name eq {}} {
       set name generic
@@ -3378,7 +3378,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
         $obj go
       }
     }
-    debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list /[self] [self method] [self class] -- [my define get filename] [info object class [self]]]
   }
 
   method implement path {
@@ -3430,7 +3430,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
   }
 
   method generate-decls {pkgname path} {
-    debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
+    ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set outfile [file join $path/$pkgname.decls]
   
   ###

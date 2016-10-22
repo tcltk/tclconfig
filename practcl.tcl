@@ -118,14 +118,7 @@ version {}
 }
 
 proc ::practcl::os {} {
-  if {[info exists ::project(TEACUP_OS)] && $::project(TEACUP_OS) ni {"@TEACUP_OS@" {}}} {
-    return $::project(TEACUP_OS)
-  }
-  set info [::practcl::config.tcl $::project(builddir)]
-  if {[dict exists $info TEACUP_OS]} {
-    return [dict get $info TEACUP_OS]
-  }
-  return unknown
+  return [${::practcl::MAIN} define get TEACUP_OS]
 }
 
 if {[::package vcompare $::tcl_version 8.6] < 0} {
@@ -3274,11 +3267,11 @@ $body"
     }
     ###
     # The first instance of ::practcl::project (or its descendents)
-    # registers itself as the ::practcl::MAIN. This is needed for
-    # utilities like tcllib_require if they need to spawn off
-    # additional subprojects to satisfy dependencies
+    # registers itself as the ::practcl::MAIN. If a project other
+    # than ::practcl::LOCAL is created, odds are that was the one
+    # the developer intended to be the main project
     ###
-    if {[self] ne "::practcl::LOCAL" && ![::info exists ::practcl::MAIN]} {
+    if {$::practcl::MAIN eq "::practcl::LOCAL"} {
       set ::practcl::MAIN [self]
     }
     # DEFS fields need to be passed unchanged and unsubstituted
@@ -3325,9 +3318,6 @@ $body"
     if {[dict exists $info os] && ($os ni [dict get $info os])} return
     # Select which tag to use here.
     # For production builds: tag-release
-    if {[::info exists ::env(FOSSIL_MIRROR)]} {
-      dict set info localmirror $::env(FOSSIL_MIRROR)
-    }
     set profile [my define get profile release]:
     if {[dict exists $info profile $profile]} {
       dict set info tag [dict get $info profile $profile]
@@ -4199,7 +4189,6 @@ oo::class create ::practcl::subproject.sak {
 oo::class create ::practcl::subproject.binary {
   superclass ::practcl::subproject ::practcl::autoconf
 
-
   method compile-products {} {}
 
   method ConfigureOpts {} {
@@ -4329,7 +4318,6 @@ oo::class create ::practcl::subproject.binary {
     }
     cd $PWD
   }
-
   
   method Configure {} {
     cd $::CWD
@@ -4572,6 +4560,9 @@ oo::class create ::practcl::tool.source {
 ###
 ::practcl::project create ::practcl::LOCAL
 ::practcl::LOCAL define set [::practcl::local_os]
+# Until something better comes along, use ::practcl::LOCAL
+# as our main project
+set ::practcl::MAIN ::practcl::LOCAL
 # Add tclconfig as a project of record
 ::practcl::LOCAL add_tool tclconfig {
   tag trunk class tool.source fossil_url http://core.tcl.tk/tclconfig

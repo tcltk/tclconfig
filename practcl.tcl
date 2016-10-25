@@ -302,7 +302,7 @@ proc ::practcl::config.tcl {path} {
     # We have a definitive configuration file. Read its content
     # and take it as gospel
     set cresult [read_rc_file [file join $path config.tcl]]
-    set cresult [::practcl::de_shell $result]
+    set cresult [::practcl::de_shell $cresult]
     if {[dict exists $cresult srcdir] && ![dict exists $cresult sandbox]} {
       dict set cresult sandbox  [file dirname [dict get $cresult srcdir]]
     }
@@ -1524,6 +1524,7 @@ proc ::practcl::de_shell {data} {
 
 proc ::practcl::build::Makefile {path PROJECT} {
   array set proj [$PROJECT define dump]
+  parray proj
   set path $proj(builddir)
   cd $path
   set includedir .
@@ -1616,6 +1617,7 @@ ${NAME}_OBJS = [dict keys $products]
 ###
 proc ::practcl::build::library {outfile PROJECT} {
   array set proj [$PROJECT define dump]
+  parray proj
   set path $proj(builddir)
   cd $path
   set includedir .
@@ -3371,8 +3373,6 @@ $body"
     if {[llength $args]==0} {
       return $obj
     }
-    puts [list ${obj} [info object class $obj]]
-    puts [list ${obj} {*}$args]
     ${obj} {*}$args
   }
 }
@@ -4118,12 +4118,7 @@ oo::class create ::practcl::subproject {
   }
     
   # Install project into the local build system
-  method install-local {} {
-    my unpack
-  }
-
-  # Install project into the virtual file system
-  method install-vfs {{path {}}} {}
+  method install args {}
   
   method linktype {} {
     return {subordinate package}
@@ -4161,16 +4156,12 @@ oo::class create ::practcl::subproject.teapot {
     my install-vfs
   }
 
-  method install-vfs {{DEST {}}} {
+  method install DEST {
     set pkg [my define get pkg_name [my define get name]]
     set download [my <project> define get download]
     my unpack
     ::practcl::package_require tcllib zipfile::decode
-    if {$DEST in {{} AUTO LOCAL}} {
-      set DEST [my <project> define get installdir]
-    }
     set prefix [string trimleft [my <project> define get prefix] /]
-  
     ::practcl::tcllib_require zipfile::decode
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $DEST $prefix lib $pkg]
   }
@@ -4193,8 +4184,8 @@ oo::class create ::practcl::subproject.kettle {
     ::pratcl::dotclexec $kettle -f [file join $srcdir build.tcl] {*}$args
   }
   
-  method install-vfs {{path {}}} {
-    my kettle reinstall --prefix $path
+  method install DEST {
+    my kettle reinstall --prefix $DEST
   }
 }
 
@@ -4205,10 +4196,10 @@ oo::class create ::practcl::subproject.critcl {
     my install-vfs
   }
 
-  method install-vfs {{path {}}} {
+  method install DEST {
     my critcl -pkg [my define get name]
     set srcdir [my SourceRoot]
-    ::pratcl::copyDir [file join $srcdir [my define get name]] [file join $path lib [my define get name]]
+    ::pratcl::copyDir [file join $srcdir [my define get name]] [file join $DEST lib [my define get name]]
   }
 }
 
@@ -4220,15 +4211,12 @@ oo::class create ::practcl::subproject.sak {
     my install-vfs
   }
 
-  method install-vfs {{DEST {}}} {
+  method install DEST {
     ###
     # Handle teapot installs
     ###
     set pkg [my define get pkg_name [my define get name]]
     my unpack
-    if {$DEST in {{} AUTO LOCAL}} {
-      set DEST [my <project> define get installdir]
-    }
     set prefix [string trimleft [my <project> define get prefix] /]
     set srcdir [my define get srcdir]
     ::practcl::dotclexec [file join $srcdir installer.tcl] \
@@ -4413,11 +4401,9 @@ oo::class create ::practcl::subproject.binary {
     cd $::CWD
   }
   
-  method install-vfs {{path {}}} {
+  method install DEST {
     set PWD [pwd]
-    set PKGROOT [my <project> define get installdir]
     set PREFIX  [my <project> define get prefix]
-
     ###
     # Handle teapot installs
     ###
@@ -4428,7 +4414,7 @@ oo::class create ::practcl::subproject.binary {
       foreach ver [my define get pkg_vers [my define get version]] {
         set teapath [file join $TEAPOT $pkg$ver]
         if {[file exists $teapath]} {
-          set dest  [file join $PKGROOT [string trimleft $PREFIX /] lib [file tail $teapath]]
+          set dest  [file join $DEST [string trimleft $PREFIX /] lib [file tail $teapath]]
           ::practcl::copyDir $teapath $dest
           return
         }
@@ -4438,18 +4424,18 @@ oo::class create ::practcl::subproject.binary {
     if {[my define get USEMSVC 0]} {
       set srcdir [my define get srcdir]
       cd $srcdir
-      puts "[self] VFS INSTALL $PKGROOT"
-      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$PKGROOT install
+      puts "[self] VFS INSTALL $DEST"
+      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$DEST install
     } else {
       set builddir [my define get builddir]
       if {[file exists [file join $builddir make.tcl]]} {
         # Practcl builds can inject right to where we need them
-        puts "[self] VFS INSTALL $PKGROOT (Practcl)"
-        ::practcl::domake.tcl $builddir install-package $PKGROOT
+        puts "[self] VFS INSTALL $DEST (Practcl)"
+        ::practcl::domake.tcl $builddir install-package $DEST
       } elseif {[my define get broken_destroot 0] == 0} {
         # Most modern TEA projects understand DESTROOT in the makefile
-        puts "[self] VFS INSTALL $PKGROOT (TEA)"
-        ::practcl::domake $builddir install DESTDIR=$PKGROOT
+        puts "[self] VFS INSTALL $DEST (TEA)"
+        ::practcl::domake $builddir install DESTDIR=$DEST
       } else {
         # But some require us to do an install into a fictitious filesystem
         # and then extract the gooey parts within.
@@ -4459,7 +4445,7 @@ oo::class create ::practcl::subproject.binary {
         file delete -force $BROKENROOT
         file mkdir $BROKENROOT
         ::practcl::domake $builddir $install
-        ::practcl::copyDir $BROKENROOT  [file join $PKGROOT [string trimleft $PREFIX /]]
+        ::practcl::copyDir $BROKENROOT  [file join $DEST [string trimleft $PREFIX /]]
         file delete -force $BROKENROOT
       }
     }

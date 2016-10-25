@@ -1341,7 +1341,7 @@ foreach path {
 
   ::practcl::cputs zvfsboot "  return TCL_OK;"
   
-  if {[$PROJECT define get os] eq "windows"} {
+  if {[$PROJECT define get TEACUP_OS] eq "windows"} {
     set header {int %mainhook%(int *argc, TCHAR ***argv)}
   } else {
     set header {int %mainhook%(int *argc, char ***argv)}
@@ -1650,7 +1650,7 @@ proc ::practcl::build::library {outfile PROJECT} {
   ::practcl::build::DEFS $PROJECT $proj(DEFS) name version defs
   set NAME [string toupper $name]
   set debug [$PROJECT define get debug 0]
-  set os [$PROJECT define get os]
+  set os [$PROJECT define get TEACUP_OS]
 
   set INCLUDES  "-I[join $includedir " -I"]"
   if {$debug} {
@@ -1742,7 +1742,7 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
     $obj compile
     set config($obj) [$obj config.sh]
   }
-  set os [$PROJECT define get os]
+  set os [$PROJECT define get TEACUP_OS]
   set TCLSRCDIR [$TCLOBJ define get srcdir]
   set TKSRCDIR [$TKOBJ define get srcdir]
 
@@ -3306,7 +3306,7 @@ $body"
   }
   
   method add_project {pkg info {oodefine {}}} {
-    set os [my define get os]
+    set os [my define get TEACUP_OS]
     if {$os eq {}} {
       set os [::practcl::os]
       my define set os $os
@@ -3689,7 +3689,7 @@ char *
     }
     
     set PROJECT [self]
-    set os [$PROJECT define get os]
+    set os [$PROJECT define get TEACUP_OS]
     puts [list BUILDING KIT FOR OS $os]
     set TCLOBJ [$PROJECT project TCLCORE]
     set TKOBJ  [$PROJECT project TKCORE]

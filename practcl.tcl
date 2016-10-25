@@ -820,6 +820,10 @@ proc ::practcl::_pkgindex_directory {path} {
   set fin [open $pkgidxfile r]
   set dat [read $fin]
   close $fin
+  set trace 0
+  #if {[file tail $path] eq "tool"} {
+  #  set trace 1
+  #}
   set thisline {}
   foreach line [split $dat \n] {
     append thisline $line \n
@@ -831,17 +835,25 @@ proc ::practcl::_pkgindex_directory {path} {
     if {[string index $line 0] eq "#"} {
       set thisline {} ; continue
     }
-    if {[regexp "if.*catch.*package.*Tcl.*return" $thisline]} continue
-    if {[regexp "if.*package.*vsatisfies.*package.*provide.*return" $thisline]} continue
+    if {[regexp "if.*catch.*package.*Tcl.*return" $thisline]} {
+      if {$trace} {puts "[file dirname $pkgidxfile] Ignoring $thisline"}
+      set thisline {} ; continue
+    }
+    if {[regexp "if.*package.*vsatisfies.*package.*provide.*return" $thisline]} {
+      if {$trace} { puts "[file dirname $pkgidxfile] Ignoring $thisline" }
+      set thisline {} ; continue
+    }
     if {![regexp "package.*ifneeded" $thisline]} {
       # This package index contains arbitrary code
       # source instead of trying to add it to the master
       # package index
+      if {$trace} { puts "[file dirname $pkgidxfile] Arbitrary code $thisline" }
       return {source [file join $dir pkgIndex.tcl]} 
     }
     append buffer $thisline \n
     set thisline {}
   }
+  if {$trace} {puts [list [file dirname $pkgidxfile] $buffer]}
   return $buffer
 }
 
@@ -881,6 +893,7 @@ lappend ::PATHSTACK $dir
       if {$path_indexed($path)} continue
       set thisdir [file_relative $base $path]
       #set thisdir [string range $path $i+1 end]
+      #append buffer "# DIR  $thisdir" \n
       set idxbuf [::practcl::_pkgindex_directory $path]
       if {[string length $idxbuf]} {
         incr path_indexed($path)
@@ -1524,7 +1537,6 @@ proc ::practcl::de_shell {data} {
 
 proc ::practcl::build::Makefile {path PROJECT} {
   array set proj [$PROJECT define dump]
-  parray proj
   set path $proj(builddir)
   cd $path
   set includedir .
@@ -1617,7 +1629,6 @@ ${NAME}_OBJS = [dict keys $products]
 ###
 proc ::practcl::build::library {outfile PROJECT} {
   array set proj [$PROJECT define dump]
-  parray proj
   set path $proj(builddir)
   cd $path
   set includedir .
@@ -1690,7 +1701,7 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
   }
   set ranlib [$PROJECT define get RANLIB]
   if {$ranlib ni {{} :}} {
-    exec $ranlib $outfile
+    catch {exec $ranlib $outfile}
   }
 }
 
@@ -1803,7 +1814,6 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   if {[$PROJECT define get TEACUP_OS] ne "macosx"} {
     append cmd " -static "
   }
-  parray TCL
   if {$debug} {
     if {$os eq "windows"} {
       append cmd " -L${TCL(src_dir)}/win -ltcl86g"
@@ -3639,7 +3649,7 @@ char *
       set script "\[list load \[file join \$dir [my define get libfile]\] $name\]"
     } else {
       # Provide a null passthrough
-      set script [list package provide $name $version]
+      set script "\[list package provide $name $version\]"
     }
     set result "package ifneeded [list $name] [list $version] $script"
     foreach alias $args {

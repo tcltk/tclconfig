@@ -4310,6 +4310,8 @@ AC_DEFUN([TEA_PATH_CELIB], [
 # Arguments:
 #	none
 AC_DEFUN([TEA_CONFIG_TEAPOT], [
+        AC_REQUIRE([TEA_INIT])
+        AC_REQUIRE([TEA_CONFIG_SYSTEM])
 	TEACUP_OS=$system
 	TEACUP_ARCH="unknown"
 	TEACUP_TOOLSET="gcc"

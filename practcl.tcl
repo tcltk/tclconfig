@@ -170,9 +170,6 @@ proc ::practcl::local_os {} {
   if {$::tcl_platform(platform) eq "windows"} {
     set windows 1
   }
-  if {[dict exist $result CC] && [regexp mingw [dict get $result CC]]} {
-    set windows 1
-  }
   if {$windows} {
     set system "windows"
     set arch ix86
@@ -253,6 +250,9 @@ proc ::practcl::local_os {} {
         dict set result teapot [file normalize {~/Library/Application Support/ActiveState/Teapot/repository/}]
       }
       dict set result local_install [file normalize ~/Library/Tcl]
+      dict set result sandbox       [file normalize ~/Library/Tcl/sandbox]
+    }
+    default {
     }
   }
   dict set result userhome $userhome
@@ -294,34 +294,41 @@ proc ::practcl::local_os {} {
 ###
 proc ::practcl::config.tcl {path} {
   dict set result buildpath $path
-  set result {}
+  set result [local_os]
+  set OS [dict get $result TEACUP_OS]
+  set windows 0
+  dict set result USEMSVC 0
   if {[file exists [file join $path config.tcl]]} {
-    set result [read_rc_file [file join $path config.tcl]]
-    set result [::practcl::de_shell $result]
-    dict set result sandbox  [file dirname [dict get $result srcdir]]
-    dict set result download [file join [dict get $result sandbox] download]
-    dict set result teapot   [file join [dict get $result sandbox] teapot]
-    set result [::practcl::de_shell $result]
-  }
-  # If data is available from autoconf, defer to that 
-  if {[dict exists $result TEACUP_OS] && [dict get $result TEACUP_OS] ni {"@TEACUP_OS@" {}}} {
-    return $result  
-  }
-  
-  if {[file exists [file join $path config.site]]} {
+    # We have a definitive configuration file. Read its content
+    # and take it as gospel
+    set cresult [read_rc_file [file join $path config.tcl]]
+    set cresult [::practcl::de_shell $result]
+    if {[dict exists $cresult srcdir] && ![dict exists $cresult sandbox]} {
+      dict set cresult sandbox  [file dirname [dict get $cresult srcdir]]
+    }
+    set result [dict merge $result [::practcl::de_shell $cresult]]
+  } elseif {[file exists [file join $path config.site]]} {
+    # No config.tcl file is present but we do seed 
+    dict set result USEMSVC 0
     foreach {f v} [::practcl::de_shell [::practcl::read_sh_file [file join $path config.site]]] {
       dict set result $f $v
       dict set result XCOMPILE_${f} $v
     }
     dict set result CONFIG_SITE [file join $path config.site]
-  }
-
-  # We are not cross compiling
-  # defer to local checks
-  foreach {field value} [local_os] {
-    if {![dict exists result $field]} {
-      dict set result $field $value
+    if {[dict exist $result XCOMPILE_CC] && [regexp mingw [dict get $result XCOMPILE_CC]]} {
+      set windows 1
     }
+  } elseif {[info exists ::env(VisualStudioVersion)]} {
+    set windows 1
+    dict set result USEMSVC 1
+  }
+  if {$windows && [dict get $result TEACUP_OS] ne "windows"} {
+    if {![dict exists exists $result TEACUP_ARCH]} {
+      dict set result TEACUP_ARCH ix86
+    }
+    dict set result TEACUP_PROFILE win32-[dict get $result TEACUP_ARCH]
+    dict set result TEACUP_OS windows
+    dict set result EXEEXT .exe
   }
   return $result
 }
@@ -1723,8 +1730,8 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
     set config($obj) [$obj config.sh]
   }
   set os [$PROJECT define get os]
-  set TCLSRCDIR [$TCLOBJ define get srcroot]
-  set TKSRCDIR [$TKOBJ define get srcroot]
+  set TCLSRCDIR [$TCLOBJ define get srcdir]
+  set TKSRCDIR [$TKOBJ define get srcdir]
 
   set includedir .
   foreach include [$TCLOBJ generate-include-directory] {
@@ -1751,7 +1758,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   append COMPILE " " $defs
   lappend OBJECTS {*}[compile-sources $PROJECT $COMPILE $COMPILE]
-  if {[${PROJECT} define get platform] eq "windows"} {
+  if {[${PROJECT} define get TEACUP_OS] eq "windows"} {
     set windres [$PROJECT define get RC windres]
     set RSOBJ [file join $path build tclkit.res.o]
     set RCSRC [${PROJECT} define get kit_resource_file]
@@ -3208,7 +3215,7 @@ $body"
     set PWD $::CWD
     set builddir [my define get builddir]
     my unpack
-    set srcroot [my define get srcroot]
+    set srcdir [my define get srcdir]
     if {![file exists $builddir]} {
       my Configure
     }
@@ -3240,7 +3247,7 @@ $body"
     ###
     set filename [file join $builddir Makefile]
     if {![file exists $filename]} {
-      error "Could not locate any configuration data in $srcroot"
+      error "Could not locate any configuration data in $srcdir"
     }
     foreach {field dat} [::practcl::read_Makefile $filename] {
       dict set result $field $dat
@@ -3300,9 +3307,12 @@ $body"
     if {[dict exists $info profile $profile]} {
       dict set info tag [dict get $info profile $profile]
     }
+    if {[my define get USEMSVC 0]} {
+      dict set info USEMSVC 1
+    }
     set obj [namespace current]::PROJECT.$pkg
     if {[info command $obj] eq {}} {
-      set obj [::practcl::subproject create $obj [self] [dict merge $fossilinfo [list name $pkg pkg_name $pkg static 0] $info]]
+      set obj [::practcl::subproject create $obj [self] [dict merge $fossilinfo [list name $pkg pkg_name $pkg static 0 class subproject.binary] $info]]
     }
     my link object $obj
     oo::objdefine $obj $oodefine
@@ -3675,8 +3685,8 @@ char *
     set TKOBJ  [$PROJECT project TKCORE]
     set ODIEOBJ  [$PROJECT project odie]
   
-    set TCLSRCDIR [$TCLOBJ define get srcroot]
-    set TKSRCDIR [$TKOBJ define get srcroot]
+    set TCLSRCDIR [$TCLOBJ define get srcdir]
+    set TKSRCDIR [$TKOBJ define get srcdir]
     set PKG_OBJS {}
     foreach item [$PROJECT link list package] {
       if {[string is true [$item define get static]]} {
@@ -3718,13 +3728,8 @@ char *
       # The Odie project maintains a mirror of the version
       # released with the Tcl core
       my define set tip_430 0
-      my add_project odie {
-        tag trunk
-        class subproject
-        vfsinstall 0
-      }
-      my project odie unpack
-      set ODIESRCROOT [my project odie define get srcroot]
+      ::practcl::LOCAL tool tip_430 load
+      set ODIESRCROOT [::practcl::LOCAL tool tip_430 define get srcdir]
       set cdir [file join $ODIESRCROOT compat zipfs]
       my define add include_dir $cdir
       set zipfs [file join $cdir zvfs.c]
@@ -3751,9 +3756,9 @@ char *
     }
     foreach item [my link list core.library] {
       set name  [$item define get name]
-      set libsrcroot [$item define get srcroot]
-      if {[file exists [file join $libsrcroot library]]} {
-        ::practcl::copyDir [file join $libsrcroot library] [file join $vfspath boot $name]
+      set libsrcdir [$item define get srcdir]
+      if {[file exists [file join $libsrcdir library]]} {
+        ::practcl::copyDir [file join $libsrcdir library] [file join $vfspath boot $name]
       }
     }
     # Assume the user will populate the VFS path
@@ -3784,7 +3789,7 @@ char *
     }
     close $fout
     ::practcl::mkzip ${exename}${EXEEXT} $tclkit_bare $vfspath
-    if { [my define get platform] ne "windows" } {
+    if { [my define get TEACUP_OS] ne "windows" } {
       file attributes ${exename}${EXEEXT} -permissions a+x
     }
   }
@@ -3817,26 +3822,26 @@ oo::class create ::practcl::distribution {
     return $sandbox
   }
   
-  method SrcRoot {} {
+  method SrcDir {} {
     set pkg [my define get name]
-    if {[my define exists srcroot]} {
-      return [my define get srcroot]
+    if {[my define exists srcdir]} {
+      return [my define get srcdir]
     }
     set sandbox [my Sandbox]
-    set srcroot [file join [my Sandbox] $pkg]
-    my define set srcroot $srcroot
-    return $srcroot
+    set srcdir [file join [my Sandbox] $pkg]
+    my define set srcdir $srcdir
+    return $srcdir
   }
   
   method ScmSelect {} {
     if {[my define exists scm]} {
       return [my define get scm]
     }
-    set srcroot [my SrcRoot]
+    set srcdir [my SrcDir]
     set classprefix ::practcl::distribution.
-    if {[file exists $srcroot]} {
+    if {[file exists $srcdir]} {
       foreach class [::info commands ${classprefix}*] {
-        if {[$class claim_path $srcroot]} {
+        if {[$class claim_path $srcdir]} {
           oo::objdefine [self] mixin $class
           my define set scm [string range $class [string length ::practcl::distribution.] end]
         }
@@ -3861,8 +3866,8 @@ oo::class create ::practcl::distribution {
 
   method unpack {} {
     my ScmSelect
-    set srcroot [my SrcRoot]
-    if {[file exists $srcroot]} {
+    set srcdir [my SrcDir]
+    if {[file exists $srcdir]} {
       return
     }   
     set pkg [my define get name]
@@ -3871,7 +3876,7 @@ oo::class create ::practcl::distribution {
       set download [my define get download]
       if {[file exists [file join $download $pkg.zip]]} {
         ::practcl::tcllib_require zipfile::decode
-        ::zipfile::decode::unzipfile [file join $download $pkg.zip] $srcroot
+        ::zipfile::decode::unzipfile [file join $download $pkg.zip] $srcdir
         return
       }
     }
@@ -3900,11 +3905,11 @@ oo::class create ::practcl::distribution.fossil {
   
   # Clone the source
   method ScmClone  {} {
-    set srcroot [my SrcRoot]
-    if {[file exists [file join $srcroot .fslckout]]} {
+    set srcdir [my SrcDir]
+    if {[file exists [file join $srcdir .fslckout]]} {
       return
     }
-    if {[file exists [file join $srcroot _FOSSIL_]]} {
+    if {[file exists [file join $srcdir _FOSSIL_]]} {
       return
     }
     if {![::info exists ::practcl::fossil_dbs]} {
@@ -3972,18 +3977,18 @@ oo::class create ::practcl::distribution.fossil {
   }
   
   method ScmUnpack {} {
-    set srcroot [my SrcRoot]
-    if {[file exists [file join $srcroot .fslckout]]} {
+    set srcdir [my SrcDir]
+    if {[file exists [file join $srcdir .fslckout]]} {
       return 0
     }
-    if {[file exists [file join $srcroot _FOSSIL_]]} {
+    if {[file exists [file join $srcdir _FOSSIL_]]} {
       return 0
     }
     set CWD [pwd]
     set fosdb [my ScmClone]
     set tag [my ScmTag]
-    file mkdir $srcroot
-    ::practcl::fossil $srcroot open $fosdb $tag
+    file mkdir $srcdir
+    ::practcl::fossil $srcdir open $fosdb $tag
     return 1
   }
   
@@ -3991,9 +3996,9 @@ oo::class create ::practcl::distribution.fossil {
     if {[my ScmUnpack]} {
       return
     }
-    set srcroot [my SrcRoot]
+    set srcdir [my SrcDir]
     set tag [my ScmTag]
-    ::practcl::fossil $srcroot update $tag
+    ::practcl::fossil $srcdir update $tag
   }
 }
 oo::objdefine ::practcl::distribution.fossil {
@@ -4011,7 +4016,7 @@ oo::objdefine ::practcl::distribution.fossil {
   
   # Check for markers in the metadata
   method claim_object obj {
-    set path [$obj define get srcroot]
+    set path [$obj define get srcdir]
     if {[my claim_path $path]} {
       return true
     }
@@ -4038,17 +4043,17 @@ oo::class create ::practcl::distribution.git {
   }
   
   method ScmUnpack {} {
-    set srcroot [my SrcRoot]
-    if {[file exists [file join $srcroot .git]]} {
+    set srcdir [my SrcDir]
+    if {[file exists [file join $srcdir .git]]} {
       return 0
     }
     set CWD [pwd]
     set tag [my ScmTag]
     set pkg [my define get name]
     if {[my define exists git_url]} {
-      ::practcl::doexec git clone --branch $tag [my define get git_url] $srcroot
+      ::practcl::doexec git clone --branch $tag [my define get git_url] $srcdir
     } else {
-      ::practcl::doexec git clone --branch $tag https://github.com/eviltwinskippy/$pkg $srcroot
+      ::practcl::doexec git clone --branch $tag https://github.com/eviltwinskippy/$pkg $srcdir
     }
     return 1
   }
@@ -4057,9 +4062,9 @@ oo::class create ::practcl::distribution.git {
     if {[my ScmUnpack]} {
       return
     }
-    set srcroot [my SrcRoot]
+    set srcdir [my SrcDir]
     set tag [my ScmTag]
-    ::practcl::doexec_in $srcroot git pull $tag
+    ::practcl::doexec_in $srcdir git pull $tag
     cd $CWD
   }
 
@@ -4072,7 +4077,7 @@ oo::objdefine ::practcl::distribution.git {
     return false
   }
   method claim_object obj {
-    set path [$obj define get srcroot]
+    set path [$obj define get srcdir]
     if {[my claim_path $path]} {
       return true
     }
@@ -4092,13 +4097,23 @@ oo::class create ::practcl::subproject {
   
   method compile {} {}
     
+  method critcl args {
+    if {![info exists critcl]} {
+      ::pratcl::LOCAL tool critcl load
+      set critcl [file join [::pratcl::LOCAL tool critcl define get srcdir] main.tcl
+    }
+    set srcdir [my SourceRoot]
+    set PWD [pwd]
+    cd $srcdir
+    ::pratcl::dotclexec $critcl {*}$args
+    cd $PWD
+  }
+  
   method go {} {
-    set platform [my <project> define get platform]
-    my define get USEMSVC [my <project> define get USEMSVC]
     set name [my define get name]
-    set srcroot [my SrcRoot]
-    my define set localsrcdir $srcroot
-    my define add include_dir [file join $srcroot generic]
+    set srcdir [my SrcDir]
+    my define set localsrcdir $srcdir
+    my define add include_dir [file join $srcdir generic]
     my sources
   }
     
@@ -4108,7 +4123,7 @@ oo::class create ::practcl::subproject {
   }
 
   # Install project into the virtual file system
-  method install-vfs args {}  
+  method install-vfs {{path {}}} {}
   
   method linktype {} {
     return {subordinate package}
@@ -4146,19 +4161,57 @@ oo::class create ::practcl::subproject.teapot {
     my install-vfs
   }
 
-  method install-vfs {{path {}}} {
+  method install-vfs {{DEST {}}} {
     set pkg [my define get pkg_name [my define get name]]
     set download [my <project> define get download]
     my unpack
     ::practcl::package_require tcllib zipfile::decode
-    #if {$path eq {}} 
-    set DEST [my <project> define get installdir]
+    if {$DEST in {{} AUTO LOCAL}} {
+      set DEST [my <project> define get installdir]
+    }
     set prefix [string trimleft [my <project> define get prefix] /]
   
     ::practcl::tcllib_require zipfile::decode
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $DEST $prefix lib $pkg]
   }
 }
+
+oo::class create ::practcl::subproject.kettle {
+  superclass ::practcl::subproject
+
+  method install-local {} {
+    my install-vfs
+  }
+  
+  method kettle {path args} {
+    my variable kettle
+    if {![info exists kettle]} {
+      ::pratcl::LOCAL tool kettle load
+      set kettle [file join [::pratcl::LOCAL tool kettle define get srcdir] kettle]
+    }
+    set srcdir [my SourceRoot]
+    ::pratcl::dotclexec $kettle -f [file join $srcdir build.tcl] {*}$args
+  }
+  
+  method install-vfs {{path {}}} {
+    my kettle reinstall --prefix $path
+  }
+}
+
+oo::class create ::practcl::subproject.critcl {
+  superclass ::practcl::subproject
+  
+  method install-local {} {
+    my install-vfs
+  }
+
+  method install-vfs {{path {}}} {
+    my critcl -pkg [my define get name]
+    set srcdir [my SourceRoot]
+    ::pratcl::copyDir [file join $srcdir [my define get name]] [file join $path lib [my define get name]]
+  }
+}
+
 
 oo::class create ::practcl::subproject.sak {
   superclass ::practcl::subproject
@@ -4167,16 +4220,18 @@ oo::class create ::practcl::subproject.sak {
     my install-vfs
   }
 
-  method install-vfs {} {
+  method install-vfs {{DEST {}}} {
     ###
     # Handle teapot installs
     ###
     set pkg [my define get pkg_name [my define get name]]
     my unpack
-    set DEST [my <project> define get installdir]
+    if {$DEST in {{} AUTO LOCAL}} {
+      set DEST [my <project> define get installdir]
+    }
     set prefix [string trimleft [my <project> define get prefix] /]
-    set srcroot [my define get srcroot]
-    ::practcl::dotclexec [file join $srcroot installer.tcl] \
+    set srcdir [my define get srcdir]
+    ::practcl::dotclexec [file join $srcdir installer.tcl] \
       -pkg-path [file join $DEST $prefix lib $pkg]  \
       -no-examples -no-html -no-nroff \
       -no-wait -no-gui -no-apps
@@ -4205,6 +4260,10 @@ oo::class create ::practcl::subproject.binary {
       lappend opts --with-tclsh=[info nameofexecutable]
     }
     if {[my <project> define exists tclsrcdir]} {
+      ###
+      # On Windows we are probably running under MSYS, which doesn't deal with
+      # spaces in filename well
+      ###
       set TCLSRCDIR  [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tclsrcdir]]]]
       set TCLGENERIC [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tclsrcdir] .. generic]]]
       lappend opts --with-tcl=$TCLSRCDIR --with-tclinclude=$TCLGENERIC 
@@ -4288,20 +4347,20 @@ oo::class create ::practcl::subproject.binary {
     set PWD $::CWD
     cd $PWD
     my unpack
-    set srcroot [file normalize [my SrcRoot]]
+    set srcdir [file normalize [my SrcDir]]
     my Collate_Source $PWD
 
     ###
     # Build a starter VFS for both Tcl and wish
     ###
-    set srcroot [my define get srcroot]
+    set srcdir [my define get srcdir]
     if {[my define get static 1]} {
-      puts "BUILDING Static $name $srcroot"
+      puts "BUILDING Static $name $srcdir"
     } else {
-      puts "BUILDING Dynamic $name $srcroot"
+      puts "BUILDING Dynamic $name $srcdir"
     }
     if {[my define get USEMSVC 0]} {
-      cd $srcroot
+      cd $srcdir
       ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
     } else {
       cd $::CWD
@@ -4322,18 +4381,26 @@ oo::class create ::practcl::subproject.binary {
   method Configure {} {
     cd $::CWD
     my unpack
-    set srcroot [file normalize [my define get srcroot]]
+    set srcdir [file normalize [my define get srcdir]]
     set builddir [file normalize [my define get builddir]]
     file mkdir $builddir
     if {[my define get USEMSVC 0]} {
       return
     }
-    if {![file exists [file join $srcroot tclconfig install-sh]]} {
+    if {![file exists [file join $srcdir tclconfig install-sh]]} {
       # ensure we have tclconfig with all of the trimmings
-      set tclConfigObj [::practcl::LOCAL tool tclconfig]
-      $tclConfigObj load
-      if {[catch {file link -symbolic [file join $srcroot tclconfig] [$tclConfigObj define get srcroot]}]} {
-        ::practcl::copyDir [dict get $tclconfiginfo srcroot] [file join $srcroot tclconfig]
+      set teapath {}
+      if {[file exists [file join $srcdir .. tclconfig install-sh]]} {
+        set teapath [file join $srcdir .. tclconfig]
+      } else {
+        set tclConfigObj [::practcl::LOCAL tool tclconfig]
+        $tclConfigObj load
+        set teapath [$tclConfigObj define get srcdir]
+      }
+      set teapath [file normalize $teapath]
+      #file mkdir [file join $srcdir tclconfig]
+      if {[catch {file link -symbolic [file join $srcdir tclconfig] $teapath}]} {
+        ::practcl::copyDir [file join $teapath] [file join $srcdir tclconfig]
       }
     }
     set opts [my ConfigureOpts]
@@ -4342,11 +4409,11 @@ oo::class create ::practcl::subproject.binary {
     if {[my <project> define get CONFIG_SITE] ne {}} {
       set ::env(CONFIG_SITE) [my <project> define get CONFIG_SITE]
     }
-    exec sh [file join $srcroot configure] {*}$opts >& [file join $builddir practcl.log]
+    exec sh [file join $srcdir configure] {*}$opts >& [file join $builddir practcl.log]
     cd $::CWD
   }
   
-  method install-vfs {} {
+  method install-vfs {{path {}}} {
     set PWD [pwd]
     set PKGROOT [my <project> define get installdir]
     set PREFIX  [my <project> define get prefix]
@@ -4369,8 +4436,8 @@ oo::class create ::practcl::subproject.binary {
     }
     my compile
     if {[my define get USEMSVC 0]} {
-      set srcroot [my define get srcroot]
-      cd $srcroot
+      set srcdir [my define get srcdir]
+      cd $srcdir
       puts "[self] VFS INSTALL $PKGROOT"
       ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$PKGROOT install
     } else {
@@ -4405,13 +4472,13 @@ oo::class create ::practcl::subproject.binary {
     # Not a good idea in practice... but in the right hands it can be useful
     ###
     set pwd [pwd]
-    set srcroot [file normalize [my define get srcroot]]
-    cd $srcroot
+    set srcdir [file normalize [my define get srcdir]]
+    cd $srcdir
     foreach template {configure.ac configure.in} {
-      set input [file join $srcroot $template]
+      set input [file join $srcdir $template]
       if {[file exists $input]} {
-        puts "autoconf -f $input > [file join $srcroot configure]"
-        exec autoconf -f $input > [file join $srcroot configure]
+        puts "autoconf -f $input > [file join $srcdir configure]"
+        exec autoconf -f $input > [file join $srcdir configure]
       }
     }
     cd $pwd
@@ -4459,17 +4526,17 @@ oo::class create ::practcl::subproject.core {
   
   method go {} {
     set name [my define get name]
-    set platform [my <project> define get platform]
-    set srcroot [my SrcRoot]
-    my define add include_dir [file join $srcroot generic]
-    switch $platform {
+    set os [my <project> define get TEACUP_OS]
+    set srcdir [my SrcDir]
+    my define add include_dir [file join $srcdir generic]
+    switch $os {
       windows {
-        my define set localsrcdir [file join $srcroot win]
-        my define add include_dir [file join $srcroot win]
+        my define set localsrcdir [file join $srcdir win]
+        my define add include_dir [file join $srcdir win]
       }
       default {
-        my define set localsrcdir [file join $srcroot unix]
-        my define add include_dir [file join $srcroot $name unix]
+        my define set localsrcdir [file join $srcdir unix]
+        my define add include_dir [file join $srcdir $name unix]
       }
     }
     my define set builddir [my BuildDir [my define get masterpath]]
@@ -4488,21 +4555,33 @@ oo::class create ::practcl::subproject.core {
 oo::class create ::practcl::tool {
   superclass ::practcl::object ::practcl::distribution
 
+  method critcl args {
+    if {![info exists critcl]} {
+      ::pratcl::LOCAL tool critcl load
+      set critcl [file join [::pratcl::LOCAL tool critcl define get srcdir] main.tcl
+    }
+    set srcdir [my SourceRoot]
+    set PWD [pwd]
+    cd $srcdir
+    ::pratcl::dotclexec $critcl {*}$args
+    cd $PWD
+  }
+  
   method SourceRoot {} {
     set info [my define dump]
     set result $info
-    if {![my define exists srcroot]} {
-      if {[dict exists $info srcroot]} {
-        set srcroot [dict get $info srcroot]
+    if {![my define exists srcdir]} {
+      if {[dict exists $info srcdir]} {
+        set srcdir [dict get $info srcdir]
       } elseif {[dict exists $info sandbox]} {
-        set srcroot [file join [dict get $info sandbox] $pkg]
+        set srcdir [file join [dict get $info sandbox] $pkg]
       } else {
-        set srcroot [file join $::CWD .. $pkg]
+        set srcdir [file join $::CWD .. $pkg]
       }
-      dict set result srcroot $srcroot
-      my define set srcroot $srcroot
+      dict set result srcdir $srcdir
+      my define set srcdir $srcdir
     }
-    return [my define get srcroot]
+    return [my define get srcdir]
   }
 
   method linktype {} {
@@ -4528,41 +4607,41 @@ oo::class create ::practcl::tool {
     if {![my present]} {
       my install
     }
+    my LocalLoad
     set loaded 1
   }
+  
+  method LocalLoad {} {}
 }
 
 oo::class create ::practcl::tool.source {
   superclass ::practcl::tool
 
   method present {} {
-    return [file exists [my define get srcroot]]
+    return [file exists [my define get srcdir]]
+  }
+  
+  method toplevel_script {} {
+    my load
+    return [file join [my SourceRoot] [my define get toplevel_script]]
   }
 
-  method load {} {
-    my variable loaded
-    if {[info exists loaded]} {
-      return 0
-    }
-    if {![my present]} {
-      my install
-    }
-    set LibraryRoot [file join [my define get srcroot] [my define get module_root modules]]
+  method LocalLoad {} {
+    set LibraryRoot [file join [my define get srcdir] [my define get module_root modules]]
     if {[file exists $LibraryRoot] && $LibraryRoot ni $::auto_path} {
       set ::auto_path [linsert $::auto_path 0 $LibraryRoot]
     }
-    set loaded 1
   }
 }
 
 ###
 # Create an object to represent the local environment
 ###
+set ::practcl::MAIN ::practcl::LOCAL
 ::practcl::project create ::practcl::LOCAL
 ::practcl::LOCAL define set [::practcl::local_os]
 # Until something better comes along, use ::practcl::LOCAL
 # as our main project
-set ::practcl::MAIN ::practcl::LOCAL
 # Add tclconfig as a project of record
 ::practcl::LOCAL add_tool tclconfig {
   tag trunk class tool.source fossil_url http://core.tcl.tk/tclconfig
@@ -4571,5 +4650,15 @@ set ::practcl::MAIN ::practcl::LOCAL
 ::practcl::LOCAL add_tool tcllib {
   tag trunk class tool.source fossil_url http://core.tcl.tk/tcllib
 }
-
+::practcl::LOCAL add_tool kettle {
+  tag trunk class tool.source fossil_url http://fossil.etoyoc.com/fossil/kettle
+}
+::practcl::LOCAL add_tool critcl {
+  tag trunk class tool.source
+  git_url http://github.com/andreas-kupries/critcl
+}
+# Standalone TIP#430 Implementaion
+::practcl::LOCAL add_tool tip_430 {
+  tag trunk class tool.source fossil_url http://fossil.etoyoc.com/fossil/odie
+}
 package provide practcl 0.7

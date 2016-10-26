@@ -18,6 +18,7 @@ dnl TEA_VERSION="3.10"
 # Possible values for key variables defined:
 #
 # TEA_WINDOWINGSYSTEM - win32 aqua x11 (mirrors 'tk windowingsystem')
+# PRACTCL_WINDOWINGSYSTEM - windows cocoa hitheme x11 sdl
 # TEA_PLATFORM        - windows unix
 # TEA_TK_EXTENSION    - True if this is a Tk extension
 # TEACUP_OS           - windows macosx linux generic
@@ -528,18 +529,42 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
     eval "TK_STUB_LIB_SPEC=\"${TK_STUB_LIB_SPEC}\""
 
     # TEA specific: Ensure windowingsystem is defined
-    if test "${TEA_PLATFORM}" = "unix" ; then
+    case ${TK_DEFS} in
+	*PLATFORM_SDL*)
+	    TEA_WINDOWINGSYSTEM="x11"
+            PRACTCL_WINDOWINGSYSTEM="sdl"
+	    TEA_USE_SDL=yes
+	    ;;
+    esac
+    if test "${TEA_USE_SDL}" = "yes" ; then
+	true
+    elif test "${TEA_PLATFORM}" = "unix" ; then
 	case ${TK_DEFS} in
 	    *MAC_OSX_TK*)
-		AC_DEFINE(MAC_OSX_TK, 1, [Are we building against Mac OS X TkAqua?])
+		AC_DEFINE(MAC_OSX_TK, 1, [Are we building against Mac OS X Cocoa?])
 		TEA_WINDOWINGSYSTEM="aqua"
+                PRACTCL_WINDOWINGSYSTEM="cocoa"
+                TEA_USE_HITHEME=no;
+                if test "${TK_VERSION}" = "8.5" ; then
+                  if test "${TK_PATCH_LEVEL}" > ".17" ; then
+                    TEA_USE_HITHEME=yes;
+                  fi
+                elif test "${TK_VERSION}" = "8.6" ; then
+                  if test "${TK_PATCH_LEVEL}" > ".3" ; then
+                    TEA_USE_HITHEME=yes;
+                  fi
+                elif test "${TK_VERSION}" > "8.6" ; then
+                    TEA_USE_HITHEME=yes;
+                fi 
 		;;
 	    *)
 		TEA_WINDOWINGSYSTEM="x11"
+                PRACTCL_WINDOWINGSYSTEM="x11"
 		;;
 	esac
     elif test "${TEA_PLATFORM}" = "windows" ; then
 	TEA_WINDOWINGSYSTEM="win32"
+        PRACTCL_WINDOWINGSYSTEM="windows"
     fi
 
     AC_SUBST(TK_VERSION)
@@ -557,6 +582,8 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
     # TEA specific:
     AC_SUBST(TK_LIBS)
     AC_SUBST(TK_XINCLUDES)
+    # Practcl
+    AC_SUBST(PRACTCL_WINDOWINGSYSTEM)
 ])
 
 #------------------------------------------------------------------------
@@ -2464,7 +2491,7 @@ closedir(d);
 #--------------------------------------------------------------------
 
 AC_DEFUN([TEA_PATH_X], [
-    if test "${TEA_WINDOWINGSYSTEM}" = "x11" ; then
+    if test "${PRACTCL_WINDOWINGSYSTEM}" = "x11" ; then
 	TEA_PATH_UNIX_X
     fi
 ])
@@ -3837,12 +3864,24 @@ AC_DEFUN([TEA_PRIVATE_TK_HEADERS], [
 	if test -d "${TK_SRC_DIR}/generic/ttk"; then
 	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_SRC_DIR_NATIVE}/generic/ttk\""
 	fi
-	if test "${TEA_WINDOWINGSYSTEM}" != "x11"; then
+        case ${PRACTCL_WINDOWINGSYSTEM} in
+          cocoa)
 	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_XLIB_DIR_NATIVE}\""
-	fi
-	if test "${TEA_WINDOWINGSYSTEM}" = "aqua"; then
 	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_SRC_DIR_NATIVE}/macosx\""
-	fi
+            ;;
+          hitheme)
+	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_XLIB_DIR_NATIVE}\""
+	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_SRC_DIR_NATIVE}/macosx\""
+            ;;
+          sdl)
+	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_XLIB_DIR_NATIVE}\""
+            ;;
+          x11)
+            ;;
+          *)
+	   TK_INCLUDES="${TK_INCLUDES} -I\"${TK_XLIB_DIR_NATIVE}\""
+            ;;
+        esac
 	if test "`uname -s`" = "Darwin"; then
 	    # If Tk was built as a framework, attempt to use
 	    # the framework's Headers and PrivateHeaders directories
@@ -3967,7 +4006,7 @@ AC_DEFUN([TEA_PUBLIC_TK_HEADERS], [
 
     AC_SUBST(TK_INCLUDES)
 
-    if test "${TEA_WINDOWINGSYSTEM}" != "x11"; then
+    if test "${PRACTCL_WINDOWINGSYSTEM}" != "x11"; then
 	# On Windows and Aqua, we need the X compat headers
 	AC_MSG_CHECKING([for X11 header files])
 	if test ! -r "${INCLUDE_DIR_NATIVE}/X11/Xlib.h"; then

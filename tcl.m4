@@ -1377,7 +1377,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 		SHLIB_LD='${CC} -shared'
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
-  	PRACTCL_UNSHARED_LIB_SUFFIX='.a'
+		PRACTCL_UNSHARED_LIB_SUFFIX='.a'
 
 		LDFLAGS_CONSOLE="-wl,--subsystem,console ${lflags}"
 		LDFLAGS_WINDOW="-wl,--subsystem,windows ${lflags}"
@@ -3209,8 +3209,12 @@ AC_DEFUN([TEA_ADD_LIBS], [
     vars="$@"
     for i in $vars; do
 	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
-	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
-	    i=`echo "$i" | sed -e 's/^\([[^-]].*\)\.lib[$]/-l\1/i'`
+          case $i in
+            *.lib)
+              # Convert foo.lib to -lfoo for GCC
+                i=-l`echo "$i" | sed -e 's/\.[[^.]]*$//' -e 's/\.lib.*//'`
+            ;;
+          esac
 	fi
 	PKG_LIBS="$PKG_LIBS $i"
     done
@@ -4310,90 +4314,102 @@ AC_DEFUN([TEA_PATH_CELIB], [
 # Arguments:
 #	none
 AC_DEFUN([TEA_CONFIG_TEAPOT], [
-        AC_REQUIRE([TEA_INIT])
-        AC_REQUIRE([TEA_CONFIG_SYSTEM])
-	TEACUP_OS=$system
-	TEACUP_ARCH="unknown"
-	TEACUP_TOOLSET="gcc"
-	TEACUP_PROFILE="unknown"
-	arch="unknown"
-	if test "${TEA_PLATFORM}" = "windows" ; then
-		if test "$GCC" = "yes" ; then
-			TEACUP_TOOLSET="gcc"
-		else
-			TEACUP_TOOLSET="msvc"
-		fi
-		if test "$do64bit" != "no" ; then
- 		  case "$do64bit" in
-		    amd64|x64|yes)
-					arch="x86_64"
-					TEACUP_PROFILE="win32-x86_64"
-				;;
-				ia64)
-					arch="ia64"
-					TEACUP_PROFILE="win32-ia64"
-				;;
-			esac
-		else
-			arch="ix86"
-			TEACUP_PROFILE="win32-ix86"
-		fi
-	else
-    case $system in
-			Linux*)
-				TEACUP_OS="linux"
-				arch=`uname -m`
-				TEACUP_PROFILE="linux-glibc2.3-$arch"
-			;;
-			GNU*)
-				TEACUP_OS="gnu"
-				arch=`uname -m`
-			;;
-			NetBSD-Debian)
-				TEACUP_OS="netbsd-debian"
-				arch=`uname -m`
-			;;
-			OpenBSD-*)
-				TEACUP_OS="openbsd"
-				arch=`arch -s`
-			;;
-			Darwin*)
-				TEACUP_OS="macosx"
-				TEACUP_PROFILE="macosx-universal"
-				arch=`uname -m`
-				if test $arch = "x86_64"; then
-					TEACUP_PROFILE="macosx10.5-i386-x86_84"
-				fi
-			;;
-			OpenBSD*)
-				TEACUP_OS="openbsd"
-				arch=`arch -s`
-			;;
-		esac
-	fi
-	TEACUP_ARCH=$arch
-	if test "$TEACUP_PROFILE" = "unknown"; then
-		if test $arch = "unknown"; then
-		  arch=`uname -m`
-		fi
-		case $arch in
-			i*86)
-				arch="ix86"
-			;;
-			amd64)
-				arch="x86_64"
-			;;
-		esac
-		TEACUP_PROFILE="$TEACUP_OS-$arch"
-	fi
-	TEA_SYSTEM=$system
-	AC_SUBST(TEA_SYSTEM)
+  AC_REQUIRE([TEA_INIT])
+  AC_REQUIRE([TEA_CONFIG_SYSTEM])
+  TEACUP_OS=$system
+  TEACUP_ARCH="unknown"
+  TEACUP_TOOLSET="gcc"
+  TEACUP_PROFILE="unknown"
+  arch="unknown"
+  case ${host_alias} in
+    *mingw32*)
+      arch="ix86"
+      TEACUP_PROFILE="win32-ix86"
+    ;;
+    *mingw64*)
+      arch="x86_64"
+      TEACUP_PROFILE="win32-x86_64"
+    ;;
+  esac
+  if test "${arch}" = "unknown" ; then
+    if test "${TEA_PLATFORM}" = "windows" ; then
+      if test "$GCC" = "yes" ; then
+        TEACUP_TOOLSET="gcc"
+      else
+        TEACUP_TOOLSET="msvc"
+      fi
+      if test "$do64bit" != "no" ; then
+        case "$do64bit" in
+          amd64|x64|yes)
+            arch="x86_64"
+            TEACUP_PROFILE="win32-x86_64"
+          ;;
+          ia64)
+            arch="ia64"
+            TEACUP_PROFILE="win32-ia64"
+          ;;
+        esac
+      else
+        arch="ix86"
+        TEACUP_PROFILE="win32-ix86"
+      fi
+    else
+      case $system in
+        Linux*)
+                TEACUP_OS="linux"
+                arch=`uname -m`
+                TEACUP_PROFILE="linux-glibc2.3-$arch"
+        ;;
+        GNU*)
+                TEACUP_OS="gnu"
+                arch=`uname -m`
+        ;;
+        NetBSD-Debian)
+                TEACUP_OS="netbsd-debian"
+                arch=`uname -m`
+        ;;
+        OpenBSD-*)
+                TEACUP_OS="openbsd"
+                arch=`arch -s`
+        ;;
+        Darwin*)
+                TEACUP_OS="macosx"
+                TEACUP_PROFILE="macosx-universal"
+                arch=`uname -m`
+                if test $arch = "x86_64"; then
+                        TEACUP_PROFILE="macosx10.5-i386-x86_84"
+                fi
+        ;;
+        OpenBSD*)
+                TEACUP_OS="openbsd"
+                arch=`arch -s`
+        ;;
+      esac
+    fi
+  fi
+  TEACUP_ARCH=$arch
+  if test "$TEACUP_PROFILE" = "unknown"; then
+    if test $arch = "unknown"; then
+      arch=`uname -m`
+    fi
+    case $arch in
+      i*86)
+        arch="ix86"
+      ;;
+      amd64)
+        arch="x86_64"
+      ;;
+    esac
+    TEACUP_PROFILE="$TEACUP_OS-$arch"
+  fi
+  TEA_SYSTEM=$system
+  AC_SUBST(TEA_SYSTEM)
   AC_SUBST(TEA_PLATFORM)
   AC_SUBST(TEA_WINDOWINGSYSTEM)
-	AC_SUBST(TEACUP_OS)
-	AC_SUBST(TEACUP_ARCH)
-	AC_SUBST(TEACUP_TOOLSET)
-	AC_SUBST(TEACUP_PROFILE)
+  AC_SUBST(TEACUP_OS)
+  AC_SUBST(TEACUP_ARCH)
+  AC_SUBST(TEACUP_TOOLSET)
+  AC_SUBST(TEACUP_PROFILE)
 ])
 
 # Local Variables:

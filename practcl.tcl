@@ -307,7 +307,8 @@ proc ::practcl::config.tcl {path} {
       dict set cresult sandbox  [file dirname [dict get $cresult srcdir]]
     }
     set result [dict merge $result [::practcl::de_shell $cresult]]
-  } elseif {[file exists [file join $path config.site]]} {
+  }
+  if {[file exists [file join $path config.site]]} {
     # No config.tcl file is present but we do seed 
     dict set result USEMSVC 0
     foreach {f v} [::practcl::de_shell [::practcl::read_sh_file [file join $path config.site]]] {
@@ -4247,7 +4248,6 @@ oo::class create ::practcl::subproject.binary {
   method ConfigureOpts {} {
     set opts {}
     set builddir [my define get builddir]
-    set config.site [my <project> define get config.site]
     if {[my define get broken_destroot 0]} {
       set PREFIX [my <project> define get prefix_broken_destdir]
     } else {

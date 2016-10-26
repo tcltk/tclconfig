@@ -2,7 +2,6 @@
 # Practcl
 # An object oriented templating system for stamping out Tcl API calls to C
 ###
-puts [list LOADED practcl.tcl from [info script]]
 package require TclOO
 ###
 # Seek out Tcllib if it's available
@@ -20,6 +19,51 @@ foreach path {.. ../.. ../../..} {
 ###
 # Build utility functions
 ###
+
+
+###
+# Extend http to follow redirects (ala Sourceforge downloads)
+###
+namespace eval ::http {}
+proc ::http::_followRedirects {url args} {
+  while 1 {
+    set token [geturl $url -validate 1]
+    set ncode [ncode $token]
+    if { $ncode eq "404" } {
+      error "URL Not found"
+    }
+    switch -glob $ncode {
+      30[1237] {### redirect - see below ###}
+      default  {cleanup $token ; return $url}
+    }
+    upvar #0 $token state
+    array set meta [set ${token}(meta)]
+    cleanup $token
+    if {![info exists meta(Location)]} {
+      return $url
+    }
+    set url $meta(Location)
+    unset meta
+  }
+  return $url
+}
+
+proc ::http::wget {url destfile {verbose 1}} {
+  package require http
+  set tmpchan [open $destfile w]
+  fconfigure $tmpchan -translation binary
+  if { $verbose } {
+    puts [list  GETTING [file tail $destfile] from $url]
+  }
+  set real_url [_followRedirects $url]
+  set token [geturl $real_url -channel $tmpchan -binary yes]
+  if {[ncode $token] != "200"} {
+    error "DOWNLOAD FAILED"
+  }
+  cleanup $token
+  close $tmpchan
+}
+
 namespace eval ::practcl {}
 
 ###
@@ -3910,7 +3954,6 @@ oo::objdefine ::practcl::distribution {
   }
 }
 
-
 oo::class create ::practcl::distribution.fossil {
   superclass ::practcl::distribution
   
@@ -4012,6 +4055,7 @@ oo::class create ::practcl::distribution.fossil {
     ::practcl::fossil $srcdir update $tag
   }
 }
+
 oo::objdefine ::practcl::distribution.fossil {
   
   # Check for markers in the source root
@@ -4171,7 +4215,6 @@ oo::class create ::practcl::subproject.teapot {
     set pkg [my define get pkg_name [my define get name]]
     set download [my <project> define get download]
     my unpack
-    ::practcl::package_require tcllib zipfile::decode
     set prefix [string trimleft [my <project> define get prefix] /]
     ::practcl::tcllib_require zipfile::decode
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $DEST $prefix lib $pkg]

@@ -4315,7 +4315,9 @@ oo::class create ::practcl::subproject.binary {
       lappend opts --with-tk=$TKSRCDIR --with-tkinclude=$TKGENERIC
     }
     lappend opts {*}[my define get config_opts]
-    lappend opts --prefix=$PREFIX
+    if {![regexp -- "--prefix" $opts]} {
+      lappend opts --prefix=$PREFIX
+    }
     #--exec_prefix=$PREFIX
     #if {$::tcl_platform(platform) eq "windows"} {
     #  lappend opts --disable-64bit
@@ -4450,7 +4452,7 @@ oo::class create ::practcl::subproject.binary {
     if {[my <project> define get CONFIG_SITE] ne {}} {
       set ::env(CONFIG_SITE) [my <project> define get CONFIG_SITE]
     }
-    exec sh [file join $srcdir configure] {*}$opts >& [file join $builddir practcl.log]
+    catch {exec sh [file join $srcdir configure] {*}$opts >& [file join $builddir practcl.log]}
     cd $::CWD
   }
   
@@ -4545,7 +4547,7 @@ oo::class create ::practcl::subproject.core {
     if {[my <project> define get CONFIG_SITE] ne {}} {
       set ::env(CONFIG_SITE) [my <project> define get CONFIG_SITE]
     }
-    exec sh [file join $localsrcdir configure] {*}$opts >& [file join $builddir practcl.log]
+    catch {exec sh [file join $localsrcdir configure] {*}$opts >& [file join $builddir practcl.log]}
   }
 
   method ConfigureOpts {} {
@@ -4557,7 +4559,9 @@ oo::class create ::practcl::subproject.core {
       lappend opts --with-tclsh=[info nameofexecutable]
     }
     lappend opts {*}[my define get config_opts]
-    lappend opts --prefix=$PREFIX
+    if {![regexp -- "--prefix" $opts]} {
+      lappend opts --prefix=$PREFIX
+    }
     #--exec_prefix=$PREFIX
     lappend opts --disable-shared
     return $opts
@@ -4566,6 +4570,7 @@ oo::class create ::practcl::subproject.core {
   method go {} {
     set name [my define get name]
     set os [my <project> define get TEACUP_OS]
+    puts [list [self] PROJECT [my organ project] OS $os]
     set srcdir [my SrcDir]
     my define add include_dir [file join $srcdir generic]
     switch $os {

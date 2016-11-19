@@ -2,6 +2,8 @@
 # Practcl
 # An object oriented templating system for stamping out Tcl API calls to C
 ###
+puts [list LOADED practcl.tcl from [info script]]
+
 package require TclOO
 ###
 # Seek out Tcllib if it's available
@@ -1222,30 +1224,86 @@ proc ::practcl::target {name info} {
 
 ### Batch Tasks
 
-namespace eval ::practcl::build {}
-
-## method DEFS
-# This method populates 4 variables:
-# name - The name of the package
-# version - The version of the package
-# defs - C flags passed to the compiler
-# includedir - A list of paths to feed to the compiler for finding headers
-#
-proc ::practcl::build::DEFS {PROJECT DEFS namevar versionvar defsvar} {
-  upvar 1 $namevar name $versionvar version NAME NAME $defsvar defs
-  set name [string tolower [${PROJECT} define get name [${PROJECT} define get pkg_name]]]
-  set NAME [string toupper $name]
-  set version [${PROJECT} define get version [${PROJECT} define get pkg_vers]]
-  if {$version eq {}} {
-    set version 0.1a
+proc ::practcl::de_shell {data} {
+  set values {}
+  foreach flag {DEFS TCL_DEFS TK_DEFS} {
+    if {[dict exists $data $flag]} {
+      #set value {}
+      #foreach item [dict get $data $flag] {
+      #  append value " " [string map {{ } {\ }} $item]
+      #}
+      dict set values $flag [dict get $data $flag]
+    }
   }
-  set defs $DEFS
-  append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
-  append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
-  return $defs
-}
+  set map {}
+  lappend map {${PKG_OBJECTS}} %LIBRARY_OBJECTS%
+  lappend map {$(PKG_OBJECTS)} %LIBRARY_OBJECTS%
+  lappend map {${PKG_STUB_OBJECTS}} %LIBRARY_STUB_OBJECTS%
+  lappend map {$(PKG_STUB_OBJECTS)} %LIBRARY_STUB_OBJECTS%
   
-proc ::practcl::build::tclkit_main {PROJECT PKG_OBJS} {
+  if {[dict exists $data name]} {
+    lappend map %LIBRARY_NAME% [dict get $data name]   
+    lappend map %LIBRARY_VERSION% [dict get $data version]
+    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} [dict get $data version]]
+    if {[dict exists $data libprefix]} {
+      lappend map %LIBRARY_PREFIX% [dict get $data libprefix]
+    } else {
+      lappend map %LIBRARY_PREFIX% [dict get $data prefix]
+    }
+  }
+  foreach flag [dict keys $data] {
+    if {$flag in {TCL_DEFS TK_DEFS DEFS}} continue
+    set value [string trim [dict get $data $flag] \"]
+    dict set map "\$\{${flag}\}" $value
+    dict set map "\$\(${flag}\)" $value
+    #dict set map "\$${flag}" $value
+    dict set map "%${flag}%" $value
+    dict set values $flag [dict get $data $flag]
+    #dict set map "\$\{${flag}\}" $proj($flag)
+  }
+  set changed 1
+  while {$changed} {
+    set changed 0
+    foreach {field value} $values {
+      if {$field in {TCL_DEFS TK_DEFS DEFS}} continue
+      dict with values {}
+      set newval [string map $map $value]
+      if {$newval eq $value} continue
+      set changed 1
+      dict set values $field $newval
+    }
+  }
+  return $values
+}
+
+###
+# Ancestor-less class intended to be a mixin
+# which defines a family of build related behaviors
+# that are modified when targetting either gcc or msvc
+###
+::oo::class create ::practcl::build {
+  ## method DEFS
+  # This method populates 4 variables:
+  # name - The name of the package
+  # version - The version of the package
+  # defs - C flags passed to the compiler
+  # includedir - A list of paths to feed to the compiler for finding headers
+  #
+  method build-cflags {PROJECT DEFS namevar versionvar defsvar} {
+    upvar 1 $namevar name $versionvar version NAME NAME $defsvar defs
+    set name [string tolower [${PROJECT} define get name [${PROJECT} define get pkg_name]]]
+    set NAME [string toupper $name]
+    set version [${PROJECT} define get version [${PROJECT} define get pkg_vers]]
+    if {$version eq {}} {
+      set version 0.1a
+    }
+    set defs $DEFS
+    append defs " -DPACKAGE_NAME=\"${name}\" -DPACKAGE_VERSION=\"${version}\""
+    append defs " -DPACKAGE_TARNAME=\"${name}\" -DPACKAGE_STRING=\"${name}\x5c\x20${version}\""
+    return $defs
+  }
+  
+  method build-tclkit_main {PROJECT PKG_OBJS} {
   ###
   # Build static package list
   ###
@@ -1383,7 +1441,6 @@ foreach path {
 }])\;"
 
   ::practcl::cputs zvfsboot "  \x7D"
-
   ::practcl::cputs zvfsboot "  return TCL_OK;"
   
   if {[$PROJECT define get TEACUP_OS] eq "windows"} {
@@ -1442,7 +1499,13 @@ if {[file exists [file join $::SRCDIR packages.tcl]]} {
   $PROJECT c_function [string map $map "int %mainfunc%(Tcl_Interp *interp)"] [string map $map $appinit]
 }
 
-proc ::practcl::build::compile-sources {PROJECT COMPILE {CPPCOMPILE {}}} {
+}
+
+
+::oo::class create ::practcl::build.gcc {
+  superclass ::practcl::build
+  
+  method build-compile-sources {PROJECT COMPILE {CPPCOMPILE {}}} {
   set EXTERN_OBJS {}
   set OBJECTS {}
   set result {}
@@ -1528,59 +1591,7 @@ proc ::practcl::build::compile-sources {PROJECT COMPILE {CPPCOMPILE {}}} {
   return $result
 }
 
-proc ::practcl::de_shell {data} {
-  set values {}
-  foreach flag {DEFS TCL_DEFS TK_DEFS} {
-    if {[dict exists $data $flag]} {
-      #set value {}
-      #foreach item [dict get $data $flag] {
-      #  append value " " [string map {{ } {\ }} $item]
-      #}
-      dict set values $flag [dict get $data $flag]
-    }
-  }
-  set map {}
-  lappend map {${PKG_OBJECTS}} %LIBRARY_OBJECTS%
-  lappend map {$(PKG_OBJECTS)} %LIBRARY_OBJECTS%
-  lappend map {${PKG_STUB_OBJECTS}} %LIBRARY_STUB_OBJECTS%
-  lappend map {$(PKG_STUB_OBJECTS)} %LIBRARY_STUB_OBJECTS%
-  
-  if {[dict exists $data name]} {
-    lappend map %LIBRARY_NAME% [dict get $data name]   
-    lappend map %LIBRARY_VERSION% [dict get $data version]
-    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} [dict get $data version]]
-    if {[dict exists $data libprefix]} {
-      lappend map %LIBRARY_PREFIX% [dict get $data libprefix]
-    } else {
-      lappend map %LIBRARY_PREFIX% [dict get $data prefix]
-    }
-  }
-  foreach flag [dict keys $data] {
-    if {$flag in {TCL_DEFS TK_DEFS DEFS}} continue
-    set value [string trim [dict get $data $flag] \"]
-    dict set map "\$\{${flag}\}" $value
-    dict set map "\$\(${flag}\)" $value
-    #dict set map "\$${flag}" $value
-    dict set map "%${flag}%" $value
-    dict set values $flag [dict get $data $flag]
-    #dict set map "\$\{${flag}\}" $proj($flag)
-  }
-  set changed 1
-  while {$changed} {
-    set changed 0
-    foreach {field value} $values {
-      if {$field in {TCL_DEFS TK_DEFS DEFS}} continue
-      dict with values {}
-      set newval [string map $map $value]
-      if {$newval eq $value} continue
-      set changed 1
-      dict set values $field $newval
-    }
-  }
-  return $values
-}
-
-proc ::practcl::build::Makefile {path PROJECT} {
+method build-Makefile {path PROJECT} {
   array set proj [$PROJECT define dump]
   set path $proj(builddir)
   cd $path
@@ -1670,9 +1681,9 @@ ${NAME}_OBJS = [dict keys $products]
 }
 
 ###
-# Produce a dynamic library
+# Produce a static or dynamic library
 ###
-proc ::practcl::build::library {outfile PROJECT} {
+method build-library {outfile PROJECT} {
   array set proj [$PROJECT define dump]
   set path $proj(builddir)
   cd $path
@@ -1692,7 +1703,7 @@ proc ::practcl::build::library {outfile PROJECT} {
       lappend includedir $cpath
     }
   }
-  ::practcl::build::DEFS $PROJECT $proj(DEFS) name version defs
+  my build-cflags $PROJECT $proj(DEFS) name version defs
   set NAME [string toupper $name]
   set debug [$PROJECT define get debug 0]
   set os [$PROJECT define get TEACUP_OS]
@@ -1718,7 +1729,7 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
     }
   }
   
-  set products [compile-sources $PROJECT $COMPILE $COMPILECPP]
+  set products [my build-compile-sources $PROJECT $COMPILE $COMPILECPP]
   
   set map {}
   lappend map %LIBRARY_NAME% $proj(name)    
@@ -1753,7 +1764,7 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
 ###
 # Produce a static executable
 ###
-proc ::practcl::build::static-tclsh {outfile PROJECT} {
+method build-tclsh {outfile PROJECT} {
   puts " BUILDING STATIC TCLSH "
   set TCLOBJ [$PROJECT project TCLCORE]
   set TKOBJ  [$PROJECT project TKCORE]
@@ -1775,7 +1786,7 @@ proc ::practcl::build::static-tclsh {outfile PROJECT} {
   # The DEFS produced by a TEA extension aren't intended to operate
   # with the internals of a staticly linked Tcl
   ###
-  ::practcl::build::DEFS $PROJECT $TCL(defs) name version defs
+  my build-cflags $PROJECT $TCL(defs) name version defs
   set debug [$PROJECT define get debug 0]
   set NAME [string toupper $name]
   set result {}
@@ -1815,7 +1826,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
 $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"    
   }
   append COMPILE " " $defs
-  lappend OBJECTS {*}[compile-sources $PROJECT $COMPILE $COMPILE]
+  lappend OBJECTS {*}[my build-compile-sources $PROJECT $COMPILE $COMPILE]
   if {[${PROJECT} define get TEACUP_OS] eq "windows"} {
     set windres [$PROJECT define get RC windres]
     set RSOBJ [file join $path build tclkit.res.o]
@@ -1892,6 +1903,13 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   append cmd " -o $outfile $LDFLAGS_CONSOLE"
   puts "LINK: $cmd"
   exec {*}$cmd >&@ stdout
+}
+}
+
+
+::oo::class create ::practcl::build.msvc {
+  superclass ::practcl::build
+
 }
 
 ::oo::class create ::practcl::target_obj {
@@ -3423,6 +3441,35 @@ $body"
     ${obj} {*}$args
   }
 
+  method select {} {
+    next
+    ###
+    # Select the toolset to use for this project
+    ###
+    my variable define
+    set class {}
+    if {[info exists define(toolset)]} {
+      if {[info command $define(toolset)] ne {}} {
+        set class $define(toolset)
+      } elseif {[info command ::practcl::$define(toolset)] ne {}} {
+        set class ::practcl::$define(toolset)
+      } else {
+        switch $define(toolset) {
+          default {
+            set class ::practcl::build.gcc
+          }
+        }
+      }
+    } else {
+      if {[info exists ::env(VisualStudioVersion)]} {
+        set class ::practcl::build.msvc
+      } else {
+        set class ::practcl::build.gcc
+      }
+    }
+    ::oo::objdefine [self] mixin $class
+  }
+  
   method tool {pkg args} {
     set obj [namespace current]::TOOL.$pkg
     if {[llength $args]==0} {
@@ -3666,7 +3713,7 @@ char *
 
   # Backward compadible call
   method generate-make path {    
-    ::practcl::build::Makefile $path [self]
+    my build-Makefile $path [self]
   }
   
   method install-headers {} {
@@ -3799,7 +3846,7 @@ char *
     my define add include_dir [file join $TCLSRCDIR $PLATFORM_SRC_DIR]
     my define add include_dir [file join $TCLSRCDIR compat zlib]
     # This file will implement TCL_LOCAL_APPINIT and TCL_LOCAL_MAIN_HOOK
-    ::practcl::build::tclkit_main $PROJECT $PKG_OBJS
+    my build-tclkit_main $PROJECT $PKG_OBJS
   }
   
   ## Wrap an executable

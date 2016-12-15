@@ -310,7 +310,7 @@ proc ::practcl::local_os {} {
   dict set result userhome $userhome
   # Load user preferences
   if {[file exists [file join $userhome practcl.rc]]} {
-    set dat [::practcl::cat [file join $path practcl.rc]]
+    set dat [::practcl::cat [file join $userhome practcl.rc]]
   }
   if {![dict exists $result prefix]} {
     dict set result prefix   $userhome
@@ -1380,7 +1380,7 @@ proc ::practcl::de_shell {data} {
   set mainhook   [$PROJECT define get TCL_LOCAL_MAIN_HOOK Tclkit_MainHook]
   set mainfunc   [$PROJECT define get TCL_LOCAL_APPINIT Tclkit_AppInit]
   set mainscript [$PROJECT define get main.tcl main.tcl]
-  set vfsroot    [$PROJECT define get vfsroot  [file join [$PROJECT define get ZIPFS_VOLUME] app]]
+  set vfsroot    [$PROJECT define get vfsroot "[$PROJECT define get ZIPFS_VOLUME]app"]
   set vfs_main "${vfsroot}/${mainscript}"
   set vfs_tcl_library "${vfsroot}/boot/tcl"
   set vfs_tk_library "${vfsroot}/boot/tk"
@@ -3883,7 +3883,7 @@ char *
     ###
     set zipfs [file join $TCLSRCDIR generic tclZipfs.c]
     if {![$PROJECT define exists ZIPFS_VOLUME]} {
-      $PROJECT define set ZIPFS_VOLUME "//zipfs:/"
+      $PROJECT define set ZIPFS_VOLUME "zipfs:/"
     }
     $PROJECT code header "#define ZIPFS_VOLUME \"[$PROJECT define get ZIPFS_VOLUME]\""
     if {[file exists $zipfs]} {

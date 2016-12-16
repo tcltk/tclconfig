@@ -1804,7 +1804,9 @@ method build-tclsh {outfile PROJECT} {
     $PROJECT define set static_tk 0
   } else {
     array set TK  [$TKOBJ config.sh]
-    $PROJECT define set static_tk [$TKOBJ define get static]
+    set do_tk [$TKOBJ define get static]
+    $PROJECT define set static_tk $do_tk
+    $PROJECT define set tk $do_tk
     set TKSRCDIR [$TKOBJ define get srcdir]
   }
   set path [file dirname $outfile]
@@ -1838,6 +1840,13 @@ method build-tclsh {outfile PROJECT} {
     }
   }
   lappend includedir [::practcl::file_relative $path [file normalize ../tcl/compat/zlib]]
+  if {[$PROJECT define get static_tk]} {
+    lappend includedir [::practcl::file_relative $path [file normalize [file join $TKSRCDIR generic]]]
+    lappend includedir [::practcl::file_relative $path [file normalize [file join $TKSRCDIR ttk]]]
+    lappend includedir [::practcl::file_relative $path [file normalize [file join $TKSRCDIR xlib]]]
+    lappend includedir [::practcl::file_relative $path [file normalize $TKSRCDIR]]
+  }
+  
   foreach include [$PROJECT generate-include-directory] {
     set cpath [::practcl::file_relative $path [file normalize $include]]
     if {$cpath ni $includedir} {
@@ -2645,7 +2654,6 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
   
   method static-packages {} {
     set result [my define get static_packages]
-    set statpkg  [my define get static_pkg]
     set initfunc [my define get initfunc]
     if {$initfunc ne {}} {
       set pkg_name [my define get pkg_name]
@@ -3822,7 +3830,7 @@ char *
     set name [my define get name]
     # Assume a static shell
     if {[my define exists SHARED_BUILD]} {
-      my define exists SHARED_BUILD 0
+      my define set SHARED_BUILD 0
     }
     if {![my define exists TCL_LOCAL_APPINIT]} {
       my define set TCL_LOCAL_APPINIT Tclkit_AppInit

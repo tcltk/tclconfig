@@ -2429,11 +2429,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     if {[info exists cfunct]} {
       foreach {funcname info} $cfunct {
         if {![dict get $info public]} continue
-        if {[dict get $info inline]} {
-          ::practcl::cputs result "[dict get $info header]\;"
-        } else {
-          ::practcl::cputs result "[dict get $info header]\;"
-        }
+        ::practcl::cputs result "[dict get $info header]\;"
       }
     }
     set result [::practcl::_tagblock $result c [my define get filename]]
@@ -2918,7 +2914,11 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     if {[info exists cfunct]} {
       foreach {funcname info} $cfunct {
         ::practcl::cputs result "/* $funcname */"
-        ::practcl::cputs result "\n[dict get $info header]\{[dict get $info body]\}"
+        if {[dict get $info inline] && [dict get $info public]} {
+          ::practcl::cputs result "\ninline [dict get $info header]\{[dict get $info body]\}"
+        } else {
+          ::practcl::cputs result "\n[dict get $info header]\{[dict get $info body]\}"
+        }
       }
     }
     foreach obj [my link list dynamic] {
@@ -3144,7 +3144,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
         }
         if {[dict get $dat inline] && [dict get $dat public]} {
           set header [string map {IRM_INLINE {} CTHULHU_INLINE {} static {} inline {} extern {}} [dict get $dat header]]
-          dict set dat header "extern inline $header"
+          dict set dat header "extern $header"
         }
         dict set cfunct $funcname $dat
         return

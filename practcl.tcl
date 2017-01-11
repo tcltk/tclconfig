@@ -2428,9 +2428,13 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
     if {[info exists cfunct]} {
       foreach {funcname info} $cfunct {
         if {![dict get $info public]} continue
-        ::practcl::cputs result "[dict get $info header]\;"
+        if {[dict get $info inline]} {
+          ::practcl::cputs result "[dict get $info header]\;"
+        } else {
+          ::practcl::cputs result "[dict get $info header]\;"
+        }
       }
-    } 
+    }
     set result [::practcl::_tagblock $result c [my define get filename]]
     foreach mod [my link list product] {
       ::practcl::cputs result [$mod generate-public-function]
@@ -3103,6 +3107,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     my variable code
     ::practcl::cputs code(funct) $body
   }
+  
   method c_function {header body {info {}}} {
     set header [string map "\t \  \n \ \ \  \ " $header]
     my variable code cfunct
@@ -3111,22 +3116,40 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
          {(.*) (\x2a[a-zA-Z_][a-zA-Z0-9_]*) *\((.*)\)}
     } {
       if {[regexp $regexp $header all keywords funcname arglist]} {
-        dict set cfunct $funcname header $header
-        dict set cfunct $funcname body $body
-        dict set cfunct $funcname keywords $keywords
-        dict set cfunct $funcname arglist $arglist
-        dict set cfunct $funcname inline [expr {"inline" ni $keywords}]
-        dict set cfunct $funcname public [expr {"static" ni $keywords}]
-        dict set cfunct $funcname export [expr {"STUB_EXPORT" in $keywords}]
-        foreach {f v} $info {
-          dict set cfunct $f $v
+        set dat [dict merge {export 0 extern 0 public 1 inline 0} $info]
+        dict set dat header $header
+        dict set dat body $body
+        dict set dat keywords $keywords
+        dict set dat arglist $arglist
+        if {"IRM_INLINE" in $keywords || "CTHULHU_INLINE" in $keywords} {
+          dict set dat public 1
+          dict set dat extern 0
+          dict set dat inline 1
+        } else {
+          if {"inline" in $keywords} { 
+            dict set dat inline 1
+          }
+          if {"STUB_EXPORT" in $keywords} { 
+            dict set dat extern 1
+            dict set dat public 1
+            dict set dat export 1
+            dict set dat inline 0
+          } elseif {"extern" in $keywords} { 
+            dict set dat extern 1
+            dict set dat public 1
+          } elseif {"static" in $keywords} { 
+            dict set dat public 0
+          }
         }
+        if {[dict get $dat inline] && [dict get $dat public]} {
+          set header [string map {IRM_INLINE {} CTHULHU_INLINE {} static {} inline {} extern {}} [dict get $dat header]]
+          dict set dat header "extern inline $header"
+        }
+        dict set cfunct $funcname $dat
         return
       }
-    }
-    foreach {f v} $info {
-      dict set cfunct $f $v
-    }
+    }		
+    puts "WARNING: NON CONFORMING FUNCTION DEFINITION: $headers $body"   
     ::practcl::cputs code(header) "$header\;"
     # Could not parse that block as a function
     # append it verbatim to our c_implementation

@@ -582,6 +582,7 @@ proc ::practcl::read_rc_file {filename {localdat {}}} {
     #set value [lindex $line 1]
     #dict set result $key $value
   }
+  close $fin
   return $result
 }
 

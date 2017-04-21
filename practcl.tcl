@@ -932,7 +932,10 @@ lappend ::PATHSTACK $dir
   }
   foreach base $args {
     set base [file normalize $base]
-    set paths [::practcl::_pkgindex_path_subdir $base]
+    foreach dir [glob [file join $base *]] {
+      if {[file tail $dir] eq "teapot"} continue
+      lappend paths $dir {*}[::practcl::_pkgindex_path_subdir $dir]
+    }
     set i    [string length  $base]
     # Build a list of all of the paths
     foreach path $paths {
@@ -941,13 +944,19 @@ lappend ::PATHSTACK $dir
     }
     set path_indexed($base) 1
     set path_indexed([file join $base boot tcl]) 1
-    #set path_index([file join $base boot tk]) 1
-  
+    foreach teapath [glob -nocomplain [file join $base teapot *]] {
+      set pkg [file tail $teapath]
+      append buffer [list set pkg $pkg]
+      append buffer {
+set pkginstall [file join $::g(HOME) teapot $pkg]
+if {![file exists $pkginstall]} {
+  installDir [file join $dir teapot $pkg] $pkginstall
+}
+}
+    }
     foreach path $paths {
       if {$path_indexed($path)} continue
       set thisdir [file_relative $base $path]
-      #set thisdir [string range $path $i+1 end]
-      #append buffer "# DIR  $thisdir" \n
       set idxbuf [::practcl::_pkgindex_directory $path]
       if {[string length $idxbuf]} {
         incr path_indexed($path)
@@ -3963,22 +3972,26 @@ char *
 
     set fout [open [file join $vfspath packages.tcl] w]
     puts $fout {
-  set ::PKGIDXFILE [info script]
-  set dir [file dirname $::PKGIDXFILE]
-  }
-    #set BASEVFS [my define get BASEVFS]
+set ::PKGIDXFILE [info script]
+set dir [file dirname $::PKGIDXFILE]
+if {$::tcl_platform(platform) eq "windows"} {
+  set ::g(HOME) [file join [file normalize $::env(LOCALAPPDATA)] tcl]
+} else {
+  set ::g(HOME) [file normalize ~/tcl]
+}
+lappend ::auto_path [file join $::g(HOME) teapot]
+}
+    puts $fout [list proc installDir [info args ::practcl::installDir] [info body ::practcl::installDir]]
     set EXEEXT [my define get EXEEXT]
-
     set tclkit_bare [my define get tclkit_bare]
-    
     set buffer [::practcl::pkgindex_path $vfspath]
     puts $fout $buffer
     puts $fout {
-  # Advertise statically linked packages
-  foreach {pkg script} [array get ::kitpkg] {
-    eval $script
-  }
-    }
+# Advertise statically linked packages
+foreach {pkg script} [array get ::kitpkg] {
+  eval $script
+}
+}
     close $fout
     ::practcl::mkzip ${exename}${EXEEXT} $tclkit_bare $vfspath
     if { [my define get TEACUP_OS] ne "windows" } {

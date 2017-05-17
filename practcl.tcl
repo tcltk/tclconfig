@@ -932,7 +932,7 @@ lappend ::PATHSTACK $dir
   }
   foreach base $args {
     set base [file normalize $base]
-    foreach dir [glob [file join $base *]] {
+    foreach dir [glob -nocomplain [file join $base *]] {
       if {[file tail $dir] eq "teapot"} continue
       lappend paths $dir {*}[::practcl::_pkgindex_path_subdir $dir]
     }

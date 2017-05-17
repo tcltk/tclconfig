@@ -1004,9 +1004,9 @@ proc ::practcl::installDir {d1 d2} {
 }
 
 proc ::practcl::copyDir {d1 d2 {toplevel 1}} {
-  if {$toplevel} {
-    puts [list ::practcl::copyDir $d1 -> $d2]
-  }
+  #if {$toplevel} {
+  #  puts [list ::practcl::copyDir $d1 -> $d2]
+  #}
   #file delete -force -- $d2
   file mkdir $d2
 
@@ -3687,7 +3687,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
 ** any changes will be overwritten the next time it is run
 */}]
     puts $hout "#ifndef ${macro}"
-    puts $hout "#define ${macro}"
+    puts $hout "#define ${macro} 1"
     puts $hout [my generate-h]
     puts $hout "#endif"
     close $hout
@@ -4357,6 +4357,16 @@ oo::objdefine ::practcl::distribution.git {
 oo::class create ::practcl::subproject {
   superclass ::practcl::object ::practcl::distribution
   
+  method child which {
+    switch $which {
+      organs {
+	# A library can be a project, it can be a module. Any
+	# subordinate modules will indicate their existance
+        return [list project [self] module [self]]
+      }
+    }
+  }
+  
   method compile {} {}
     
   method critcl args {
@@ -4530,7 +4540,8 @@ oo::class create ::practcl::subproject.binary {
     #  lappend opts --disable-64bit
     #}
     if {[my define get static 1]} {
-      lappend opts --disable-shared --disable-stubs
+      lappend opts --disable-shared
+      #--disable-stubs
       #
     } else {
       lappend opts --enable-shared
@@ -4770,6 +4781,13 @@ oo::class create ::practcl::subproject.binary {
       }
     }
     cd $pwd
+  }
+}
+
+oo::class create ::practcl::subproject.library {
+  superclass ::practcl::subproject.binary ::practcl::library
+  method install DEST {
+    my compile
   }
 }
 

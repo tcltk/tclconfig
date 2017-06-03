@@ -2862,7 +2862,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     if {[info exists tcltype]} {
       foreach {type info} $tcltype {
         dict with info {}
-        ::practcl::cputs result "const Tcl_ObjType $cname = \{\n  .freeIntRepProc = &${freeproc},\n  .dupIntRepProc = &${dupproc},\n  .updateStringProc = &${updatestringproc},\n  .setFromAnyProc = &${setfromanyproc}\n\}\;"
+        ::practcl::cputs result "const Tcl_ObjType $cname = \{\n .name=\"$type\",\n .freeIntRepProc = &${freeproc},\n  .dupIntRepProc = &${dupproc},\n  .updateStringProc = &${updatestringproc},\n  .setFromAnyProc = &${setfromanyproc}\n\}\;"
       }
     }    
 
@@ -3472,9 +3472,8 @@ $body"
     if {[dict exists $info profile $profile]} {
       dict set info tag [dict get $info profile $profile]
     }
-    if {[my define get USEMSVC 0]} {
-      dict set info USEMSVC 1
-    }
+    dict set info USEMSVC [my define get USEMSVC 0]
+    dict set info debug [my define get debug 0]
     set obj [namespace current]::PROJECT.$pkg
     if {[info command $obj] eq {}} {
       set obj [::practcl::subproject create $obj [self] [dict merge $fossilinfo [list name $pkg pkg_name $pkg static 0 class subproject.binary] $info]]
@@ -3571,6 +3570,26 @@ $body"
 
 ::oo::class create ::practcl::library {
   superclass ::practcl::project
+
+
+  method clean {PATH} {
+    foreach {ofile info} [my compile-products] {
+      if {[file exists [file join $PATH objs $ofile]]} {
+        file delete [file join $PATH objs $ofile]
+      }  
+    }
+    foreach ofile [glob -nocomplain [file join $PATH *.o]] {
+      file delete $ofile
+    }
+    foreach ofile [glob -nocomplain [file join $PATH objs *]] {
+      file delete $ofile
+    }
+    set libfile [my define get libfile]
+    if {[file exists [file join $PATH $libfile]]} {
+      file delete [file join $PATH $libfile]
+    }
+    my implement $PATH
+  }
   
   method compile-products {} {
     set result {}
@@ -3858,7 +3877,7 @@ char *
 
 ::oo::class create ::practcl::tclkit {
   superclass ::practcl::library
-
+  
   method Collate_Source CWD {
     set name [my define get name]
     # Assume a static shell
@@ -4502,6 +4521,15 @@ oo::class create ::practcl::subproject.sak {
 ###
 oo::class create ::practcl::subproject.binary {
   superclass ::practcl::subproject ::practcl::autoconf
+  method clean {} {
+    set builddir [file normalize [my define get builddir]]
+    if {![file exists $builddir]} return
+    if {[file exists [file join $builddir make.tcl]]} {
+      ::practcl::domake.tcl $builddir clean
+    } else {
+      ::practcl::domake $builddir clean
+    }    
+  }
 
   method compile-products {} {}
 
@@ -4515,8 +4543,8 @@ oo::class create ::practcl::subproject.binary {
     }
     if {[my <project> define get CONFIG_SITE] != {}} {
       lappend opts --host=[my <project> define get HOST]
-      lappend opts --with-tclsh=[info nameofexecutable]
     }
+    lappend opts --with-tclsh=[info nameofexecutable]
     if {[my <project> define exists tclsrcdir]} {
       ###
       # On Windows we are probably running under MSYS, which doesn't deal with
@@ -4534,6 +4562,9 @@ oo::class create ::practcl::subproject.binary {
     lappend opts {*}[my define get config_opts]
     if {![regexp -- "--prefix" $opts]} {
       lappend opts --prefix=$PREFIX
+    }
+    if {[my define get debug 0]} {
+      lappend opts --enable-symbols=true
     }
     #--exec_prefix=$PREFIX
     #if {$::tcl_platform(platform) eq "windows"} {
@@ -4629,7 +4660,12 @@ oo::class create ::practcl::subproject.binary {
 
   method BuildDir {PWD} {
     set name [my define get name]
-    return [my define get builddir [file join $PWD pkg.$name]]
+    set debug [my define get debug 0]
+    if {$debug} {
+      return [my define get builddir [file join $PWD pkg.debug.$name]]
+    } else {
+      return [my define get builddir [file join $PWD pkg.$name]]
+    }
   }
   
   method compile {} {
@@ -4649,7 +4685,7 @@ oo::class create ::practcl::subproject.binary {
     } else {
       puts "BUILDING Dynamic $name $srcdir"
     }
-    if {[my define get USEMSVC 0]} {
+     if {[my define get USEMSVC 0]} {
       cd $srcdir
       ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
     } else {
@@ -4660,7 +4696,11 @@ oo::class create ::practcl::subproject.binary {
         my Configure
       }
       if {[file exists [file join $builddir make.tcl]]} {
-        ::practcl::domake.tcl $builddir library
+        if {[my define get debug 1]} {
+          ::practcl::domake.tcl $builddir debug all
+        } else {
+          ::practcl::domake.tcl $builddir all
+        }
       } else {
         ::practcl::domake $builddir all
       }
@@ -4861,6 +4901,23 @@ oo::class create ::practcl::subproject.core {
   
   method linktype {} {
     return {subordinate core.library}
+  }
+  
+  method SrcDir {} {
+    set pkg [my define get name]
+    if {[my define exists srcdir]} {
+      return [my define get srcdir]
+    }
+    set sandbox [my Sandbox]
+    set debug [my define get debug 0]
+    puts [list [self] NAME $pkg debug $debug]
+    if {$debug} {
+      set srcdir [file join [my Sandbox] $pkg.debug]
+    } else {
+      set srcdir [file join [my Sandbox] $pkg]
+    }
+    my define set srcdir $srcdir
+    return $srcdir
   }
 }
 

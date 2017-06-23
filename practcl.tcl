@@ -2577,7 +2577,7 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       generate-cstruct
       generate-constant
       generate-cfunct
-      generate-cmethod      
+      generate-tcl_c_api      
     } {
       set dat [my $method]
       if {[string length [string trim $dat]]} {
@@ -2944,7 +2944,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
   # Generate code that provides implements Tcl API
   # calls
   ###
-  method generate-cmethod {} {
+  method generate-tcl_c_api {} {
     ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     my variable code methods tclprocs
     set result {}
@@ -3029,7 +3029,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     foreach obj [my link list dynamic] {
       # Exclude products that will generate their own C files
       if {[$obj define get output_c] ne {}} continue
-      ::practcl::cputs result [$obj generate-cmethod]
+      ::practcl::cputs result [$obj generate-tcl_c_api]
     }
     return $result
   }
@@ -3166,7 +3166,16 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
     ::practcl::cputs code(funct) "$header [list $body]"
   }
 
-  
+  method c_tcloomethod {name body {arginfo {}}} {
+    my variable methods code
+    foreach {f v} $arginfo {
+      dict set methods $name $f $v
+    }
+    dict set methods $name body "Tcl_Object thisObject = Tcl_ObjectContextObject(objectContext); /* The current connection object */
+$body"
+  }  
+
+  # Alias to classic name
   method cmethod {name body {arginfo {}}} {
     my variable methods code
     foreach {f v} $arginfo {
@@ -3186,6 +3195,16 @@ $body"
     }
   }
   
+  method c_tclcmd {name body {arginfo {}}} {
+    my variable tclprocs code
+
+    foreach {f v} $arginfo {
+      dict set tclprocs $name $f $v
+    }
+    dict set tclprocs $name body $body
+  }
+
+  # Alias to classic name
   method c_tclproc_raw {name body {arginfo {}}} {
     my variable tclprocs code
 

@@ -5041,7 +5041,7 @@ set ::auto_index(::practcl::LOCAL) {
   # as our main project
   # Add tclconfig as a project of record
   ::practcl::LOCAL add_tool tclconfig {
-    tag trunk class tool.source fossil_url http://core.tcl.tk/tclconfig
+    tag practcl class tool.source fossil_url http://core.tcl.tk/tclconfig
   }
   # Add tcllib as a project of record
   ::practcl::LOCAL add_tool tcllib {

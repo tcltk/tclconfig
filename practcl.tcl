@@ -932,15 +932,20 @@ lappend ::PATHSTACK $dir
   }
   foreach base $args {
     set base [file normalize $base]
+    set paths {}
     foreach dir [glob -nocomplain [file join $base *]] {
       if {[file tail $dir] eq "teapot"} continue
       lappend paths $dir {*}[::practcl::_pkgindex_path_subdir $dir]
     }
     set i    [string length  $base]
     # Build a list of all of the paths
-    foreach path $paths {
-      if {$path eq $base} continue
-      set path_indexed($path) 0
+    if {[llength $paths]} {
+      foreach path $paths {
+        if {$path eq $base} continue
+        set path_indexed($path) 0
+      }
+    } else {
+      puts [list WARNING: NO PATHS FOUND IN $base]
     }
     set path_indexed($base) 1
     set path_indexed([file join $base boot tcl]) 1
@@ -4552,6 +4557,29 @@ oo::class create ::practcl::subproject.binary {
 
   method compile-products {} {}
 
+  method NmakeOpts {} {
+    set opts {}
+    set builddir [file normalize [my define get builddir]]
+
+    if {[my <project> define exists tclsrcdir]} {
+      ###
+      # On Windows we are probably running under MSYS, which doesn't deal with
+      # spaces in filename well
+      ###
+      set TCLSRCDIR  [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tclsrcdir] ..]]]
+      set TCLGENERIC [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tclsrcdir] .. generic]]]
+      lappend opts TCLDIR=[file normalize $TCLSRCDIR]
+      #--with-tclinclude=$TCLGENERIC 
+    }
+    if {[my <project> define exists tksrcdir]} {
+      set TKSRCDIR  [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tksrcdir] ..]]]
+      set TKGENERIC [::practcl::file_relative [file normalize $builddir] [file normalize [file join $::CWD [my <project> define get tksrcdir] .. generic]]]
+      #lappend opts --with-tk=$TKSRCDIR --with-tkinclude=$TKGENERIC
+      lappend opts TKDIR=[file normalize $TKSRCDIR]
+    }
+    return $opts
+  }
+  
   method ConfigureOpts {} {
     set opts {}
     set builddir [my define get builddir]
@@ -4704,9 +4732,26 @@ oo::class create ::practcl::subproject.binary {
     } else {
       puts "BUILDING Dynamic $name $srcdir"
     }
-     if {[my define get USEMSVC 0]} {
+    if {[my define get USEMSVC 0]} {
       cd $srcdir
-      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir] release
+      if {[file exists [file join $srcdir make.tcl]]} {
+        if {[my define get debug 1]} {
+          ::practcl::domake.tcl $srcdir debug all
+        } else {
+          ::practcl::domake.tcl $srcdir all
+        }
+      } else {
+        if {[file exists [file join $srcdir makefile.vc]]} {
+          puts "Building in [pwd]"
+          ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir]  {*}[my NmakeOpts] release
+        } elseif {[file exists [file join $srcdir win makefile.vc]]} {
+          cd [file join $srcdir win]
+          puts "Building in [pwd]"
+          ::practcl::doexec nmake -f makefile.vc INSTALLDIR=[my <project> define get installdir]  {*}[my NmakeOpts] release
+        } else {
+          error "No make.tcl or makefile.vc found for project $name"
+        }
+      }
     } else {
       cd $::CWD
       set builddir [file normalize [my define get builddir]]
@@ -4797,7 +4842,7 @@ oo::class create ::practcl::subproject.binary {
       set srcdir [my define get srcdir]
       cd $srcdir
       puts "[self] VFS INSTALL $DEST"
-      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$DEST install
+      ::practcl::doexec nmake -f makefile.vc INSTALLDIR=$DEST {*}[my NmakeOpts] install
     } else {
       set builddir [my define get builddir]
       if {[file exists [file join $builddir make.tcl]]} {
@@ -5041,7 +5086,7 @@ set ::auto_index(::practcl::LOCAL) {
   # as our main project
   # Add tclconfig as a project of record
   ::practcl::LOCAL add_tool tclconfig {
-    tag practcl class tool.source fossil_url http://core.tcl.tk/tclconfig
+    name tclconfig tag practcl class tool.source fossil_url http://core.tcl.tk/tclconfig
   }
   # Add tcllib as a project of record
   ::practcl::LOCAL add_tool tcllib {

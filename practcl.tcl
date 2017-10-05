@@ -1435,9 +1435,8 @@ if {[file exists {%vfs_tk_library%}]} {
   if {[$PROJECT define get tip_430 0]} {
     ::practcl::cputs zvfsboot "  if(!TclZipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
   } else {
-    $PROJECT include {"tclZipfs.h"}
-    ::practcl::cputs zvfsboot {  TclZipfs_Init(NULL);}
-    ::practcl::cputs zvfsboot "  if(!TclZipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
+    ::practcl::cputs zvfsboot {  Odie_Zipfs_Init(NULL);}
+    ::practcl::cputs zvfsboot "  if(!Odie_Zipfs_Mount(NULL, archive, \"%vfsroot%\", NULL)) \x7B "
   }
   ::practcl::cputs zvfsboot {
     Tcl_Obj *vfsinitscript;
@@ -2245,7 +2244,9 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
       }
     }
     ::practcl::debug [list methods [info exists methods] [my define get cclass]]
-
+    if {[info exists code(global)]} {
+      ::practcl::cputs result $code(global)
+    }
     if {[info exists methods]} {
       set thisclass [my define get cclass]
       foreach {name info} $methods {
@@ -3979,10 +3980,7 @@ char *
       my define set tip_430 0
       ::practcl::LOCAL tool odie load
       set COMPATSRCROOT [::practcl::LOCAL tool odie define get srcdir]
-      set cdir [file join $COMPATSRCROOT compat zipfs]
-      my define add include_dir $cdir
-      set zipfs [file join $cdir tclZipfs.c]
-      my add class csource filename $zipfs initfunc TclZipfs_Init pkg_name zipfs pkg_vers 1.1 autoload 1 extra "-DZIPFS_VOLUME=\"[$PROJECT define get ZIPFS_VOLUME]\""
+      my add [file join $COMPATSRCROOT compat zipfs zipfs.tcl]
     }
 
     my define add include_dir [file join $TCLSRCDIR generic]

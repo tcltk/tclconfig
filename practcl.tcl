@@ -3968,7 +3968,7 @@ char *
     ###
     set zipfs [file join $TCLSRCDIR generic tclZipfs.c]
     if {![$PROJECT define exists ZIPFS_VOLUME]} {
-      $PROJECT define set ZIPFS_VOLUME "//zipfs:/"
+      $PROJECT define set ZIPFS_VOLUME "zipfs:/"
     }
     $PROJECT code header "#define ZIPFS_VOLUME \"[$PROJECT define get ZIPFS_VOLUME]\""
     if {[file exists $zipfs]} {

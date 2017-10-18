@@ -112,7 +112,6 @@ if {[info command ::noop] eq {}} {
 }
 
 proc ::practcl::debug args {
-  #puts $args
   ::practcl::cputs ::DEBUG_INFO $args
 }
 

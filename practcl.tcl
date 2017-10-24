@@ -112,6 +112,7 @@ if {[info command ::noop] eq {}} {
 }
 
 proc ::practcl::debug args {
+  #puts $args
   ::practcl::cputs ::DEBUG_INFO $args
 }
 
@@ -963,8 +964,8 @@ proc ::practcl::_pkgindex_directory {path} {
         if { [string range $line 0 14] != "package provide" } continue
         set package [lindex $line 2]
         set version [lindex $line 3]
-        if {[string index $package 0] in "\$ \["} continue
-        if {[string index $version 0] in "\$ \["} continue
+        if {[string index $package 0] in "\$ \[ @"} continue
+        if {[string index $version 0] in "\$ \[ @"} continue
         append buffer "package ifneeded $package $version \[list source \[file join \$dir [file tail $file]\]\]" \n
         break
       }
@@ -5293,7 +5294,7 @@ set ::auto_index(::practcl::LOCAL) {
     tag trunk class tool.source fossil_url http://fossil.etoyoc.com/fossil/kettle
   }
   ::practcl::LOCAL add_tool critcl {
-    tag trunk class tool.source
+    tag master class tool.source
     git_url http://github.com/andreas-kupries/critcl
   }
   ::practcl::LOCAL add_tool odie {

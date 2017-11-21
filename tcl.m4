@@ -23,7 +23,7 @@ dnl TEA_VERSION="3.10"
 # TEA_TK_EXTENSION    - True if this is a Tk extension
 # TEACUP_OS           - windows macosx linux generic
 # TEACUP_TOOLSET      - Toolset in use (gcc,mingw,msvc,llvm)
-# TEACUP_PROFILE      - win32  
+# TEACUP_PROFILE      - win32
 #
 
 #------------------------------------------------------------------------
@@ -356,6 +356,8 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 #		TCL_BIN_DIR
 #		TCL_SRC_DIR
 #		TCL_LIB_FILE
+#               TCL_ZIP_FILE
+#               TCL_ZIPFS_SUPPORT
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_LOAD_TCLCONFIG], [
@@ -555,7 +557,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
                   fi
                 elif test "${TK_VERSION}" > "8.6" ; then
                     TEA_USE_HITHEME=yes;
-                fi 
+                fi
 		;;
 	    *)
 		TEA_WINDOWINGSYSTEM="x11"
@@ -607,7 +609,7 @@ AC_DEFUN([TEA_LOAD_TKCONFIG], [
 
 AC_DEFUN([TEA_PROG_TCLSH], [
     AC_MSG_CHECKING([for tclsh])
-		
+
     AC_ARG_WITH(tclsh, [  --with-tclsh      Specify a local tcl shell to use for dynamic code], with_tclsh=${withval})
  	  # Use the value from --with-tclsh, if it was given
 		TCLSH_PROG=0
@@ -3439,7 +3441,7 @@ AC_DEFUN([TEA_SETUP_COMPILER], [
 # PRACTCL_VC_MANIFEST_EMBED_DLL Template rule for embedded VC manifest in DLL
 # PRACTCL_VC_MANIFEST_EMBED_EXE Template rule for embedded VC manifest in EXE
 # PRACTCL_NAME_LIBRARY Template rule for naming libraries
-# 
+#
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_MAKE_LIB], [
@@ -3471,7 +3473,7 @@ print("manifest needed")
 	  MAKE_STATIC_LIB="\${STLIB_LD} \[$]@ \$(PKG_OBJECTS)"
 	  MAKE_SHARED_LIB="\${SHLIB_LD} -o \[$]@ \$(PKG_OBJECTS) \${SHLIB_LD_LIBS}"
 	  MAKE_STUB_LIB="\${STLIB_LD} \[$]@ \$(PKG_STUB_OBJECTS)"
-	
+
 	  PRACTCL_STATIC_LIB="%STLIB_LD% %OUTFILE% %LIBRARY_OBJECTS%"
 	  PRACTCL_SHARED_LIB="%SHLIB_LD% -o %OUTFILE% %LIBRARY_OBJECTS% %SHLIB_LD_LIBS%"
     PRACTCL_STUB_LIB="%STLIB_LD% %OUTFILE% %LIBRARY_OBJECTS%"
@@ -3531,9 +3533,9 @@ print("manifest needed")
     # Some packages build their own stubs libraries
     eval eval "PKG_STUB_LIB_FILE=lib${PACKAGE_LIB_PREFIX}${PACKAGE_NAME}stub${UNSHARED_LIB_SUFFIX}"
   fi
-  
+
   # Store the raw CFLAGS before we add the trimmings
-  PRACTCL_CFLAGS=${CFLAGS}    
+  PRACTCL_CFLAGS=${CFLAGS}
   # These are escaped so that only CFLAGS is picked up at configure time.
   # The other values will be substituted at make time.
   CFLAGS="${CFLAGS} \${CFLAGS_DEFAULT} \${CFLAGS_WARNING}"
@@ -4435,6 +4437,98 @@ AC_DEFUN([TEA_CONFIG_TEAPOT], [
   AC_SUBST(TEACUP_ARCH)
   AC_SUBST(TEACUP_TOOLSET)
   AC_SUBST(TEACUP_PROFILE)
+])
+
+###
+# Tip 430 - ZipFS Modifications
+###
+#------------------------------------------------------------------------
+# TEA_ZIPFS_SUPPORT
+#	Locate a zip encoder installed on the system path, or none.
+#
+# Arguments:
+#	none
+#
+# Results:
+#	Substitutes the following vars:
+#		TCL_ZIP_FILE
+#		TCL_ZIPFS_SUPPORT
+#		TCL_ZIPFS_FLAG
+#		ZIP_PROG
+#------------------------------------------------------------------------
+AC_DEFUN([TEA_ZIPFS_SUPPORT], [
+    AC_MSG_CHECKING([for zipfs support])
+    ZIP_PROG=""
+    ZIP_PROG_OPTIONS=""
+    ZIP_PROG_VFSSEARCH=""
+    INSTALL_MSGS=""
+    # If our native tclsh processes the "install" command line option
+    # we can use it to mint zip files
+    AS_IF([$TCLSH_PROG install],[
+      ZIP_PROG=${TCLSH_PROG}
+      ZIP_PROG_OPTIONS="install mkzip"
+      ZIP_PROG_VFSSEARCH="."
+      AC_MSG_RESULT([Can use Native Tclsh for Zip encoding])
+    ])
+    if test "x$ZIP_PROG" = "x" ; then
+        AC_CACHE_VAL(ac_cv_path_zip, [
+        search_path=`echo ${PATH} | sed -e 's/:/ /g'`
+        for dir in $search_path ; do
+            for j in `ls -r $dir/zip 2> /dev/null` \
+                `ls -r $dir/zip 2> /dev/null` ; do
+            if test x"$ac_cv_path_zip" = x ; then
+                if test -f "$j" ; then
+                ac_cv_path_zip=$j
+                break
+                fi
+            fi
+            done
+        done
+        ])
+        if test -f "$ac_cv_path_zip" ; then
+            ZIP_PROG="$ac_cv_path_zip "
+            AC_MSG_RESULT([$ZIP_PROG])
+            ZIP_PROG_OPTIONS="-rq"
+            ZIP_PROG_VFSSEARCH="."
+            AC_MSG_RESULT([Found INFO Zip in environment])
+            # Use standard arguments for zip
+        fi
+    fi
+    if test "x$ZIP_PROG" = "x" ; then
+	    # It is not an error if an installed version of Zip can't be located.
+        ZIP_PROG=""
+        ZIP_PROG_OPTIONS=""
+        ZIP_PROG_VFSSEARCH=""
+        TCL_ZIPFS_SUPPORT=0
+        TCL_ZIPFS_FLAG=
+    else
+        # ZIPFS Support
+       eval "TCL_ZIP_FILE=\"${TCL_ZIP_FILE}\""
+       if test ${TCL_ZIP_FILE} = "" ; then
+          TCL_ZIPFS_SUPPORT=0
+          TCL_ZIPFS_FLAG=
+          INSTALL_LIBRARIES=install-libraries
+          INSTALL_MSGS=install-msgs
+       else
+           if test ${SHARED_BUILD} = 1 ; then
+              TCL_ZIPFS_SUPPORT=1
+              INSTALL_LIBRARIES=install-libraries-zipfs-shared
+           else
+              TCL_ZIPFS_SUPPORT=2
+              INSTALL_LIBRARIES=install-libraries-zipfs-static
+           fi
+          TCL_ZIPFS_FLAG=-DTCL_ZIPFS_SUPPORT
+       fi
+    fi
+
+    AC_SUBST(TCL_ZIP_FILE)
+    AC_SUBST(TCL_ZIPFS_SUPPORT)
+    AC_SUBST(TCL_ZIPFS_FLAG)
+    AC_SUBST(ZIP_PROG)
+    AC_SUBST(ZIP_PROG_OPTIONS)
+    AC_SUBST(ZIP_PROG_VFSSEARCH)
+    AC_SUBST(INSTALL_LIBRARIES)
+    AC_SUBST(INSTALL_MSGS)
 ])
 
 # Local Variables:

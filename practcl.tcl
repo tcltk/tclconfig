@@ -2131,21 +2131,25 @@ $TCL(cflags_warning) $TCL(extra_cflags) $INCLUDES"
   }
   set LIBS {}
   foreach item $TCL(libs) {
-    if { $item ni $LIBS } { lappend LIBS $item }
+    if {[string range $item 0 1] eq "-l" && $item in $LIBS } continue
+    lappend LIBS $item
   }
   if {[$PROJECT define get static_tk]} {
     foreach item $TK(libs) {
-      if { $item ni $LIBS } { lappend LIBS $item }
+      if {[string range $item 0 1] eq "-l" && $item in $LIBS } continue
+      lappend LIBS $item
     }
   }
   if {[info exists TCL(extra_libs)]} {
     foreach item $TCL(extra_libs) {
-      if { $item ni $LIBS } { lappend LIBS $item }
+      if {[string range $item 0 1] eq "-l" && $item in $LIBS } continue
+      lappend LIBS $item
     }
   }
   foreach obj $PKG_OBJS {
     foreach item [$obj linker-external $config($obj)] {
-      if { $item ni $LIBS } { lappend LIBS $item }
+      if {[string range $item 0 1] eq "-l" && $item in $LIBS } continue
+      lappend LIBS $item
     }
   }
   append cmd " ${LIBS}"

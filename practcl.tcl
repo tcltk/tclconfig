@@ -1005,7 +1005,9 @@ proc ::practcl::_pkgindex_directory {path} {
         set version [lindex $line 3]
         break
       }
-      append buffer "package ifneeded $package $version \[list source \[file join \$dir [file tail $file]\]\]" \n
+      if {[string trim $version] ne {}} {
+        append buffer "package ifneeded $package $version \[list source \[file join \$dir [file tail $file]\]\]" \n
+      }
     }
     foreach file [glob -nocomplain $path/*.tcl] {
       if { [file tail $file] == "version_info.tcl" } continue
@@ -1531,6 +1533,9 @@ oo::class create ::practcl::toolset {
     }
     foreach {field dat} [::practcl::read_Makefile $filename] {
       dict set result $field $dat
+    }
+    if {![dict exists $result PRACTCL_PKG_LIBS] && [dict exists $result LIBS]} {
+      dict set result PRACTCL_PKG_LIBS [dict get $result LIBS]
     }
     set conf_result $result
     cd $PWD
@@ -2121,7 +2126,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
   append cmd " $OBJECTS"
   append cmd " $EXTERN_OBJS"
   if {$debug && $os eq "windows"} {
-    #append cmd " -static"
+    append cmd " -static"
     append cmd " -L${TCL(src_dir)}/win -ltcl86g"
     if {[$PROJECT define get static_tk]} {
       append cmd " -L${TK(src_dir)}/win -ltk86g"
@@ -2153,13 +2158,20 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
     }
   }
   foreach obj $PKG_OBJS {
+    puts [list Checking $obj for external dependencies]
     foreach item [$obj linker-external $config($obj)] {
+      puts [list $obj adds $item]
       if {[string range $item 0 1] eq "-l" && $item in $LIBS } continue
       lappend LIBS $item
     }
   }
   append cmd " ${LIBS}"
-
+  foreach obj $PKG_OBJS {
+    puts [list Checking $obj for additional link items]
+    foreach item [$obj linker-extra $config($obj)] {
+      append cmd $item
+    }
+  }
   if {$debug && $os eq "windows"} {
     append cmd " -L${TCL(src_dir)}/win ${TCL(stub_lib_flag)}"
     if {[$PROJECT define get static_tk]} {
@@ -3896,6 +3908,10 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     my initialize
   }
 
+  method add_object object {
+    my link object $object
+  }
+
   method add_project {pkg info {oodefine {}}} {
     ::practcl::debug [self] add_project $pkg $info
     set os [my define get TEACUP_OS]
@@ -4271,7 +4287,7 @@ char *
       }
     }
     if {[llength $errs]} {
-      set logfile [file join $::CWD practcl.log]      
+      set logfile [file join $::CWD practcl.log]
       ::practcl::log $logfile "*** ERRORS ***"
       foreach {item trace} $errs {
         ::practcl::log $logfile "###\n# ERROR\n###$item"
@@ -4358,7 +4374,7 @@ char *
   }
 
 
-  method shared_library {} {
+  method shared_library {{filename {}}} {
     set name [string tolower [my define get name [my define get pkg_name]]]
     set NAME [string toupper $name]
     set version [my define get version [my define get pkg_vers]]
@@ -4368,6 +4384,19 @@ char *
     lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} $version]
     lappend map %LIBRARY_PREFIX% [my define getnull libprefix]
     set outfile [string map $map [my define get PRACTCL_NAME_LIBRARY]][my define get SHLIB_SUFFIX]
+    return $outfile
+  }
+
+  method static_library {{filename {}}} {
+    set name [string tolower [my define get name [my define get pkg_name]]]
+    set NAME [string toupper $name]
+    set version [my define get version [my define get pkg_vers]]
+    set map {}
+    lappend map %LIBRARY_NAME% $name
+    lappend map %LIBRARY_VERSION% $version
+    lappend map %LIBRARY_VERSION_NODOTS% [string map {. {}} $version]
+    lappend map %LIBRARY_PREFIX% [my define getnull libprefix]
+    set outfile [string map $map [my define get PRACTCL_NAME_LIBRARY]].a
     return $outfile
   }
 }
@@ -5143,7 +5172,7 @@ oo::class create ::practcl::subproject {
   method _MorphPatterns {} {
     return {{::practcl::subproject.@name@} {::practcl::@name@} {@name@} {::practcl::subproject}}
   }
-  
+
   method child which {
     switch $which {
       organs {
@@ -5179,6 +5208,16 @@ oo::class create ::practcl::subproject {
     if {[dict exists $configdict PRACTCL_PKG_LIBS]} {
       return [dict get $configdict PRACTCL_PKG_LIBS]
     }
+    if {[dict exists $configdict LIBS]} {
+      return [dict get $configdict LIBS]
+    }
+  }
+
+  method linker-extra {configdict} {
+    if {[dict exists $configdict PRACTCL_LINKER_EXTRA]} {
+      return [dict get $configdict PRACTCL_LINKER_EXTRA]
+    }
+    return {}
   }
 
   ###
@@ -5186,7 +5225,7 @@ oo::class create ::practcl::subproject {
   # possibly built and used internally by this Practcl
   # process
   ###
-  
+
   ###
   # Load the facility into the interpreter
   ###
@@ -5206,7 +5245,7 @@ oo::class create ::practcl::subproject {
   method env-install {} {
     my unpack
   }
-  
+
   ###
   # Do whatever is necessary to get the tool
   # into the local environment
@@ -5222,7 +5261,7 @@ oo::class create ::practcl::subproject {
     my env-bootstrap
     set loaded 1
   }
-  
+
   ###
   # Check if tool is available for load/already loaded
   ###
@@ -5239,7 +5278,7 @@ oo::class create ::practcl::subproject {
   method update {} {
     my ScmUpdate
   }
-  
+
   method unpack {} {
     ::practcl::distribution select [self]
     my Unpack
@@ -5265,12 +5304,12 @@ oo::class create ::practcl::subproject.source {
       set ::auto_path [linsert $::auto_path 0 $LibraryRoot]
     }
   }
-  
+
   method env-present {} {
     set path [my define get srcdir]
     return [file exists $path]
   }
-  
+
   method linktype {} {
     return {subordinate package source}
   }
@@ -5285,7 +5324,7 @@ oo::class create ::practcl::subproject.teapot {
     set pkg [my define get pkg_name [my define get name]]
     package require $pkg
   }
-  
+
   method env-install {} {
     set pkg [my define get pkg_name [my define get name]]
     set download [my <project> define get download]
@@ -5294,7 +5333,7 @@ oo::class create ::practcl::subproject.teapot {
     ::practcl::tcllib_require zipfile::decode
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $prefix lib $pkg]
   }
-  
+
   method env-present {} {
     set pkg [my define get pkg_name [my define get name]]
     if {[catch [list package require $pkg]]} {
@@ -5351,7 +5390,7 @@ oo::class create ::practcl::subproject.sak {
       set ::auto_path [linsert $::auto_path 0 $LibraryRoot]
     }
   }
-  
+
   method env-install {} {
     ###
     # Handle teapot installs
@@ -5364,14 +5403,14 @@ oo::class create ::practcl::subproject.sak {
       -apps -app-path [file join $prefix apps] \
       -html -html-path [file join $prefix doc html $pkg] \
       -pkg-path [file join $prefix lib $pkg]  \
-      -no-nroff -no-wait -no-gui 
+      -no-nroff -no-wait -no-gui
   }
-  
+
   method env-present {} {
     set path [my define get srcdir]
     return [file exists $path]
   }
-  
+
   method install DEST {
     ###
     # Handle teapot installs

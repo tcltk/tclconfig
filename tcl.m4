@@ -350,8 +350,8 @@ AC_DEFUN([TEA_PATH_TKCONFIG], [
 #		TCL_BIN_DIR
 #		TCL_SRC_DIR
 #		TCL_LIB_FILE
-#               TCL_ZIP_FILE
-#               TCL_ZIPFS_SUPPORT
+#		TCL_ZIP_FILE
+#		TCL_ZIPFS_SUPPORT
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_LOAD_TCLCONFIG], [
@@ -786,7 +786,7 @@ AC_DEFUN([TEA_ENABLE_SHARED], [
 AC_DEFUN([TEA_ENABLE_THREADS], [
     AC_ARG_ENABLE(threads,
 	AC_HELP_STRING([--enable-threads],
-	    [build with threads]),
+	    [build with threads (default: on)]),
 	[tcl_ok=$enableval], [tcl_ok=yes])
 
     if test "${enable_threads+set}" = set; then
@@ -1502,7 +1502,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_SUFFIX=".so"
-	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS}'
+	    SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS} -shared'
 	    AC_CHECK_LIB(network, inet_ntoa, [LIBS="$LIBS -lnetwork"])
 	    ;;
 	HP-UX-*.11.*)
@@ -1613,7 +1613,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
-	    SHLIB_LD='${CC} -shared ${CFLAGS} ${LDFLAGS_DEFAULT}'
+	    SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS_DEFAULT} -shared'
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
@@ -1659,7 +1659,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		SHLIB_CFLAGS="-fpic"
 		;;
 	    esac
-	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
+	    SHLIB_LD='${CC} ${SHLIB_CFLAGS} -shared'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
@@ -1680,7 +1680,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	NetBSD-*)
 	    # NetBSD has ELF and can use 'cc -shared' to build shared libs
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD='${CC} -shared ${SHLIB_CFLAGS}'
+	    SHLIB_LD='${CC} ${SHLIB_CFLAGS} -shared'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    AS_IF([test $doRpath = yes], [

@@ -2895,8 +2895,6 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_INIT], [
-    # TEA extensions pass this us the version of TEA they think they
-    # are compatible with.
     TEA_VERSION="3.12"
 
     AC_MSG_CHECKING([TEA configuration])

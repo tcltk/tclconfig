@@ -11,10 +11,6 @@
 
 AC_PREREQ(2.57)
 
-dnl TEA extensions pass us the version of TEA they think they
-dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.12"
-
 # Possible values for key variables defined:
 #
 # TEA_WINDOWINGSYSTEM - win32 aqua x11 (mirrors 'tk windowingsystem')
@@ -2895,7 +2891,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_INIT], [
-    TEA_VERSION="3.12"
+    TEA_VERSION="3.13"
 
     AC_MSG_CHECKING([TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -2945,7 +2941,21 @@ The PACKAGE_NAME variable must be defined by your TEA configure.ac])
 	exec_prefix=$prefix
     fi
 
+    INSTALL='$(SHELL) $(srcdir)/tclconfig/install-sh -c'
+    INSTALL_DATA_DIR='${INSTALL} -d -m 755'
+    INSTALL_DATA='${INSTALL} -m 644'
+    INSTALL_PROGRAM='${INSTALL} -m 755'
+    INSTALL_SCRIPT='${INSTALL} -m 755'
+    INSTALL_LIBRARY='${INSTALL} -m 644'
+
     AC_MSG_NOTICE([configuring ${PACKAGE_NAME} ${PACKAGE_VERSION}])
+
+    AC_SUBST(INSTALL)
+    AC_SUBST(INSTALL_DATA_DIR)
+    AC_SUBST(INSTALL_DATA)
+    AC_SUBST(INSTALL_PROGRAM)
+    AC_SUBST(INSTALL_SCRIPT)
+    AC_SUBST(INSTALL_LIBRARY)
 
     AC_SUBST(EXEEXT)
     AC_SUBST(CYGPATH)
@@ -3254,20 +3264,6 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
 
     AC_PROG_CC
     AC_PROG_CPP
-
-    INSTALL='$(SHELL) $(srcdir)/tclconfig/install-sh -c'
-    INSTALL_DATA_DIR='${INSTALL} -d -m 755'
-    INSTALL_DATA='${INSTALL} -m 644'
-    INSTALL_PROGRAM='${INSTALL} -m 755'
-    INSTALL_SCRIPT='${INSTALL} -m 755'
-    INSTALL_LIBRARY='${INSTALL} -m 644'
-
-    AC_SUBST(INSTALL)
-    AC_SUBST(INSTALL_DATA_DIR)
-    AC_SUBST(INSTALL_DATA)
-    AC_SUBST(INSTALL_PROGRAM)
-    AC_SUBST(INSTALL_SCRIPT)
-    AC_SUBST(INSTALL_LIBRARY)
 
     #--------------------------------------------------------------------
     # Checks to see if the make program sets the $MAKE variable.

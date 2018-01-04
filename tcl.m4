@@ -13,7 +13,7 @@ AC_PREREQ(2.57)
 
 dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.10"
+dnl TEA_VERSION="3.11"
 
 # Possible values for key variables defined:
 #
@@ -2897,7 +2897,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 AC_DEFUN([TEA_INIT], [
     # TEA extensions pass this us the version of TEA they think they
     # are compatible with.
-    TEA_VERSION="3.10"
+    TEA_VERSION="3.11"
 
     AC_MSG_CHECKING([for correct TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -3267,9 +3267,9 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     INSTALL='$(SHELL) $(srcdir)/tclconfig/install-sh -c'
     INSTALL_DATA_DIR='${INSTALL} -d -m 755'
     INSTALL_DATA='${INSTALL} -m 644'
-    INSTALL_PROGRAM='${INSTALL}'
-    INSTALL_SCRIPT='${INSTALL}'
-    INSTALL_LIBRARY='${INSTALL_DATA}'
+    INSTALL_PROGRAM='${INSTALL} -m 755'
+    INSTALL_SCRIPT='${INSTALL} -m 755'
+    INSTALL_LIBRARY='${INSTALL} -m 644'
 
     AC_SUBST(INSTALL)
     AC_SUBST(INSTALL_DATA_DIR)

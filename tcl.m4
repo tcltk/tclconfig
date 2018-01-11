@@ -5,6 +5,7 @@
 #
 # Copyright (c) 1999-2000 Ajuba Solutions.
 # Copyright (c) 2002-2005 ActiveState Corporation.
+# Copyright (c) 2012-2018 Sean Woods.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -13,7 +14,7 @@ AC_PREREQ(2.57)
 
 dnl TEA extensions pass us the version of TEA they think they
 dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="3.10"
+dnl TEA_VERSION="4.0"
 
 # Possible values for key variables defined:
 #

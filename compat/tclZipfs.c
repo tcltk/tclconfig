@@ -186,8 +186,8 @@ typedef struct ZipFile {
 #if HAS_DRIVES
     int mntdrv;                  /* Drive letter of mount point */
 #endif
-    int mntptlen;             /* Length of mount point */
-    char mntpt[1];            /* Mount point */
+    char *mntpt;            /* Mount point */
+    size_t mntptlen;
 } ZipFile;
 
 /*
@@ -325,7 +325,7 @@ static const z_crc_t crc32tab[256] = {
 const char *zipfs_literal_tcl_library=NULL;
 
 /* Function prototypes */
-int TclZipfs_Mount(Tcl_Interp *interp, const char *zipname, const char *mntpt,const char *passwd);
+int TclZipfs_Mount(Tcl_Interp *interp, const char *mntpt, const char *zipname, const char *passwd);
 static int TclZipfs_AppHook_FindTclInit(const char *archive);
 static int Zip_FSPathInFilesystemProc(Tcl_Obj *pathPtr, ClientData *clientDataPtr);
 static Tcl_Obj *Zip_FSFilesystemPathTypeProc(Tcl_Obj *pathPtr);
@@ -1195,8 +1195,8 @@ static void TclZipfs_C_Init(void) {
 int
 TclZipfs_Mount(
     Tcl_Interp *interp,
-    const char *zipname,
     const char *mntpt,
+    const char *zipname,
     const char *passwd
 ) {
     char *realname, *p;
@@ -1214,7 +1214,7 @@ TclZipfs_Mount(
     if (!ZipFS.initialized) {
         TclZipfs_C_Init();
     }
-    if (zipname == NULL) {
+    if (mntpt == NULL) {
         Tcl_HashSearch search;
         int ret = TCL_OK;
 
@@ -1236,36 +1236,26 @@ TclZipfs_Mount(
         Unlock();
         return ret;
     }
-    if (mntpt == NULL) {
+    /*
+     * Mount point sometimes is a relative or otherwise denormalized path.
+     * But an absolute name is needed as mount point here.
+     */
+    Tcl_DStringInit(&dsm);
+    mntpt = CanonicalPath("",mntpt, &dsm, 1);
+    
+    if (zipname == NULL) {
         if (interp == NULL) {
             Unlock();
             return TCL_OK;
         }
-        Tcl_DStringInit(&ds);
-#if HAS_DRIVES
-        p = AbsolutePath(zipname, &drive, &ds);
-#else
-        p = AbsolutePath(zipname, &ds);
-#endif
-        hPtr = Tcl_FindHashEntry(&ZipFS.zipHash, p);
-        if (hPtr != NULL) {
-#if HAS_DRIVES
-                if (drive == zf->mntdrv) {
-                    Tcl_Obj *string;
-                    char drvbuf[3];
 
-                    drvbuf[0] = zf->mntdrv;
-                    drvbuf[1] = ':';
-                    drvbuf[2] = '\0';
-                    string = Tcl_NewStringObj(drvbuf, 2);
-                    Tcl_AppendToObj(string, zf->mntpt, zf->mntptlen);
-                    Tcl_SetObjResult(interp, string);
-                }
-#else
+        Tcl_DStringInit(&ds);
+
+        hPtr = Tcl_FindHashEntry(&ZipFS.zipHash, mntpt);
+        if (hPtr != NULL) {
             if ((zf = Tcl_GetHashValue(hPtr)) != NULL) {
-                Tcl_SetObjResult(interp,Tcl_NewStringObj(zf->mntpt, zf->mntptlen));
+                Tcl_SetObjResult(interp,Tcl_NewStringObj(zf->name, -1));
             }
-#endif
         }
         Unlock();
         return TCL_OK;
@@ -1291,20 +1281,13 @@ TclZipfs_Mount(
 #else
     realname = AbsolutePath(zipname, &ds);
 #endif
-    /*
-     * Mount point sometimes is a relative or otherwise denormalized path.
-     * But an absolute name is needed as mount point here.
-     */
-    Tcl_DStringInit(&dsm);
-    mntpt = CanonicalPath("",mntpt, &dsm, 1);
 
     WriteLock();
-    hPtr = Tcl_CreateHashEntry(&ZipFS.zipHash, zipname, &isNew);
+    hPtr = Tcl_CreateHashEntry(&ZipFS.zipHash, mntpt, &isNew);
     if (!isNew) {
         zf = (ZipFile *) Tcl_GetHashValue(hPtr);
         if (interp != NULL) {
-            Tcl_AppendResult(interp, "already mounted on \"", zf->mntptlen ?
-                zf->mntpt : "/", "\"", (char *) NULL);
+            Tcl_AppendResult(interp, zf->name, " is already mounted on ", mntpt, (char *) NULL);
         }
         Unlock();
         ZipFSCloseArchive(interp, &zf0);
@@ -1323,9 +1306,9 @@ TclZipfs_Mount(
         return TCL_ERROR;
         }
         *zf = zf0;
-        zf->name = Tcl_GetHashKey(&ZipFS.zipHash, hPtr);
-        strcpy(zf->mntpt, mntpt);
-        zf->mntptlen = strlen(zf->mntpt);
+        zf->mntpt = Tcl_GetHashKey(&ZipFS.zipHash, hPtr);
+        zf->mntptlen=strlen(zf->mntpt);
+        zf->name = strdup(zipname);
         zf->entries = NULL;
         zf->topents = NULL;
         zf->nopen = 0;
@@ -1555,17 +1538,24 @@ nextent:
  */
 
 int
-TclZipfs_Unmount(Tcl_Interp *interp, const char *zipname)
+TclZipfs_Unmount(Tcl_Interp *interp, const char *mntpt)
 {
     ZipFile *zf;
     ZipEntry *z, *znext;
     Tcl_HashEntry *hPtr;
+    Tcl_DString dsm;
     int ret = TCL_OK, unmounted = 0;
 
     WriteLock();
     if (!ZipFS.initialized) goto done;
-
-    hPtr = Tcl_FindHashEntry(&ZipFS.zipHash, zipname);
+    /*
+     * Mount point sometimes is a relative or otherwise denormalized path.
+     * But an absolute name is needed as mount point here.
+     */
+    Tcl_DStringInit(&dsm);
+    mntpt = CanonicalPath("", mntpt, &dsm, 1);
+    
+    hPtr = Tcl_FindHashEntry(&ZipFS.zipHash, mntpt);
 
     /* don't report error */
     if (hPtr == NULL) goto done;
@@ -1589,6 +1579,7 @@ TclZipfs_Unmount(Tcl_Interp *interp, const char *zipname)
         Tcl_Free((char *) z);
     }
     ZipFSCloseArchive(interp, zf);
+    free(zf->name); //Allocated by strdup
     Tcl_Free((char *) zf);
     unmounted = 1;
 done:
@@ -3935,7 +3926,7 @@ Zip_FSFileAttrsGetProc(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
         *objPtrRef= Tcl_NewLongObj(z->offset);
         goto done;
         case 3:
-        *objPtrRef= Tcl_NewStringObj(z->zipfile->mntpt, -1);
+        *objPtrRef= Tcl_NewStringObj(z->zipfile->mntpt, z->zipfile->mntptlen);
         goto done;
         case 4:
         *objPtrRef= Tcl_NewStringObj(z->zipfile->name, -1);
@@ -4218,7 +4209,7 @@ static int TclZipfs_AppHook_FindTclInit(const char *archive){
     if(zipfs_literal_tcl_library) {
         return TCL_ERROR;
     }
-    if(TclZipfs_Mount(NULL, archive, ZIPFS_ZIP_MOUNT, NULL)) {
+    if(TclZipfs_Mount(NULL, ZIPFS_ZIP_MOUNT, archive, NULL)) {
         /* Either the file doesn't exist or it is not a zip archive */
         return TCL_ERROR;
     }
@@ -4259,7 +4250,7 @@ int TclZipfs_AppHook(int *argc, char ***argv)
     /*
     ** Look for init.tcl in one of the locations mounted later in this function
     */
-    if(!TclZipfs_Mount(NULL, archive, ZIPFS_APP_MOUNT, NULL)) {
+    if(!TclZipfs_Mount(NULL, ZIPFS_APP_MOUNT, archive, NULL)) {
         int found;
         Tcl_Obj *vfsinitscript;
         vfsinitscript=Tcl_NewStringObj(ZIPFS_APP_MOUNT "/main.tcl",-1);
@@ -4301,7 +4292,7 @@ int TclZipfs_AppHook(int *argc, char ***argv)
             }
             return TCL_OK;
         } else {
-            if(!TclZipfs_Mount(NULL, archive, ZIPFS_APP_MOUNT, NULL)) {
+            if(!TclZipfs_Mount(NULL, ZIPFS_APP_MOUNT, archive, NULL)) {
                 int found;
                 Tcl_Obj *vfsinitscript;
                 vfsinitscript=Tcl_NewStringObj(ZIPFS_APP_MOUNT "/main.tcl",-1);
@@ -4342,7 +4333,7 @@ int TclZipfs_AppHook(int *argc, char ***argv)
  */
 
 int
-TclZipfs_Mount(Tcl_Interp *interp, const char *zipname, const char *mntpt,
+TclZipfs_Mount(Tcl_Interp *interp, const char *mntpt, const char *zipname, 
         const char *passwd)
 {
     return TclZipfs_Init(interp, 1);

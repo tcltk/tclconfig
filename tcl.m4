@@ -11,9 +11,6 @@
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 AC_PREREQ(2.57)
-dnl TEA extensions pass us the version of TEA they think they
-dnl are compatible with (must be set in TEA_INIT below)
-dnl TEA_VERSION="4.0"
 
 # Possible values for key variables defined:
 #
@@ -2868,7 +2865,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_INIT], [
-    TEA_VERSION="3.13"
+    TEA_VERSION="4.0"
     AC_MSG_CHECKING([TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
 	AC_MSG_ERROR([

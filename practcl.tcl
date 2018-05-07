@@ -1759,7 +1759,7 @@ oo::objdefine ::practcl::toolset {
     }
     cd $pwd
   }
-  
+
   method BuildDir {PWD} {
     set name [my define get name]
     set debug [my define get debug 0]
@@ -1772,11 +1772,11 @@ oo::objdefine ::practcl::toolset {
       return [my define get builddir [file join $PWD pkg $name]]
     }
   }
-  
+
   method ConfigureOpts {} {
     set opts {}
     set builddir [my define get builddir]
- 
+
     if {[my define get broken_destroot 0]} {
       set PREFIX [my <project> define get prefix_broken_destdir]
     } else {
@@ -1841,7 +1841,7 @@ oo::objdefine ::practcl::toolset {
     }
     return $opts
   }
-  
+
   # Detect what directory contains the Makefile template
   method MakeDir {srcdir} {
     set localsrcdir $srcdir
@@ -1874,7 +1874,7 @@ oo::objdefine ::practcl::toolset {
     }
     return $localsrcdir
   }
-  
+
   method make-autodetect {} {
     set srcdir [my define get srcdir]
     set localsrcdir [my define get localsrcdir]
@@ -1918,12 +1918,12 @@ oo::objdefine ::practcl::toolset {
     catch {exec sh [file join $localsrcdir configure] {*}$opts >>& [file join $builddir autoconf.log]}
     cd $::CWD
   }
-  
+
   method make-clean {} {
     set builddir [file normalize [my define get builddir]]
     catch {::practcl::domake $builddir clean}
   }
-  
+
   method make-compile {} {
     set name [my define get name]
     set srcdir [my define get srcdir]
@@ -1948,7 +1948,7 @@ oo::objdefine ::practcl::toolset {
       ::practcl::domake $builddir all
     }
   }
-  
+
   method make-install DEST {
     set PWD [pwd]
     set builddir [my define get builddir]
@@ -1984,7 +1984,7 @@ oo::objdefine ::practcl::toolset {
     }
     cd $PWD
   }
-  
+
   method build-compile-sources {PROJECT COMPILE CPPCOMPILE INCLUDES} {
     set objext [my define get OBJEXT o]
     set EXTERN_OBJS {}
@@ -2401,10 +2401,13 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
   append cmd " $OBJECTS"
   append cmd " $EXTERN_OBJS"
   if {$debug && $os eq "windows"} {
-    append cmd " -static"
-    append cmd " -L${TCL(src_dir)}/win -ltcl86g"
+    ###
+    # There is bug in the core's autoconf and the value for
+    # tcl_build_lib_spec does not have the 'g' suffix
+    ###
+    append cmd " -L[file dirname $TCL(build_stub_lib_path)] -ltcl86g"
     if {[$PROJECT define get static_tk]} {
-      append cmd " -L${TK(src_dir)}/win -ltk86g"
+      append cmd " -L[file dirname $TK(build_stub_lib_path)] -ltk86g"
     }
   } else {
     append cmd " $TCL(build_lib_spec)"
@@ -2448,9 +2451,9 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
     }
   }
   if {$debug && $os eq "windows"} {
-    append cmd " -L${TCL(src_dir)}/win ${TCL(stub_lib_flag)}"
+    append cmd " -L[file dirname $TCL(build_stub_lib_path)] ${TCL(stub_lib_flag)}"
     if {[$PROJECT define get static_tk]} {
-      append cmd " -L${TK(src_dir)}/win ${TK(stub_lib_flag)}"
+      append cmd " -L[file dirname $TK(build_stub_lib_path)] ${TK(stub_lib_flag)}"
     }
   } else {
     append cmd " $TCL(build_stub_lib_spec)"
@@ -5758,12 +5761,12 @@ oo::class create ::practcl::subproject {
   method _MorphPatterns {} {
     return {{::practcl::subproject.@name@} {::practcl::@name@} {@name@} {::practcl::subproject}}
   }
-  
-  
+
+
   method BuildDir {PWD} {
     return [my define get srcdir]
   }
-  
+
   method child which {
     switch $which {
       organs {
@@ -6013,6 +6016,15 @@ oo::class create ::practcl::subproject.sak {
       -pkg-path [file join $DEST $prefix lib $pkg]  \
       -no-examples -no-html -no-nroff \
       -no-wait -no-gui -no-apps
+  }
+
+  method install-module {DEST args} {
+    set pkg [my define get pkg_name [my define get name]]
+    set prefix [my <project> define get prefix [file normalize [file join ~ tcl]]]
+    set pkgpath [file join $prefix lib $pkg]
+    foreach module $args {
+      ::practcl::installDir [file join $pkgpath $module] [file join $DEST $module]
+    }
   }
 }
 

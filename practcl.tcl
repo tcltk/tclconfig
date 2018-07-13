@@ -4,7 +4,7 @@
 # build.tcl
 ###
 package require Tcl 8.5
-package provide practcl 0.11
+package provide practcl 0.12
 namespace eval ::practcl {}
 
 ###
@@ -67,6 +67,724 @@ proc ::http::wget {url destfile {verbose 1}} {
 
 ###
 # END: httpwget/wget.tcl
+###
+###
+# START: clay/build/procs.tcl
+###
+::namespace eval ::clay {}
+set ::clay::trace 0
+
+###
+# Global utilities
+###
+if {[info commands ::ladd] eq {}} {
+  proc ladd {varname args} {
+    upvar 1 $varname var
+    if ![info exists var] {
+        set var {}
+    }
+    foreach item $args {
+      if {$item in $var} continue
+      lappend var $item
+    }
+    return $var
+  }
+}
+
+if {[info command ::ldelete] eq {}} {
+  proc ::ldelete {varname args} {
+    upvar 1 $varname var
+    if ![info exists var] {
+        return
+    }
+    foreach item [lsort -unique $args] {
+      while {[set i [lsearch $var $item]]>=0} {
+        set var [lreplace $var $i $i]
+      }
+    }
+    return $var
+  }
+}
+
+if {[info command ::lrandom] eq {}} {
+  proc ::lrandom list {
+    set len [llength $list]
+    set idx [expr int(rand()*$len)]
+    return [lindex $list $idx]
+  }
+}
+
+if {[::info commands ::tcl::dict::getnull] eq {}} {
+  proc ::tcl::dict::getnull {dictionary args} {
+    if {[exists $dictionary {*}$args]} {
+      get $dictionary {*}$args
+    }
+  }
+  namespace ensemble configure dict -map [dict replace\
+      [namespace ensemble configure dict -map] getnull ::tcl::dict::getnull]
+}
+
+proc ::putb {buffername args} {
+  upvar 1 $buffername buffer
+  switch [llength $args] {
+    1 {
+      append buffer [lindex $args 0] \n
+    }
+    2 {
+      append buffer [string map {*}$args] \n
+    }
+    default {
+      error "usage: putb buffername ?map? string"
+    }
+  }
+}
+namespace eval ::clay {}
+
+proc ::clay::ancestors args {
+  set result {}
+  set queue {}
+  foreach class [lreverse $args] {
+    lappend queue $class
+  }
+
+  # Rig things such that that the top superclasses
+  # are evaluated first
+  while {[llength $queue]} {
+    set tqueue $queue
+    set queue {}
+    foreach qclass $tqueue {
+      foreach aclass [::info class superclasses $qclass] {
+        if { $aclass in $result } continue
+        if { $aclass in $queue } continue
+        lappend queue $aclass
+      }
+    }
+    foreach item $tqueue {
+      if { $item ni $result } {
+        lappend result $item
+      }
+    }
+  }
+  return $result
+}
+
+proc ::clay::args_to_dict args {
+  if {[llength $args]==1} {
+    return [lindex $args 0]
+  }
+  return $args
+}
+
+proc ::clay::args_to_options args {
+  set result {}
+  foreach {var val} [args_to_dict {*}$args] {
+    lappend result [string trimright [string trimleft $var -] :] $val
+  }
+  return $result
+}
+
+proc ::clay::dictmerge {varname args} {
+  upvar 1 $varname result
+  if {![info exists result]} {
+    set result {}
+  }
+  switch [llength $args] {
+    0 {
+      return
+    }
+    1 {
+      set result [_dictmerge $result [lindex $args 0]]
+      return $result
+    }
+    2 {
+      lassign $args path value
+    }
+    default {
+      # Merge b into a, and handle nested dicts appropriately
+      set value [lindex $args end]
+      set path  [lrange $args 0 end-1]
+    }
+  }
+  if {![dict exists $result {*}$path]} {
+    dict set result {*}$path $value
+    return $result
+  }
+  if {[string index [lindex $path end] end] ne "/"} {
+    dict set result {*}$path $value
+    return $result
+  }
+  ::dict for { k v } $value {
+    # Element names that end in "/" are assumed to be branches
+    if {[string index $k end] eq "/" && [::dict exists $result {*}$path $k]} {
+      # key exists in a and b?  let's see if both values are dicts
+      # both are dicts, so merge the dicts
+      set dvalue [::dict get $result {*}$path $k]
+      if { [is_dict $dvalue] && [is_dict $v] } {
+        ::dict set result {*}$path $k [_dictmerge $dvalue $v]
+      } else {
+        ::dict set result {*}$path $k $v
+      }
+    } else {
+      ::dict set result {*}$path $k $v
+    }
+  }
+  return $result
+}
+
+proc ::clay::_dictmerge {a b} {
+  ::set result $a
+  # Merge b into a, and handle nested dicts appropriately
+  ::dict for { k v } $b {
+    if {[string index $k end] ne "/"} {
+      # Element names that do not end in "/" are assumed to be literals
+      # or dict trees we intend to replace wholly
+      ::dict set result $k $v
+    } elseif { [::dict exists $result $k] } {
+      # key exists in a and b?  let's see if both values are dicts
+      # both are dicts, so merge the dicts
+      if { [is_dict [::dict get $result $k]] && [is_dict $v] } {
+        ::dict set result $k [_dictmerge [::dict get $result $k] $v]
+      } else {
+        ::dict set result $k $v
+      }
+    } else {
+      ::dict set result $k $v
+    }
+  }
+  return $result
+}
+
+proc ::clay::dictputb {dict} {
+  set result {}
+  set level -1
+  _dictputb 0 $level result $dict
+  return $result
+}
+
+proc ::clay::_dictputb {leaf level varname dict} {
+  upvar 1 $varname result
+  incr level
+  foreach {field value} $dict {
+    if {[string index $field end] eq "/"} {
+      putb result "[string repeat "  " $level]$field \{"
+      _dictputb 0 $level result $value
+      putb result "[string repeat "  " $level]\}"
+    } else {
+      putb result "[string repeat "  " $level][list $field $value]"
+    }
+  }
+}
+
+###
+# topic: 4969d897a83d91a230a17f166dbcaede
+###
+proc ::clay::dynamic_arguments {ensemble method arglist args} {
+  set idx 0
+  set len [llength $args]
+  if {$len > [llength $arglist]} {
+    ###
+    # Catch if the user supplies too many arguments
+    ###
+    set dargs 0
+    if {[lindex $arglist end] ni {args dictargs}} {
+      return -code error -level 2 "Usage: $ensemble $method [string trim [dynamic_wrongargs_message $arglist]]"
+    }
+  }
+  foreach argdef $arglist {
+    if {$argdef eq "args"} {
+      ###
+      # Perform args processing in the style of tcl
+      ###
+      uplevel 1 [list set args [lrange $args $idx end]]
+      break
+    }
+    if {$argdef eq "dictargs"} {
+      ###
+      # Perform args processing in the style of tcl
+      ###
+      uplevel 1 [list set args [lrange $args $idx end]]
+      ###
+      # Perform args processing in the style of clay
+      ###
+      set dictargs [::clay::args_to_options {*}[lrange $args $idx end]]
+      uplevel 1 [list set dictargs $dictargs]
+      break
+    }
+    if {$idx > $len} {
+      ###
+      # Catch if the user supplies too few arguments
+      ###
+      if {[llength $argdef]==1} {
+        return -code error -level 2 "Usage: $ensemble $method [string trim [dynamic_wrongargs_message $arglist]]"
+      } else {
+        uplevel 1 [list set [lindex $argdef 0] [lindex $argdef 1]]
+      }
+    } else {
+      uplevel 1 [list set [lindex $argdef 0] [lindex $args $idx]]
+    }
+    incr idx
+  }
+}
+
+###
+# topic: 53ab28ac5c6ee601fe1fe07b073be88e
+###
+proc ::clay::dynamic_wrongargs_message {arglist} {
+  set result ""
+  set dargs 0
+  foreach argdef $arglist {
+    if {$argdef in {args dictargs}} {
+      set dargs 1
+      break
+    }
+    if {[llength $argdef]==1} {
+      append result " $argdef"
+    } else {
+      append result " ?[lindex $argdef 0]?"
+    }
+  }
+  if { $dargs } {
+    append result " ?option value?..."
+  }
+  return $result
+}
+
+proc ::clay::is_dict { d } {
+  # is it a dict, or can it be treated like one?
+  if {[catch {::dict size $d} err]} {
+    #::set ::errorInfo {}
+    return 0
+  }
+  return 1
+}
+
+proc ::clay::is_null value {
+  return [expr {$value in {{} NULL}}]
+}
+
+proc ::clay::leaf args {
+  set marker [string index [lindex $args end] end]
+  set result [path {*}${args}]
+  if {$marker eq "/"} {
+    return $result
+  }
+  return [list {*}[lrange $result 0 end-1] [string trim [string trim [lindex $result end]] /]]
+}
+
+proc ::clay::path args {
+  set result {}
+  foreach item $args {
+    set item [string trim $item :./]
+    foreach subitem [split $item /] {
+      lappend result [string trim ${subitem}]/
+    }
+  }
+  return $result
+}
+
+proc ::clay::script_path {} {
+  set path [file dirname [file join [pwd] [info script]]]
+  return $path
+}
+
+proc ::clay::NSNormalize qualname {
+  if {![string match ::* $qualname]} {
+    set qualname ::clay::classes::$qualname
+  }
+  regsub -all {::+} $qualname "::"
+}
+
+proc ::clay::uuid_generate args {
+  return [uuid::uuid generate]
+}
+
+namespace eval ::clay {
+  variable core_classes {::oo::class ::oo::object}
+}
+
+###
+# END: clay/build/procs.tcl
+###
+###
+# START: clay/build/class.tcl
+###
+oo::define oo::class {
+  method clay {submethod args} {
+    my variable clay
+    if {![info exists clay]} {
+      set clay {}
+    }
+    switch $submethod {
+      ancestors {
+        tailcall ::clay::ancestors [self]
+      }
+      exists {
+        set path [::clay::leaf {*}$args]
+        if {![info exists clay]} {
+          return 0
+        }
+        return [dict exists $clay {*}$path]
+      }
+      dump {
+        return $clay
+      }
+      getnull -
+      get {
+        if {[llength $args]==0} {
+          return $clay
+        }
+        if {![dict exists $clay {*}$args]} {
+          return {}
+        }
+        tailcall dict get $clay {*}$args
+      }
+      merge {
+        foreach arg $args {
+          ::clay::dictmerge clay {*}$arg
+        }
+      }
+      search {
+        foreach aclass [::clay::ancestors [self]] {
+          if {[$aclass clay exists {*}$args]} {
+            return [$aclass clay get {*}$args]
+          }
+        }
+      }
+      set {
+        #puts [list [self] clay SET {*}$args]
+        set value [lindex $args end]
+        set path [::clay::leaf {*}[lrange $args 0 end-1]]
+        ::clay::dictmerge clay {*}$path $value
+      }
+      default {
+        dict $submethod clay {*}$args
+      }
+    }
+  }
+}
+
+###
+# END: clay/build/class.tcl
+###
+###
+# START: clay/build/object.tcl
+###
+oo::define oo::object {
+
+  ###
+  # title: Provide access to clay data
+  # format: markdown
+  # description:
+  # The *clay* method allows an object access
+  # to a combination of its own clay data as
+  # well as to that of its class
+  ###
+  method clay {submethod args} {
+    my variable clay claycache clayorder
+    if {![info exists clay]} {set clay {}}
+    if {![info exists claycache]} {set claycache {}}
+    if {![info exists clayorder] || [llength $clayorder]==0} {
+      set clayorder [::clay::ancestors [info object class [self]] {*}[info object mixins [self]]]
+    }
+    if {$::clay::trace > 1} {
+      puts [list [info object class [self]] / [self] clay $submethod {*}$args]
+    }
+    switch $submethod {
+      ancestors {
+        return $clayorder
+      }
+      cget {
+        # Leaf searches return one data field at a time
+        # Search in our local dict
+        if {[dict exists $clay {*}$args]} {
+          return [dict get $clay {*}$args]
+        }
+        # Search in our local cache
+        if {[dict exists $claycache {*}$args]} {
+          return [dict get $claycache {*}$args]
+        }
+        # Search in the in our list of classes for an answer
+        foreach class $clayorder {
+          if {[$class clay exists {*}$args]} {
+            set value [$class clay get {*}$args]
+            dict set claycache {*}$args $value
+            return $value
+          }
+          if {[$class clay exists const/ {*}$args]} {
+            set value [$class clay get const/ {*}$args]
+            dict set claycache {*}$args $value
+            return $value
+          }
+          if {[llength $args]==1} {
+            set field [lindex $args 0]
+            if {[$class clay exists public/ option/ ${field}/ default]} {
+              set value [$class clay get public/ option/ ${field}/ default]
+              dict set claycache {*}$args $value
+              return $value
+            }
+          }
+        }
+        return {}
+      }
+      delegate {
+        if {![dict exists $clay delegate/ <class>]} {
+          dict set clay delegate/ <class> [info object class [self]]
+        }
+        if {[llength $args]==0} {
+          return [dict get $clay delegate/]
+        }
+        if {[llength $args]==1} {
+          set stub <[string trim [lindex $args 0] <>]>
+          if {![dict exists $clay delegate/ $stub]} {
+            return {}
+          }
+          return [dict get $clay delegate/ $stub]
+        }
+        if {([llength $args] % 2)} {
+          error "Usage: delegate
+    OR
+    delegate stub
+    OR
+    delegate stub OBJECT ?stub OBJECT? ..."
+        }
+        foreach {stub object} $args {
+          set stub <[string trim $stub <>]>
+          dict set clay delegate/ $stub $object
+          oo::objdefine [self] forward ${stub} $object
+          oo::objdefine [self] export ${stub}
+        }
+      }
+      dump {
+        # Do a full dump of clay data
+        set result $clay
+        # Search in the in our list of classes for an answer
+        foreach class $clayorder {
+          ::clay::dictmerge result [$class clay dump]
+        }
+        return $result
+      }
+      ensemble_map {
+        set ensemble [lindex $args 0]
+        my variable claycache
+        set mensemble [string trim $ensemble :/]/
+        if {[dict exists $claycache method_ensemble/ $mensemble]} {
+          return [dict get $claycache method_ensemble/ $mensemble]
+        }
+        set emap [my clay get method_ensemble/ $mensemble]
+        dict set claycache method_ensemble/ $mensemble $emap
+        return $emap
+      }
+      eval {
+        set script [lindex $args 0]
+        set buffer {}
+        set thisline {}
+        foreach line [split $script \n] {
+          append thisline $line
+          if {![info complete $thisline]} {
+            append thisline \n
+            continue
+          }
+          set thisline [string trim $thisline]
+          if {[string index $thisline 0] eq "#"} continue
+          if {[string length $thisline]==0} continue
+          if {[lindex $thisline 0] eq "my"} {
+            # Line already calls out "my", accept verbatim
+            append buffer $thisline \n
+          } elseif {[string range $thisline 0 2] eq "::"} {
+            # Fully qualified commands accepted verbatim
+            append buffer $thisline \n
+          } elseif {
+            append buffer "my $thisline" \n
+          }
+          set thisline {}
+        }
+        eval $buffer
+      }
+      evolve {
+        my Evolve
+      }
+      exists {
+        # Leaf searches return one data field at a time
+        # Search in our local dict
+        if {[dict exists $clay {*}$args]} {
+          return 1
+        }
+        # Search in our local cache
+        if {[dict exists $claycache {*}$args]} {
+          return 2
+        }
+        set count 2
+        # Search in the in our list of classes for an answer
+        foreach class $clayorder {
+          incr count
+          if {[$class clay exists {*}$args]} {
+            return $count
+          }
+        }
+        return 0
+      }
+      flush {
+        set claycache {}
+        set clayorder [::clay::ancestors [info object class [self]] {*}[info object mixins [self]]]
+      }
+      forward {
+        oo::objdefine [self] forward {*}$args
+      }
+      getnull -
+      get {
+        set leaf [expr {[string index [lindex $args end] end] ne "/"}]
+        #puts [list [self] clay get {*}$args (leaf: $leaf)]
+        if {$leaf} {
+          #puts [list EXISTS: (clay) [dict exists $clay {*}$args]]
+          if {[dict exists $clay {*}$args]} {
+            return [dict get $clay {*}$args]
+          }
+          # Search in our local cache
+          #puts [list EXISTS: (claycache) [dict exists $claycache {*}$args]]
+          if {[dict exists $claycache {*}$args]} {
+            return [dict get $claycache {*}$args]
+          }
+          # Search in the in our list of classes for an answer
+          foreach class $clayorder {
+            if {[$class clay exists {*}$args]} {
+              set value [$class clay get {*}$args]
+              dict set claycache {*}$args $value
+              return $value
+            }
+          }
+        } else {
+          set result {}
+          # Leaf searches return one data field at a time
+          # Search in our local dict
+          if {[dict exists $clay {*}$args]} {
+            set result [dict get $clay {*}$args]
+          }
+          # Search in the in our list of classes for an answer
+          foreach class $clayorder {
+            ::clay::dictmerge result [$class clay get {*}$args]
+          }
+          return $result
+        }
+      }
+      leaf {
+        # Leaf searches return one data field at a time
+        # Search in our local dict
+        if {[dict exists $clay {*}$args]} {
+          return [dict get $clay {*}$args]
+        }
+        # Search in our local cache
+        if {[dict exists $claycache {*}$args]} {
+          return [dict get $claycache {*}$args]
+        }
+        # Search in the in our list of classes for an answer
+        foreach class $clayorder {
+          if {[$class clay exists {*}$args]} {
+            set value [$class clay get {*}$args]
+            dict set claycache {*}$args $value
+            return $value
+          }
+        }
+      }
+      merge {
+        foreach arg $args {
+          ::clay::dictmerge clay {*}$arg
+        }
+      }
+      mixin {
+        ###
+        # Mix in the class
+        ###
+        set prior  [info object mixins [self]]
+        set newmixin {}
+        foreach item $args {
+          lappend newmixin ::[string trimleft $item :]
+        }
+        set newmap $args
+        foreach class $prior {
+          if {$class ni $newmixin} {
+            set script [$class clay search mixin/ unmap-script]
+            if {[string length $script]} {
+              if {[catch $script err errdat]} {
+                puts stderr "[self] MIXIN ERROR POPPING $class:\n[dict get $errdat -errorinfo]"
+              }
+            }
+          }
+        }
+        ::oo::objdefine [self] mixin {*}$args
+        ###
+        # Build a compsite map of all ensembles defined by the object's current
+        # class as well as all of the classes being mixed in
+        ###
+        my Evolve
+        foreach class $newmixin {
+          if {$class ni $prior} {
+            set script [$class clay search mixin/ map-script]
+            if {[string length $script]} {
+              if {[catch $script err errdat]} {
+                puts stderr "[self] MIXIN ERROR PUSHING $class:\n[dict get $errdat -errorinfo]"
+              }
+            }
+          }
+        }
+        foreach class $newmixin {
+          set script [$class clay search mixin/ react-script]
+          if {[string length $script]} {
+            if {[catch $script err errdat]} {
+              puts stderr "[self] MIXIN ERROR PEEKING $class:\n[dict get $errdat -errorinfo]"
+            }
+            break
+          }
+        }
+      }
+      mixinmap {
+        foreach {slot classes} $args {
+          dict set clay mixin/ $slot $classes
+        }
+        set claycache {}
+        set classlist {}
+        foreach {item class} [my clay get mixin/] {
+          if {$class ne {}} {
+            lappend classlist $class
+          }
+        }
+        my clay mixin {*}$classlist
+      }
+      provenance {
+        if {[dict exists $clay {*}$args]} {
+          return self
+        }
+        foreach class $clayorder {
+          if {[$class clay exists {*}$args]} {
+            return $class
+          }
+        }
+        return {}
+      }
+      replace {
+        set clay [lindex $args 0]
+      }
+      source {
+        source [lindex $args 0]
+      }
+      set {
+        #puts [list [self] clay SET {*}$args]
+        ::clay::dictmerge clay {*}$args
+      }
+      default {
+        dict $submethod clay {*}$args
+      }
+    }
+  }
+
+  ###
+  # React to a mixin
+  ###
+  method Evolve {} {}
+}
+
+
+###
+# END: clay/build/object.tcl
 ###
 ###
 # START: setup.tcl
@@ -1315,89 +2033,8 @@ proc ::practcl::target {name info {action {}}} {
     }
   }
 
-
-  method meta {submethod args} {
-    my variable meta
-    if {![info exists meta]} {
-      set meta {}
-    }
-    switch $submethod {
-      dump {
-        return $meta
-      }
-      add {
-        set field [lindex $args 0]
-        if {![dict exists $meta $field]} {
-          dict set meta $field {}
-        }
-        foreach arg [lrange $args 1 end] {
-          if {$arg ni [dict get $meta $field]} {
-            dict lappend meta $field $arg
-          }
-        }
-        return [dict get $meta $field]
-      }
-      remove {
-        set field [lindex $args 0]
-        if {![dict exists meta $field]} {
-          return
-        }
-        set rlist [lrange $args 1 end]
-        set olist [dict get $meta $field]
-        set nlist {}
-        foreach arg $olist {
-          if {$arg in $rlist} continue
-          lappend nlist $arg
-        }
-        dict set meta $field $nlist
-        return $nlist
-      }
-      exists {
-        return [dict exists $meta {*}$args]
-      }
-      getnull -
-      get {
-        if {[dict exists $meta {*}$args]} {
-          return [dict get $meta {*}$args]
-        }
-        return {}
-      }
-      cget {
-        set field [lindex $args 0]
-        if {[dict exists $meta $field]} {
-          return [dict get $meta $field]
-        }
-        return [lindex $args 1]
-      }
-      set {
-        if {[llength $args]==1} {
-          foreach {field value} $args {
-            dict set meta [string trimright $field :]: $value
-          }
-        } else {
-          set field [lindex $args end-1]
-          set value [lindex $args end]
-          dict set meta {*}[lrange $args 0 end-2] [string trimright $field :]: $value
-        }
-      }
-      default {
-        error "Valid: add cget dump exists get getnull remove set"
-      }
-    }
-  }
-  
   method graft args {
-    my variable organs
-    if {[llength $args] == 1} {
-      error "Need two arguments"
-    }
-    set object {}
-    foreach {stub object} $args {
-      dict set organs $stub $object
-      oo::objdefine [self] forward <${stub}> $object
-      oo::objdefine [self] export <${stub}>
-    }
-    return $object
+    return [my clay delegate {*}$args]
   }
 
   method initialize {} {}
@@ -1526,17 +2163,8 @@ proc ::practcl::target {name info {action {}}} {
     oo::objdefine [self] mixin {*}$mixins
   }
 
-  method organ {{stub all}} {
-    my variable organs
-    if {![info exists organs]} {
-      return {}
-    }
-    if { $stub eq "all" } {
-      return $organs
-    }
-    if {[dict exists $organs $stub]} {
-      return [dict get $organs $stub]
-    }
+  method organ args {
+    return [my clay delegate {*}$args]
   }
 
   method script script {
@@ -1956,7 +2584,7 @@ oo::objdefine ::practcl::toolset {
       if {[file exists [file join $builddir make.tcl]]} {
         puts "[self] Local INSTALL (Practcl)"
         ::practcl::domake.tcl $builddir install
-      } else {[my define get broken_destroot 0] == 0} {
+      } elseif {[my define get broken_destroot 0] == 0} {
         puts "[self] Local INSTALL (TEA)"
         ::practcl::domake $builddir install
       }
@@ -2720,7 +3348,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
   constructor {parent args} {
     my variable links define
     set organs [$parent child organs]
-    my graft {*}$organs
+    my clay delegate {*}$organs
     array set define $organs
     array set define [$parent child define]
     array set links {}
@@ -4057,7 +4685,7 @@ oo::objdefine ::practcl::product {
   method _MorphPatterns {} {
     return {{@name@} {::practcl::module.@name@} ::practcl::module}
   }
-  
+
   method add args {
     my variable links
     set object [::practcl::object new [self] {*}$args]
@@ -4066,10 +4694,10 @@ oo::objdefine ::practcl::product {
     }
     return $object
   }
-  
-  
+
+
   method install-headers args {}
-  
+
   ###
   # Target handling
   ###
@@ -4170,7 +4798,7 @@ oo::objdefine ::practcl::product {
         set name [lindex $args 0]
         set info [uplevel #0 [list subst [lindex $args 1]]]
         set body [lindex $args 2]
-        
+
         set nspace [namespace current]
         if {[dict exist $make_object $name]} {
           set obj [dict get $$make_object $name]
@@ -4194,7 +4822,7 @@ oo::objdefine ::practcl::product {
           if {[$obj do]} {
             lappend result $name
           }
-        }       
+        }
       }
       do {
         global CWD SRCDIR project SANDBOX
@@ -4206,9 +4834,10 @@ oo::objdefine ::practcl::product {
       }
     }
   }
-  
+
   method child which {
     switch $which {
+      delegate -
       organs {
         return [list project [my define get project] module [self]]
       }
@@ -4386,7 +5015,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
       }
     }
     if {[llength $errs]} {
-      set logfile [file join $::CWD practcl.log]      
+      set logfile [file join $::CWD practcl.log]
       ::practcl::log $logfile "*** ERRORS ***"
       foreach {item trace} $errs {
         ::practcl::log $logfile "###\n# ERROR\n###\n$item"
@@ -4551,6 +5180,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
 
   method child which {
     switch $which {
+      delegate -
       organs {
 	# A library can be a project, it can be a module. Any
 	# subordinate modules will indicate their existance
@@ -5769,6 +6399,7 @@ oo::class create ::practcl::subproject {
 
   method child which {
     switch $which {
+      delegate -
       organs {
 	# A library can be a project, it can be a module. Any
 	# subordinate modules will indicate their existance
@@ -5873,9 +6504,11 @@ oo::class create ::practcl::subproject {
   }
 
   method unpack {} {
+    cd $::CWD
     ::practcl::distribution select [self]
     my Unpack
     ::practcl::toolset select [self]
+    cd $::CWD
   }
 }
 

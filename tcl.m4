@@ -853,100 +853,110 @@ AC_DEFUN([TEA_ENABLE_SHARED], [
 
 AC_DEFUN([TEA_ENABLE_THREADS], [
     AC_ARG_ENABLE(threads,
-	AC_HELP_STRING([--enable-threads],
-	    [build with threads (default: on)]),
-	[tcl_ok=$enableval], [tcl_ok=yes])
+        AC_HELP_STRING([--enable-threads],
+            [build with threads (default: on)]),
+        [tcl_ok=$enableval], [tcl_ok=yes])
 
     if test "${enable_threads+set}" = set; then
-	enableval="$enable_threads"
-	tcl_ok=$enableval
+        enableval="$enable_threads"
+        tcl_ok=$enableval
     else
-	tcl_ok=yes
+        tcl_ok=yes
     fi
 
     if test "$tcl_ok" = "yes" -o "${TCL_THREADS}" = 1; then
-	TCL_THREADS=1
+        TCL_THREADS=1
 
-	if test "${TEA_PLATFORM}" != "windows" ; then
-	    # We are always OK on Windows, so check what this platform wants:
+        if test "${TEA_PLATFORM}" != "windows" ; then
+            # We are always OK on Windows, so check what this platform wants:
 
-	    # USE_THREAD_ALLOC tells us to try the special thread-based
-	    # allocator that significantly reduces lock contention
-	    AC_DEFINE(USE_THREAD_ALLOC, 1,
-		[Do we want to use the threaded memory allocator?])
-	    AC_DEFINE(_REENTRANT, 1, [Do we want the reentrant OS API?])
-	    if test "`uname -s`" = "SunOS" ; then
-		AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1,
-			[Do we really want to follow the standard? Yes we do!])
-	    fi
-	    AC_DEFINE(_THREAD_SAFE, 1, [Do we want the thread-safe OS API?])
-	    AC_CHECK_LIB(pthread,pthread_mutex_init,tcl_ok=yes,tcl_ok=no)
-	    if test "$tcl_ok" = "no"; then
-		# Check a little harder for __pthread_mutex_init in the same
-		# library, as some systems hide it there until pthread.h is
-		# defined.  We could alternatively do an AC_TRY_COMPILE with
-		# pthread.h, but that will work with libpthread really doesn't
-		# exist, like AIX 4.2.  [Bug: 4359]
-		AC_CHECK_LIB(pthread, __pthread_mutex_init,
-		    tcl_ok=yes, tcl_ok=no)
-	    fi
+            # USE_THREAD_ALLOC tells us to try the special thread-based
+            # allocator that significantly reduces lock contention
+            AC_DEFINE(USE_THREAD_ALLOC, 1,
+                [Do we want to use the threaded memory allocator?])
+            AC_DEFINE(_REENTRANT, 1, [Do we want the reentrant OS API?])
+            if test "`uname -s`" = "SunOS" ; then
+                AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1,
+                        [Do we really want to follow the standard? Yes we do!])
+            fi
+            AC_DEFINE(_THREAD_SAFE, 1, [Do we want the thread-safe OS API?])
+            AC_CHECK_LIB(pthread,pthread_mutex_init,tcl_ok=yes,tcl_ok=no)
+            if test "$tcl_ok" = "no"; then
+                # Check a little harder for __pthread_mutex_init in the same
+                # library, as some systems hide it there until pthread.h is
+                # defined.  We could alternatively do an AC_TRY_COMPILE with
+                # pthread.h, but that will work with libpthread really doesn't
+                # exist, like AIX 4.2.  [Bug: 4359]
+                AC_CHECK_LIB(pthread, __pthread_mutex_init,
+                    tcl_ok=yes, tcl_ok=no)
+            fi
 
-	    if test "$tcl_ok" = "yes"; then
-		# The space is needed
-		THREADS_LIBS=" -lpthread"
-	    else
-		AC_CHECK_LIB(pthreads, pthread_mutex_init,
-		    tcl_ok=yes, tcl_ok=no)
-		if test "$tcl_ok" = "yes"; then
-		    # The space is needed
-		    THREADS_LIBS=" -lpthreads"
-		else
-		    AC_CHECK_LIB(c, pthread_mutex_init,
-			tcl_ok=yes, tcl_ok=no)
-		    if test "$tcl_ok" = "no"; then
-			AC_CHECK_LIB(c_r, pthread_mutex_init,
-			    tcl_ok=yes, tcl_ok=no)
-			if test "$tcl_ok" = "yes"; then
-			    # The space is needed
-			    THREADS_LIBS=" -pthread"
-			else
-			    TCL_THREADS=0
-			    AC_MSG_WARN([Do not know how to find pthread lib on your system - thread support disabled])
-			fi
-		    fi
-		fi
-	    fi
-	fi
+            if test "$tcl_ok" = "yes"; then
+                # The space is needed
+                THREADS_LIBS=" -lpthread"
+            else
+                AC_CHECK_LIB(pthreads, pthread_mutex_init,
+                    tcl_ok=yes, tcl_ok=no)
+                if test "$tcl_ok" = "yes"; then
+                    # The space is needed
+                    THREADS_LIBS=" -lpthreads"
+                else
+                    AC_CHECK_LIB(c, pthread_mutex_init,
+                        tcl_ok=yes, tcl_ok=no)
+                    if test "$tcl_ok" = "no"; then
+                        AC_CHECK_LIB(c_r, pthread_mutex_init,
+                            tcl_ok=yes, tcl_ok=no)
+                        if test "$tcl_ok" = "yes"; then
+                            # The space is needed
+                            THREADS_LIBS=" -pthread"
+                        else
+                            TCL_THREADS=0
+                            AC_MSG_WARN([Do not know how to find pthread lib on your system - thread support disabled])
+                        fi
+                    fi
+                fi
+            fi
+        fi
     else
-	TCL_THREADS=0
+        TCL_THREADS=0
     fi
     # Do checking message here to not mess up interleaved configure output
     AC_MSG_CHECKING([for building with threads])
     if test "${TCL_THREADS}" = 1; then
-	AC_DEFINE(TCL_THREADS, 1, [Are we building with threads enabled?])
-	AC_MSG_RESULT([yes (default)])
+        AC_DEFINE(TCL_THREADS, 1, [Are we building with threads enabled?])
+        AC_MSG_RESULT([yes (default)])
     else
-	AC_MSG_RESULT([no])
+        AC_MSG_RESULT([no])
     fi
     # TCL_THREADS sanity checking.  See if our request for building with
     # threads is the same as the way Tcl was built.  If not, warn the user.
-    case ${TCL_DEFS} in
-	*THREADS=1*)
-	    if test "${TCL_THREADS}" = "0"; then
-		AC_MSG_WARN([
+
+    if test "${TCL_VERSION}" > "8.6" ; then
+      TCL_HAS_THREADS=1
+    else
+      case ${TCL_DEFS} in
+          *THREADS=1*)
+              TCL_HAS_THREADS=1;
+          ;;
+          *)
+              TCL_HAS_THREADS=0;
+          ;;
+      esac
+    fi
+    if test "${TCL_HAS_THREADS}" = "1"; then
+      if test "${TCL_THREADS}" = "0"; then
+        AC_MSG_WARN([
     Building ${PACKAGE_NAME} without threads enabled, but building against Tcl
     that IS thread-enabled.  It is recommended to use --enable-threads.])
-	    fi
-	    ;;
-	*)
-	    if test "${TCL_THREADS}" = "1"; then
-		AC_MSG_WARN([
+      fi
+    else
+      if test "${TCL_THREADS}" = "1"; then
+        AC_MSG_WARN([
     --enable-threads requested, but building against a Tcl that is NOT
     thread-enabled.  This is an OK configuration that will also run in
     a thread-enabled core.])
-	    fi
-	    ;;
-    esac
+      fi
+    fi
     AC_SUBST(TCL_THREADS)
 ])
 

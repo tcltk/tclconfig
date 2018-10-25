@@ -4,7 +4,7 @@
 # build.tcl
 ###
 package require Tcl 8.6
-package provide practcl 0.13
+package provide practcl 0.15
 namespace eval ::practcl {}
 
 ###
@@ -55,17 +55,440 @@ proc ::http::wget {url destfile {verbose 1}} {
 # END: httpwget/wget.tcl
 ###
 ###
-# START: dicttool/build/core.tcl
+# START: clay/clay.tcl
 ###
+package provide clay 0.6
+namespace eval ::clay {
+}
+package require Tcl 8.5
+namespace eval uuid {
+    variable accel
+    array set accel {critcl 0}
+    namespace export uuid
+    variable uid
+    if {![info exists uid]} {
+        set uid 1
+    }
+    proc K {a b} {set a}
+}
+proc ::uuid::generate_tcl_machinfo {} {
+  variable machinfo
+  if {[info exists machinfo]} {
+    return $machinfo
+  }
+  lappend machinfo [clock seconds]; # timestamp
+  lappend machinfo [clock clicks];  # system incrementing counter
+  lappend machinfo [info hostname]; # spatial unique id (poor)
+  lappend machinfo [pid];           # additional entropy
+  lappend machinfo [array get ::tcl_platform]
+
+  ###
+  # If we have /dev/urandom just stream 128 bits from that
+  ###
+  if {[file exists /dev/urandom]} {
+    set fin [open /dev/urandom r]
+    binary scan [read $fin 128] H* machinfo
+    close $fin
+  } elseif {[catch {package require nettool}]} {
+    # More spatial information -- better than hostname.
+    # bug 1150714: opening a server socket may raise a warning messagebox
+    #   with WinXP firewall, using ipconfig will return all IP addresses
+    #   including ipv6 ones if available. ipconfig is OK on win98+
+    if {[string equal $::tcl_platform(platform) "windows"]} {
+      catch {exec ipconfig} config
+      lappend machinfo $config
+    } else {
+      catch {
+          set s [socket -server void -myaddr [info hostname] 0]
+          K [fconfigure $s -sockname] [close $s]
+      } r
+      lappend machinfo $r
+    }
+
+    if {[package provide Tk] != {}} {
+      lappend machinfo [winfo pointerxy .]
+      lappend machinfo [winfo id .]
+    }
+  } else {
+    ###
+    # If the nettool package works on this platform
+    # use the stream of hardware ids from it
+    ###
+    lappend machinfo {*}[::nettool::hwid_list]
+  }
+  return $machinfo
+}
+proc ::uuid::generate_tcl {} {
+    package require md5 2
+    variable uid
+
+    set tok [md5::MD5Init]
+    md5::MD5Update $tok [incr uid];      # package incrementing counter
+    foreach string [generate_tcl_machinfo] {
+      md5::MD5Update $tok $string
+    }
+    set r [md5::MD5Final $tok]
+    binary scan $r c* r
+
+    # 3.4: set uuid versioning fields
+    lset r 8 [expr {([lindex $r 8] & 0x3F) | 0x80}]
+    lset r 6 [expr {([lindex $r 6] & 0x0F) | 0x40}]
+
+    return [binary format c* $r]
+}
+if {[string equal $tcl_platform(platform) "windows"]
+        && [package provide critcl] != {}} {
+    namespace eval uuid {
+        critcl::ccode {
+            #define WIN32_LEAN_AND_MEAN
+            #define STRICT
+            #include <windows.h>
+            #include <ole2.h>
+            typedef long (__stdcall *LPFNUUIDCREATE)(UUID *);
+            typedef const unsigned char cu_char;
+        }
+        critcl::cproc generate_c {Tcl_Interp* interp} ok {
+            HRESULT hr = S_OK;
+            int r = TCL_OK;
+            UUID uuid = {0};
+            HMODULE hLib;
+            LPFNUUIDCREATE lpfnUuidCreate = NULL;
+            hLib = LoadLibraryA(("rpcrt4.dll"));
+            if (hLib)
+                lpfnUuidCreate = (LPFNUUIDCREATE)
+                    GetProcAddress(hLib, "UuidCreate");
+            if (lpfnUuidCreate) {
+                Tcl_Obj *obj;
+                lpfnUuidCreate(&uuid);
+                obj = Tcl_NewByteArrayObj((cu_char *)&uuid, sizeof(uuid));
+                Tcl_SetObjResult(interp, obj);
+            } else {
+                Tcl_SetResult(interp, "error: failed to create a guid",
+                              TCL_STATIC);
+                r = TCL_ERROR;
+            }
+            return r;
+        }
+    }
+}
+proc ::uuid::tostring {uuid} {
+    binary scan $uuid H* s
+    foreach {a b} {0 7 8 11 12 15 16 19 20 end} {
+        append r [string range $s $a $b] -
+    }
+    return [string tolower [string trimright $r -]]
+}
+proc ::uuid::fromstring {uuid} {
+    return [binary format H* [string map {- {}} $uuid]]
+}
+proc ::uuid::equal {left right} {
+    set l [fromstring $left]
+    set r [fromstring $right]
+    return [string equal $l $r]
+}
+proc ::uuid::generate {} {
+    variable accel
+    if {$accel(critcl)} {
+        return [generate_c]
+    } else {
+        return [generate_tcl]
+    }
+}
+proc uuid::uuid {cmd args} {
+    switch -exact -- $cmd {
+        generate {
+            if {[llength $args] != 0} {
+                return -code error "wrong # args:\
+                    should be \"uuid generate\""
+            }
+            return [tostring [generate]]
+        }
+        equal {
+            if {[llength $args] != 2} {
+                return -code error "wrong \# args:\
+                    should be \"uuid equal uuid1 uuid2\""
+            }
+            return [eval [linsert $args 0 equal]]
+        }
+        default {
+            return -code error "bad option \"$cmd\":\
+                must be generate or equal"
+        }
+    }
+}
+proc ::uuid::LoadAccelerator {name} {
+    variable accel
+    set r 0
+    switch -exact -- $name {
+        critcl {
+            if {![catch {package require tcllibc}]} {
+                set r [expr {[info commands ::uuid::generate_c] != {}}]
+            }
+        }
+        default {
+            return -code error "invalid accelerator package:\
+                must be one of [join [array names accel] {, }]"
+        }
+    }
+    set accel($name) $r
+}
+namespace eval ::uuid {
+    variable e {}
+    foreach e {critcl} {
+        if {[LoadAccelerator $e]} break
+    }
+    unset e
+}
+package provide uuid 1.0.7
+namespace eval ::oo::dialect {
+  namespace export create
+}
+foreach {flag test} {
+  tip470 {package vsatisfies [package provide Tcl] 8.7}
+} {
+  if {![info exists ::oo::dialect::has($flag)]} {
+    set ::oo::dialect::has($flag) [eval $test]
+  }
+}
+proc ::oo::dialect::Push {class} {
+  ::variable class_stack
+  lappend class_stack $class
+}
+proc ::oo::dialect::Peek {} {
+  ::variable class_stack
+  return [lindex $class_stack end]
+}
+proc ::oo::dialect::Pop {} {
+  ::variable class_stack
+  set class_stack [lrange $class_stack 0 end-1]
+}
+if {$::oo::dialect::has(tip470)} {
+proc ::oo::dialect::current_class {} {
+  return [uplevel 1 self]
+}
+} else {
+proc ::oo::dialect::current_class {} {
+  tailcall Peek
+}
+}
+proc ::oo::dialect::create {name {parent ""}} {
+  variable has
+  set NSPACE [NSNormalize [uplevel 1 {namespace current}] $name]
+  ::namespace eval $NSPACE {::namespace eval define {}}
+  ###
+  # Build the "define" namespace
+  ###
+
+  if {$parent eq ""} {
+    ###
+    # With no "parent" language, begin with all of the keywords in
+    # oo::define
+    ###
+    foreach command [info commands ::oo::define::*] {
+      set procname [namespace tail $command]
+      interp alias {} ${NSPACE}::define::$procname {} \
+        ::oo::dialect::DefineThunk $procname
+    }
+    # Create an empty dynamic_methods proc
+    proc ${NSPACE}::dynamic_methods {class} {}
+    namespace eval $NSPACE {
+      ::namespace export dynamic_methods
+      ::namespace eval define {::namespace export *}
+    }
+    set ANCESTORS {}
+  } else {
+    ###
+    # If we have a parent language, that language already has the
+    # [oo::define] keywords as well as additional keywords and behaviors.
+    # We should begin with that
+    ###
+    set pnspace [NSNormalize [uplevel 1 {namespace current}] $parent]
+    apply [list parent {
+      ::namespace export dynamic_methods
+      ::namespace import -force ${parent}::dynamic_methods
+    } $NSPACE] $pnspace
+
+    apply [list parent {
+      ::namespace import -force ${parent}::define::*
+      ::namespace export *
+    } ${NSPACE}::define] $pnspace
+      set ANCESTORS [list ${pnspace}::object]
+  }
+  ###
+  # Build our dialect template functions
+  ###
+  proc ${NSPACE}::define {oclass args} [string map [list %NSPACE% $NSPACE] {
+  ###
+  # To facilitate library reloading, allow
+  # a dialect to create a class from DEFINE
+  ###
+  set class [::oo::dialect::NSNormalize [uplevel 1 {namespace current}] $oclass]
+    if {[info commands $class] eq {}} {
+      %NSPACE%::class create $class {*}${args}
+    } else {
+      ::oo::dialect::Define %NSPACE% $class {*}${args}
+    }
+}]
+  interp alias {} ${NSPACE}::define::current_class {} \
+    ::oo::dialect::current_class
+  interp alias {} ${NSPACE}::define::aliases {} \
+    ::oo::dialect::Aliases $NSPACE
+  interp alias {} ${NSPACE}::define::superclass {} \
+    ::oo::dialect::SuperClass $NSPACE
+
+  if {[info command ${NSPACE}::class] ne {}} {
+    ::rename ${NSPACE}::class {}
+  }
+  ###
+  # Build the metaclass for our language
+  ###
+  ::oo::class create ${NSPACE}::class {
+    superclass ::oo::dialect::MotherOfAllMetaClasses
+  }
+  # Wire up the create method to add in the extra argument we need; the
+  # MotherOfAllMetaClasses will know what to do with it.
+  ::oo::objdefine ${NSPACE}::class \
+    method create {name {definitionScript ""}} \
+      "next \$name [list ${NSPACE}::define] \$definitionScript"
+
+  ###
+  # Build the mother of all classes. Note that $ANCESTORS is already
+  # guaranteed to be a list in canonical form.
+  ###
+  uplevel #0 [string map [list %NSPACE% [list $NSPACE] %name% [list $name] %ANCESTORS% $ANCESTORS] {
+    %NSPACE%::class create %NSPACE%::object {
+     superclass %ANCESTORS%
+      # Put MOACish stuff in here
+    }
+  }]
+  if { "${NSPACE}::class" ni $::oo::dialect::core_classes } {
+    lappend ::oo::dialect::core_classes "${NSPACE}::class"
+  }
+  if { "${NSPACE}::object" ni $::oo::dialect::core_classes } {
+    lappend ::oo::dialect::core_classes "${NSPACE}::object"
+  }
+}
+proc ::oo::dialect::NSNormalize {namespace qualname} {
+  if {![string match ::* $qualname]} {
+    set qualname ${namespace}::$qualname
+  }
+  regsub -all {::+} $qualname "::"
+}
+proc ::oo::dialect::DefineThunk {target args} {
+  tailcall ::oo::define [Peek] $target {*}$args
+}
+proc ::oo::dialect::Canonical {namespace NSpace class} {
+  namespace upvar $namespace cname cname
+  #if {[string match ::* $class]} {
+  #  return $class
+  #}
+  if {[info exists cname($class)]} {
+    return $cname($class)
+  }
+  if {[info exists ::oo::dialect::cname($class)]} {
+    return $::oo::dialect::cname($class)
+  }
+  if {[info exists ::oo::dialect::cname(${NSpace}::${class})]} {
+    return $::oo::dialect::cname(${NSpace}::${class})
+  }
+  foreach item [list "${NSpace}::$class" "::$class"] {
+    if {[info commands $item] ne {}} {
+      return $item
+    }
+  }
+  return ${NSpace}::$class
+}
+proc ::oo::dialect::Define {namespace class args} {
+  Push $class
+  try {
+  	if {[llength $args]==1} {
+      namespace eval ${namespace}::define [lindex $args 0]
+    } else {
+      ${namespace}::define::[lindex $args 0] {*}[lrange $args 1 end]
+    }
+  	${namespace}::dynamic_methods $class
+  } finally {
+    Pop
+  }
+}
+proc ::oo::dialect::Aliases {namespace args} {
+  set class [Peek]
+  namespace upvar $namespace cname cname
+  set NSpace [join [lrange [split $class ::] 1 end-2] ::]
+  set cname($class) $class
+  foreach name $args {
+    set cname($name) $class
+    #set alias $name
+    set alias [NSNormalize $NSpace $name]
+    # Add a local metaclass reference
+    if {![info exists ::oo::dialect::cname($alias)]} {
+      lappend ::oo::dialect::aliases($class) $alias
+      ##
+      # Add a global reference, first come, first served
+      ##
+      set ::oo::dialect::cname($alias) $class
+    }
+  }
+}
+proc ::oo::dialect::SuperClass {namespace args} {
+  set class [Peek]
+  namespace upvar $namespace class_info class_info
+  dict set class_info($class) superclass 1
+  set ::oo::dialect::cname($class) $class
+  set NSpace [join [lrange [split $class ::] 1 end-2] ::]
+  set unique {}
+  foreach item $args {
+    set Item [Canonical $namespace $NSpace $item]
+    dict set unique $Item $item
+  }
+  set root ${namespace}::object
+  if {$class ne $root} {
+    dict set unique $root $root
+  }
+  tailcall ::oo::define $class superclass {*}[dict keys $unique]
+}
+if {[info command ::oo::dialect::MotherOfAllMetaClasses] eq {}} {
+::oo::class create ::oo::dialect::MotherOfAllMetaClasses {
+  superclass ::oo::class
+  constructor {define definitionScript} {
+    $define [self] {
+      superclass
+    }
+    $define [self] $definitionScript
+  }
+  method aliases {} {
+    if {[info exists ::oo::dialect::aliases([self])]} {
+      return $::oo::dialect::aliases([self])
+    }
+  }
+}
+}
+namespace eval ::oo::dialect {
+  variable core_classes {::oo::class ::oo::object}
+}
+package provide oo::dialect 0.4
+package provide dicttool 1.2
 namespace eval ::dicttool {
 }
-proc ::PROC {name arglist body {ninja {}}} {
+namespace eval ::dicttool {
+}
+namespace eval ::tcllib {
+}
+proc ::tcllib::PROC {name arglist body {ninja {}}} {
   if {[info commands $name] ne {}} return
   proc $name $arglist $body
   eval $ninja
 }
-PROC ::noop args {}
-PROC ::putb {buffername args} {
+if {[info commands ::PROC] eq {}} {
+  namespace eval ::tcllib { namespace export PROC }
+  namespace eval :: { namespace import ::tcllib::PROC }
+}
+proc ::tcllib::noop args {}
+if {[info commands ::noop] eq {}} {
+  namespace eval ::tcllib { namespace export noop }
+  namespace eval :: { namespace import ::tcllib::noop }
+}
+proc ::tcllib::putb {buffername args} {
   upvar 1 $buffername buffer
   switch [llength $args] {
     1 {
@@ -79,14 +502,11 @@ PROC ::putb {buffername args} {
     }
   }
 }
-
-###
-# END: dicttool/build/core.tcl
-###
-###
-# START: dicttool/build/dict.tcl
-###
-PROC ::tcl::dict::getnull {dictionary args} {
+if {[info command ::putb] eq {}} {
+  namespace eval ::tcllib { namespace export putb }
+  namespace eval :: { namespace import ::tcllib::putb }
+}
+::tcllib::PROC ::tcl::dict::getnull {dictionary args} {
   if {[exists $dictionary {*}$args]} {
     get $dictionary {*}$args
   }
@@ -94,7 +514,7 @@ PROC ::tcl::dict::getnull {dictionary args} {
   namespace ensemble configure dict -map [dict replace\
       [namespace ensemble configure dict -map] getnull ::tcl::dict::getnull]
 }
-PROC ::tcl::dict::is_dict { d } {
+::tcllib::PROC ::tcl::dict::is_dict { d } {
   # is it a dict, or can it be treated like one?
   if {[catch {dict size $d} err]} {
     #::set ::errorInfo {}
@@ -105,7 +525,34 @@ PROC ::tcl::dict::is_dict { d } {
   namespace ensemble configure dict -map [dict replace\
       [namespace ensemble configure dict -map] is_dict ::tcl::dict::is_dict]
 }
-PROC ::dicttool::is_branch { dict path } {
+::tcllib::PROC ::tcl::dict::rmerge {args} {
+  ::set result [dict create . {}]
+  # Merge b into a, and handle nested dicts appropriately
+  ::foreach b $args {
+    for { k v } $b {
+      ::set field [string trim $k :/]
+      if {![::dicttool::is_branch $b $k]} {
+        # Element names that end in ":" are assumed to be literals
+        set result $k $v
+      } elseif { [exists $result $k] } {
+        # key exists in a and b?  let's see if both values are dicts
+        # both are dicts, so merge the dicts
+        if { [is_dict [get $result $k]] && [is_dict $v] } {
+          set result $k [rmerge [get $result $k] $v]
+        } else {
+          set result $k $v
+        }
+      } else {
+        set result $k $v
+      }
+    }
+  }
+  return $result
+} {
+  namespace ensemble configure dict -map [dict replace\
+      [namespace ensemble configure dict -map] rmerge ::tcl::dict::rmerge]
+}
+::tcllib::PROC ::dicttool::is_branch { dict path } {
   set field [lindex $path end]
   if {[string index $field end] eq ":"} {
     return 0
@@ -118,13 +565,13 @@ PROC ::dicttool::is_branch { dict path } {
   }
   return [dict exists $dict {*}$path .]
 }
-PROC ::dicttool::print {dict} {
+::tcllib::PROC ::dicttool::print {dict} {
   ::set result {}
   ::set level -1
   ::dicttool::_dictputb $level result $dict
   return $result
 }
-proc ::dicttool::_dictputb {level varname dict} {
+::tcllib::PROC ::dicttool::_dictputb {level varname dict} {
   upvar 1 $varname result
   incr level
   dict for {field value} $dict {
@@ -138,7 +585,7 @@ proc ::dicttool::_dictputb {level varname dict} {
     }
   }
 }
-PROC ::dicttool::sanitize {dict} {
+proc ::dicttool::sanitize {dict} {
   ::set result {}
   ::set level -1
   ::dicttool::_sanitizeb {} result $dict
@@ -155,23 +602,6 @@ proc ::dicttool::_sanitizeb {path varname dict} {
     }
   }
 }
-proc ::dicttool::canonical {rawpath} {
-  set path {}
-  set tail [string index $rawpath end]
-  foreach element $rawpath {
-    set items [split [string trim $element /] /]
-    foreach item $items {
-      if {$item eq {}} continue
-      if {$item eq {.}} continue
-      lappend path [string trim ${item} :]/
-    }
-  }
-  if {$tail eq {/}} {
-    return $path
-  } else {
-    return [lreplace $path end end [string trim [lindex $path end] /]]
-  }
-}
 proc ::dicttool::storage {rawpath} {
   set isleafvar 0
   set path {}
@@ -180,7 +610,7 @@ proc ::dicttool::storage {rawpath} {
     set items [split [string trim $element /] /]
     foreach item $items {
       if {$item eq {}} continue
-      lappend path [string trim ${item} :/]
+      lappend path $item
     }
   }
   return $path
@@ -195,33 +625,39 @@ proc ::dicttool::dictset {varname args} {
     set rawpath  [lrange $args 0 end-1]
   }
   set value [lindex $args end]
-  set path [canonical $rawpath]
+  set path [storage $rawpath]
   set dot .
-  set one [string is true 1]
+  set one {}
   dict set result $dot $one
   set dpath {}
-  foreach item $path {
+  foreach item [lrange $path 0 end-1] {
     set field $item
     lappend dpath [string trim $item /]
-    if {[string index $item end] eq "/"} {
-      dict set result {*}$dpath $dot $one
-    }
+    dict set result {*}$dpath $dot $one
   }
-  if {[dict is_dict $value] && [dict exists $result {*}$dpath $dot]} {
-    dict set result {*}$dpath [::dicttool::merge [dict get $result {*}$dpath] $value]
-  } else {
-    dict set result {*}$dpath $value
+  set field [lindex $rawpath end]
+  set ext   [string index $field end]
+  if {$ext eq {:} || ![dict is_dict $value]} {
+    dict set result {*}$path $value
+    return
   }
-  return $result
+  if {$ext eq {/} && ![dict exists $result {*}$path $dot]} {
+    dict set result {*}$path $dot $one
+  }
+  if {[dict exists $result {*}$path $dot]} {
+    dict set result {*}$path [::dicttool::merge [dict get $result {*}$path] $value]
+    return
+  }
+  dict set result {*}$path $value
 }
 proc ::dicttool::dictmerge {varname args} {
   upvar 1 $varname result
   set dot .
-  set one [string is true 1]
+  set one {}
   dict set result $dot $one
   foreach dict $args {
     dict for {f v} $dict {
-      set field [string trim $f :/]
+      set field [string trim $f /]
       set bbranch [dicttool::is_branch $dict $f]
       if {![dict exists $result $field]} {
         dict set result $field $v
@@ -241,12 +677,12 @@ proc ::dicttool::dictmerge {varname args} {
   }
   return $result
 }
-PROC ::dicttool::merge {args} {
+proc ::dicttool::merge {args} {
   ###
   # The result of a merge is always a dict with branches
   ###
   set dot .
-  set one [string is true 1]
+  set one {}
   dict set result $dot $one
   set argument 0
   foreach b $args {
@@ -260,7 +696,7 @@ PROC ::dicttool::merge {args} {
         continue
       }
       set bbranch [is_branch $b $k]
-      set field [string trim $k /:]
+      set field [string trim $k /]
       if { ![dict exists $result $field] } {
         if {$bbranch} {
           dict set result $field [merge $v]
@@ -282,21 +718,67 @@ PROC ::dicttool::merge {args} {
   }
   return $result
 }
-PROC ::tcl::dict::isnull {dictionary args} {
+::tcllib::PROC ::tcl::dict::isnull {dictionary args} {
   if {![exists $dictionary {*}$args]} {return 1}
   return [expr {[get $dictionary {*}$args] in {{} NULL null}}]
 } {
   namespace ensemble configure dict -map [dict replace\
       [namespace ensemble configure dict -map] isnull ::tcl::dict::isnull]
 }
-
-###
-# END: dicttool/build/dict.tcl
-###
-###
-# START: dicttool/build/list.tcl
-###
-PROC ::ladd {varname args} {
+namespace eval ::dictargs {
+}
+if {[info commands ::dictargs::parse] eq {}} {
+  proc ::dictargs::parse {argdef argdict} {
+    set result {}
+    dict for {field info} $argdef {
+      if {![string is alnum [string index $field 0]]} {
+        error "$field is not a simple variable name"
+      }
+      upvar 1 $field _var
+      set aliases {}
+      if {[dict exists $argdict $field]} {
+        set _var [dict get $argdict $field]
+        continue
+      }
+      if {[dict exists $info aliases:]} {
+        set found 0
+        foreach {name} [dict get $info aliases:] {
+          if {[dict exists $argdict $name]} {
+            set _var [dict get $argdict $name]
+            set found 1
+            break
+          }
+        }
+        if {$found} continue
+      }
+      if {[dict exists $info default:]} {
+        set _var [dict get $info default:] \n
+        continue
+      }
+      set mandatory 1
+      if {[dict exists $info mandatory:]} {
+        set mandatory [dict get $info mandatory:]
+      }
+      if {$mandatory} {
+        error "$field is required"
+      }
+    }
+  }
+}
+proc ::dictargs::proc {name argspec body} {
+  set result {}
+  append result "::dictargs::parse \{$argspec\} \$args" \;
+  append result $body
+  uplevel 1 [list ::proc $name [list [list args [list dictargs $argspec]]] $result]
+}
+proc ::dictargs::method {name argspec body} {
+  set class [lindex [::info level -1] 1]
+  set result {}
+  append result "::dictargs::parse \{$argspec\} \$args" \;
+  append result $body
+  oo::define $class method $name [list [list args [list dictargs $argspec]]] $result
+}
+::tcllib::PROC ::dicttool::ladd {varname args} {
   upvar 1 $varname var
   if ![info exists var] {
       set var {}
@@ -307,7 +789,7 @@ PROC ::ladd {varname args} {
   }
   return $var
 }
-PROC ::ldelete {varname args} {
+::tcllib::PROC ::dicttool::ldelete {varname args} {
   upvar 1 $varname var
   if ![info exists var] {
       return
@@ -319,30 +801,31 @@ PROC ::ldelete {varname args} {
   }
   return $var
 }
-PROC ::lrandom list {
+::tcllib::PROC ::dicttool::lrandom list {
   set len [llength $list]
   set idx [expr int(rand()*$len)]
   return [lindex $list $idx]
 }
-
-###
-# END: dicttool/build/list.tcl
-###
-###
-# START: clay/build/procs.tcl
-###
+namespace eval ::dicttool {
+  namespace export *
+}
+package require Tcl 8.6 ;# try in pipeline.tcl. Possibly other things.
+package require TclOO
+::oo::dialect::create ::clay
+::namespace eval ::clay {
+}
+::namespace eval ::clay::classes {
+}
+::namespace eval ::clay::define {
+}
 namespace eval ::clay {
 }
 set ::clay::trace 0
 proc ::clay::ancestors args {
   set result {}
-  set queue {}
-  foreach class [lreverse $args] {
-    lappend queue $class
-  }
-
-  # Rig things such that that the top superclasses
-  # are evaluated first
+  set queue  [lreverse $args]
+  set result $queue
+  set metaclasses {}
   while {[llength $queue]} {
     set tqueue $queue
     set queue {}
@@ -359,7 +842,19 @@ proc ::clay::ancestors args {
       }
     }
   }
-  return $result
+  lappend result {*}$metaclasses
+  ###
+  # Screen out classes that do not participate in clay
+  # interactions
+  ###
+  set output {}
+  foreach {item} $result {
+    if {[catch {$item clay noop} err]} {
+      continue
+    }
+    lappend output $item
+  }
+  return $output
 }
 proc ::clay::args_to_dict args {
   if {[llength $args]==1} {
@@ -486,14 +981,235 @@ namespace eval ::clay {
   variable option_class {}
   variable core_classes {::oo::class ::oo::object}
 }
+proc ::clay::dynamic_methods class {
+  foreach command [info commands [namespace current]::dynamic_methods_*] {
+    $command $class
+  }
+}
+proc ::clay::dynamic_methods_class {thisclass} {
+  set methods {}
+  set mdata [$thisclass clay find class_typemethod]
+  foreach {method info} $mdata {
+    if {$method eq {.}} continue
+    set method [string trimright $method :/-]
+    if {$method in $methods} continue
+    lappend methods $method
+    set arglist [dict getnull $info arglist]
+    set body    [dict getnull $info body]
+    ::oo::objdefine $thisclass method $method $arglist $body
+  }
+}
+proc ::clay::define::Array {name {values {}}} {
+  set class [current_class]
+  set name [string trim $name :/]
+  $class clay branch array $name
+  dict for {var val} $values {
+    $class clay set array/ $name $var $val
+  }
+}
+proc ::clay::define::Delegate {name info} {
+  set class [current_class]
+  foreach {field value} $info {
+    $class clay set component/ [string trim $name :/]/ $field $value
+  }
+}
+proc ::clay::define::constructor {arglist rawbody} {
+  set body {
+my variable DestroyEvent
+set DestroyEvent 0
+::clay::object_create [self] [info object class [self]]
+# Initialize public variables and options
+my InitializePublic
+  }
+  append body $rawbody
+  set class [current_class]
+  ::oo::define $class constructor $arglist $body
+}
+proc ::clay::define::class_method {name arglist body} {
+  set class [current_class]
+  $class clay set class_typemethod/ [string trim $name :/] [dict create arglist $arglist body $body]
+}
+proc ::clay::define::clay {args} {
+  set class [current_class]
+  if {[lindex $args 0] in "cget set branch"} {
+    $class clay {*}$args
+  } else {
+    $class clay set {*}$args
+  }
+}
+proc ::clay::define::destructor rawbody {
+  set body {
+# Run the destructor once and only once
+set self [self]
+my variable DestroyEvent
+if {$DestroyEvent} return
+set DestroyEvent 1
+::clay::object_destroy $self
+}
+  append body $rawbody
+  ::oo::define [current_class] destructor $body
+}
+proc ::clay::define::Dict {name {values {}}} {
+  set class [current_class]
+  set name [string trim $name :/]
+  $class clay branch dict $name
+  foreach {var val} $values {
+    $class clay set dict/ $name/ $var $val
+  }
+}
+proc ::clay::define::Option {name args} {
+  set class [current_class]
+  set dictargs {default {}}
+  foreach {var val} [::clay::args_to_dict {*}$args] {
+    dict set dictargs [string trim $var -:/] $val
+  }
+  set name [string trimleft $name -]
 
-###
-# END: clay/build/procs.tcl
-###
-###
-# START: clay/build/class.tcl
-###
-oo::define oo::class {
+  ###
+  # Option Class handling
+  ###
+  set optclass [dict getnull $dictargs class]
+  if {$optclass ne {}} {
+    foreach {f v} [$class clay find option_class $optclass] {
+      if {![dict exists $dictargs $f]} {
+        dict set dictargs $f $v
+      }
+    }
+    if {$optclass eq "variable"} {
+      variable $name [dict getnull $dictargs default]
+    }
+  }
+  foreach {f v} $dictargs {
+    $class clay set option $name $f $v
+  }
+}
+proc ::clay::define::Option_Class {name args} {
+  set class [current_class]
+  set dictargs {default {}}
+  set name [string trimleft $name -:]
+  foreach {f v} [::clay::args_to_dict {*}$args] {
+    $class clay set option_class $name [string trim $f -/:] $v
+  }
+}
+proc ::clay::define::Variable {name {default {}}} {
+  set class [current_class]
+  set name [string trimright $name :/]
+  $class clay set variable/ $name $default
+}
+proc ::clay::object_create {objname {class {}}} {
+  #if {$::clay::trace>0} {
+  #  puts [list $objname CREATE]
+  #}
+}
+proc ::clay::object_rename {object newname} {
+  if {$::clay::trace>0} {
+    puts [list $object RENAME -> $newname]
+  }
+}
+proc ::clay::object_destroy objname {
+  if {$::clay::trace>0} {
+    puts [list $objname DESTROY]
+  }
+  ::cron::object_destroy $objname
+}
+::namespace eval ::clay::define {
+}
+proc ::clay::ensemble_methodbody {ensemble einfo} {
+  set default standard
+  set preamble {}
+  set eswitch {}
+  if {[dict exists $einfo default]} {
+    set emethodinfo [dict get $einfo default]
+    set arglist     [dict getnull $emethodinfo arglist]
+    set realbody    [dict get $emethodinfo body]
+    if {[llength $arglist]==1 && [lindex $arglist 0] in {{} args arglist}} {
+      set body {}
+    } else {
+      set body "\n      ::clay::dynamic_arguments $ensemble \$method [list $arglist] {*}\$args"
+    }
+    append body "\n      " [string trim $realbody] "      \n"
+    set default $body
+    dict unset einfo default
+  }
+  foreach {msubmethod esubmethodinfo} [lsort -dictionary -stride 2 $einfo] {
+    set submethod [string trim $msubmethod :/-]
+    if {$submethod eq "_body"} continue
+    if {$submethod eq "_preamble"} {
+      set preamble [dict getnull $esubmethodinfo body]
+      continue
+    }
+    set arglist     [dict getnull $esubmethodinfo arglist]
+    set realbody    [dict getnull $esubmethodinfo body]
+    if {[string length [string trim $realbody]] eq {}} {
+      dict set eswitch $submethod {}
+    } else {
+      if {[llength $arglist]==1 && [lindex $arglist 0] in {{} args arglist}} {
+        set body {}
+      } else {
+        set body "\n      ::clay::dynamic_arguments $ensemble \$method [list $arglist] {*}\$args"
+      }
+      append body "\n      " [string trim $realbody] "      \n"
+      if {$submethod eq "default"} {
+        set default $body
+      } else {
+        foreach alias [dict getnull $esubmethodinfo aliases] {
+          dict set eswitch $alias -
+        }
+        dict set eswitch $submethod $body
+      }
+    }
+  }
+  set methodlist [lsort -dictionary [dict keys $eswitch]]
+  if {![dict exists $eswitch <list>]} {
+    dict set eswitch <list> {return $methodlist}
+  }
+  if {$default eq "standard"} {
+    set default "error \"unknown method $ensemble \$method. Valid: \$methodlist\""
+  }
+  dict set eswitch default $default
+  set mbody {}
+
+  append mbody $preamble \n
+
+  append mbody \n [list set methodlist $methodlist]
+  append mbody \n "set code \[catch {switch -- \$method [list $eswitch]} result opts\]"
+  append mbody \n {return -options $opts $result}
+  return $mbody
+}
+::proc ::clay::define::Ensemble {rawmethod arglist body} {
+  set class [current_class]
+  #if {$::clay::trace>2} {
+  #  puts [list $class Ensemble $rawmethod $arglist $body]
+  #}
+  set mlist [split $rawmethod "::"]
+  set ensemble [string trim [lindex $mlist 0] :/]
+  set mensemble ${ensemble}/
+  if {[llength $mlist]==1 || [lindex $mlist 1] in "_body"} {
+    set method _body
+    ###
+    # Simple method, needs no parsing, but we do need to record we have one
+    ###
+    $class clay set method_ensemble/ $mensemble _body [dict create arglist $arglist body $body]
+    if {$::clay::trace>2} {
+      puts [list $class clay set method_ensemble/ $mensemble _body ...]
+    }
+    set method $rawmethod
+    if {$::clay::trace>2} {
+      puts [list $class Ensemble $rawmethod $arglist $body]
+      set rawbody $body
+      set body {puts [list [self] $class [self method]]}
+      append body \n $rawbody
+    }
+    ::oo::define $class method $rawmethod $arglist $body
+    return
+  }
+  set method [join [lrange $mlist 2 end] "::"]
+  $class clay set method_ensemble/ $mensemble [string trim [lindex $method 0] :/] [dict create arglist $arglist body $body]
+  if {$::clay::trace>2} {
+    puts [list $class clay set method_ensemble/ $mensemble [string trim $method :/]  ...]
+  }
+}
+::oo::define ::clay::class {
   method clay {submethod args} {
     my variable clay
     if {![info exists clay]} {
@@ -503,11 +1219,24 @@ oo::define oo::class {
       ancestors {
         tailcall ::clay::ancestors [self]
       }
+      branch {
+        set path [::dicttool::storage $args]
+        if {![dict exists $clay {*}$path .]} {
+          dict set clay {*}$path . {}
+        }
+      }
       exists {
         if {![info exists clay]} {
           return 0
         }
-        return [dict exists $clay {*}[::dicttool::storage $args]]
+        set path [::dicttool::storage $args]
+        if {[dict exists $clay {*}$path]} {
+          return 1
+        }
+        if {[dict exists $clay {*}[lrange $path 0 end-1] [lindex $path end]:]} {
+          return 1
+        }
+        return 0
       }
       dump {
         return $clay
@@ -517,10 +1246,17 @@ oo::define oo::class {
           return {}
         }
         set path [::dicttool::storage $args]
-        if {![dict exists $clay {*}$path]} {
-          return {}
+        if {[dict exists $clay {*}$path]} {
+          return [dict get $clay {*}$path]
         }
-        return [dict get $clay {*}$path]
+        if {[dict exists $clay {*}[lrange $path 0 end-1] [lindex $path end]:]} {
+          return [dict get $clay {*}[lrange $path 0 end-1] [lindex $path end]:]
+        }
+        return {}
+      }
+      is_branch {
+        set path [::dicttool::storage $args]
+        return [dict exists $clay {*}$path .]
       }
       getnull -
       get {
@@ -528,11 +1264,17 @@ oo::define oo::class {
           return {}
         }
         set path [::dicttool::storage $args]
+        if {[llength $path]==0} {
+          return $clay
+        }
         if {[dict exists $clay {*}$path .]} {
           return [::dicttool::sanitize [dict get $clay {*}$path]]
         }
         if {[dict exists $clay {*}$path]} {
           return [dict get $clay {*}$path]
+        }
+        if {[dict exists $clay {*}[lrange $path 0 end-1] [lindex $path end]:]} {
+          return [dict get $clay {*}[lrange $path 0 end-1] [lindex $path end]:]
         }
         return {}
       }
@@ -543,6 +1285,13 @@ oo::define oo::class {
         }
         set clayorder [::clay::ancestors [self]]
         set found 0
+        if {[llength $path]==0} {
+          set result [dict create . {}]
+          foreach class $clayorder {
+            ::dicttool::dictmerge result [$class clay dump]
+          }
+          return [::dicttool::sanitize $result]
+        }
         foreach class $clayorder {
           if {[$class clay exists {*}$path .]} {
             # Found a branch break
@@ -552,6 +1301,9 @@ oo::define oo::class {
           if {[$class clay exists {*}$path]} {
             # Found a leaf. Return that value immediately
             return [$class clay get {*}$path]
+          }
+          if {[dict exists $clay {*}[lrange $path 0 end-1] [lindex $path end]:]} {
+            return [dict get $clay {*}[lrange $path 0 end-1] [lindex $path end]:]
           }
         }
         if {!$found} {
@@ -571,6 +1323,9 @@ oo::define oo::class {
           ::dicttool::dictmerge clay {*}$arg
         }
       }
+      noop {
+        # Do nothing. Used as a sign of clay savviness
+      }
       search {
         foreach aclass [::clay::ancestors [self]] {
           if {[$aclass clay exists {*}$args]} {
@@ -581,20 +1336,16 @@ oo::define oo::class {
       set {
         ::dicttool::dictset clay {*}$args
       }
+      unset {
+        dict unset clay {*}$args
+      }
       default {
         dict $submethod clay {*}$args
       }
     }
   }
 }
-
-###
-# END: clay/build/class.tcl
-###
-###
-# START: clay/build/object.tcl
-###
-oo::define oo::object {
+::oo::define ::clay::object {
   method clay {submethod args} {
     my variable clay claycache clayorder config option_canonical
     if {![info exists clay]} {set clay {}}
@@ -606,6 +1357,12 @@ oo::define oo::object {
     switch $submethod {
       ancestors {
         return $clayorder
+      }
+      branch {
+        set path [::dicttool::storage $args]
+        if {![dict exists $clay {*}$path .]} {
+          dict set clay {*}$path . {}
+        }
       }
       cget {
         # Leaf searches return one data field at a time
@@ -761,6 +1518,16 @@ oo::define oo::object {
       dget {
         # Search in our local cache
         set path [::dicttool::storage $args]
+        if {[llength $path]==0} {
+          # Do a full dump of clay data
+          set result {}
+          # Search in the in our list of classes for an answer
+          foreach class $clayorder {
+            ::dicttool::dictmerge result [$class clay dump]
+          }
+          ::dicttool::dictmerge result $clay
+          return $result
+        }
         #if {[dict exists $claycache {*}$path]} {
         #  return [dict get $claycache {*}$path]
         #}
@@ -811,6 +1578,16 @@ oo::define oo::object {
       getnull -
       get {
         set path [::dicttool::storage $args]
+        if {[llength $path]==0} {
+          # Do a full dump of clay data
+          set result {}
+          # Search in the in our list of classes for an answer
+          foreach class $clayorder {
+            ::dicttool::dictmerge result [$class clay dump]
+          }
+          ::dicttool::dictmerge result $clay
+          return [::dicttool::sanitize $result]
+        }
         if {[dict exists $claycache {*}$path .]} {
           return [::dicttool::sanitize [dict get $claycache {*}$path]]
         }
@@ -945,7 +1722,7 @@ oo::define oo::object {
               lappend classlist $class
             }
           }
-          my clay mixin {*}$classlist
+          my clay mixin {*}[lreverse $classlist]
         }
       }
       provenance {
@@ -1002,18 +1779,9 @@ oo::define oo::object {
         set $var {}
       }
       foreach {f v} $value {
+        if {$f eq "."} continue
         if {![dict exists ${var} $f]} {
           if {$::clay::trace>2} {puts [list initialize dict $var $f $v]}
-          dict set ${var} $f $v
-        }
-      }
-    }
-    foreach {var value} [my clay get dict/] {
-      if { $var in {. clay} } continue
-      set var [string trim $var :/]
-      foreach {f v} [my clay get $var/] {
-        if {![dict exists ${var} $f]} {
-          if {$::clay::trace>2} {puts [list initialize dict (from const) $var $f $v]}
           dict set ${var} $f $v
         }
       }
@@ -1026,17 +1794,8 @@ oo::define oo::object {
       if {![info exists $var]} { array set $var {} }
       foreach {f v} $value {
         if {![array exists ${var}($f)]} {
+          if {$f eq "."} continue
           if {$::clay::trace>2} {puts [list initialize array $var\($f\) $v]}
-          set ${var}($f) $v
-        }
-      }
-    }
-    foreach {var value} [my clay get array/] {
-      if { $var in {. clay} } continue
-      set var [string trim $var :/]
-      foreach {f v} [my clay get $var/] {
-        if {![array exists ${var}($f)]} {
-          if {$::clay::trace>2} {puts [list initialize array (from const) $var\($f\) $v]}
           set ${var}($f) $v
         }
       }
@@ -1060,18 +1819,57 @@ oo::define oo::object {
         {*}[string map [list %field% [list $field] %value% [list $value] %self% [namespace which my]] $setcmd]
       }
     }
+    my variable clayorder clay claycache
+    if {[info exists clay]} {
+      set emap [dict getnull $clay method_ensemble]
+    } else {
+      set emap {}
+    }
+    foreach class [lreverse $clayorder] {
+      ###
+      # Build a compsite map of all ensembles defined by the object's current
+      # class as well as all of the classes being mixed in
+      ###
+      dict for {mensemble einfo} [$class clay get method_ensemble] {
+        if {$mensemble eq {.}} continue
+        set ensemble [string trim $mensemble :/]
+        if {$::clay::trace>2} {puts [list Defining $ensemble from $class]}
+
+        dict for {method info} $einfo {
+          if {$method eq {.}} continue
+          if {![dict is_dict $info]} {
+            puts [list WARNING: class: $class method: $method not dict: $info]
+            continue
+          }
+          dict set info source $class
+          if {$::clay::trace>2} {puts [list Defining $ensemble -> $method from $class - $info]}
+          dict set emap $ensemble $method $info
+        }
+      }
+    }
+    foreach {ensemble einfo} $emap {
+      #if {[dict exists $einfo _body]} continue
+      set body [::clay::ensemble_methodbody $ensemble $einfo]
+      if {$::clay::trace>2} {
+        set rawbody $body
+        set body {puts [list [self] <object> [self method]]}
+        append body \n $rawbody
+      }
+      oo::objdefine [self] method $ensemble {{method default} args} $body
+    }
   }
+}
+::clay::object clay branch array
+::clay::object clay branch mixin
+::clay::object clay branch option
+::clay::object clay branch dict clay
+::clay::object clay set variable DestroyEvent 0
+namespace eval ::clay {
+  namespace export *
 }
 
 ###
-# END: clay/build/object.tcl
-###
-###
-# START: clay/build/doctool.tcl
-###
-
-###
-# END: clay/build/doctool.tcl
+# END: clay/clay.tcl
 ###
 ###
 # START: setup.tcl
@@ -1095,11 +1893,607 @@ namespace eval ::practcl::OBJECT {
 # END: setup.tcl
 ###
 ###
-# START: docbuild.tcl
+# START: doctool.tcl
 ###
+namespace eval ::practcl {
+}
+proc ::practcl::cat fname {
+    if {![file exists $fname]} {
+       return
+    }
+    set fin [open $fname r]
+    set data [read $fin]
+    close $fin
+    return $data
+}
+proc ::practcl::docstrip text {
+  set result {}
+  foreach line [split $text \n] {
+    append thisline $line \n
+    if {![info complete $thisline]} continue
+    set outline $thisline
+    set thisline {}
+    if {[string trim $outline] eq {}} {
+      continue
+    }
+    if {[string index [string trim $outline] 0] eq "#"} continue
+    set cmd [string trim [lindex $outline 0] :]
+    if {$cmd eq "namespace" && [lindex $outline 1] eq "eval"} {
+      append result [list {*}[lrange $outline 0 end-1]] " " \{ \n [docstrip [lindex $outline end]]\} \n
+      continue
+    }
+    if {[string match "*::define" $cmd] && [llength $outline]==3} {
+      append result [list {*}[lrange $outline 0 end-1]] " " \{ \n [docstrip [lindex $outline end]]\} \n
+      continue
+    }
+    if {$cmd eq "oo::class" && [lindex $outline 1] eq "create"} {
+      append result [list {*}[lrange $outline 0 end-1]] " " \{ \n [docstrip [lindex $outline end]]\} \n
+      continue
+    }
+    append result $outline
+  }
+  return $result
+}
+proc ::putb {buffername args} {
+  upvar 1 $buffername buffer
+  switch [llength $args] {
+    1 {
+      append buffer [lindex $args 0] \n
+    }
+    2 {
+      append buffer [string map {*}$args] \n
+    }
+    default {
+      error "usage: putb buffername ?map? string"
+    }
+  }
+}
+::oo::class create ::practcl::doctool {
+  constructor {} {
+    my reset
+  }
+  method arglist {arglist} {
+    set result [dict create]
+    foreach arg $arglist {
+      set name [lindex $arg 0]
+      dict set result $name positional 1
+      dict set result $name mandatory  1
+      if {$name in {args dictargs}} {
+        switch [llength $arg] {
+          1 {
+            dict set result $name mandatory 0
+          }
+          2 {
+            dict for {optname optinfo} [lindex $arg 1] {
+              set optname [string trim $optname -:]
+              dict set result $optname {positional 1 mandatory 0}
+              dict for {f v} $optinfo {
+                dict set result $optname [string trim $f -:] $v
+              }
+            }
+          }
+          default {
+            error "Bad argument"
+          }
+        }
+      } else {
+        switch [llength $arg] {
+          1 {
+            dict set result $name mandatory 1
+          }
+          2 {
+            dict set result $name mandatory 0
+            dict set result $name default   [lindex $arg 1]
+          }
+          default {
+            error "Bad argument"
+          }
+        }
+      }
+    }
+    return $result
+  }
+  method comment block {
+    set count 0
+    set field description
+    set result [dict create description {}]
+    foreach line [split $block \n] {
+      set sline [string trim $line]
+      set fwidx [string first " " $sline]
+      if {$fwidx < 0} {
+        set firstword [string range $sline 0 end]
+        set restline {}
+      } else {
+        set firstword [string range $sline 0 [expr {$fwidx-1}]]
+        set restline [string range $sline [expr {$fwidx+1}] end]
+      }
+      if {[string index $firstword end] eq ":"} {
+        set field [string tolower [string trim $firstword -:]]
+        switch $field {
+          desc {
+            set field description
+          }
+        }
+        if {[string length $restline]} {
+          dict append result $field "$restline\n"
+        }
+      } else {
+        dict append result $field "$line\n"
+      }
+    }
+    return $result
+  }
+  method keyword.Annotation {resultvar commentblock type name body} {
+    upvar 1 $resultvar result
+    set name [string trim $name :]
+    if {[dict exists $result $type $name]} {
+      set info [dict get $result $type $name]
+    } else {
+      set info [my comment $commentblock]
+    }
+    foreach {f v} $body {
+      dict set info $f $v
+    }
+    dict set result $type $name $info
+  }
+  method keyword.Class {resultvar commentblock name body} {
+    upvar 1 $resultvar result
+    set name [string trim $name :]
+    if {[dict exists $result class $name]} {
+      set info [dict get $result class $name]
+    } else {
+      set info [my comment $commentblock]
+    }
+    set commentblock {}
+    foreach line [split $body \n] {
+      append thisline $line \n
+      if {![info complete $thisline]} continue
+      set thisline [string trim $thisline]
+      if {[string index $thisline 0] eq "#"} {
+        append commentblock [string trimleft $thisline #] \n
+        set thisline {}
+        continue
+      }
+      set cmd [string trim [lindex $thisline 0] ":"]
+      switch $cmd {
+        Option -
+        option {
+          my keyword.Annotation info $commentblock option [lindex $thisline 1] [lindex $thisline 2]
+          set commentblock {}
+        }
+        variable -
+        Variable {
+          my keyword.Annotation info $commentblock variable [lindex $thisline 1] [list type scaler default [lindex $thisline 2]]
+          set commentblock {}
+        }
+        Dict -
+        Array {
+          set iinfo [lindex $thisline 2]
+          dict set iinfo type [string tolower $cmd]
+          my keyword.Annotation info $commentblock variable [lindex $thisline 1] $iinfo
+          set commentblock {}
+        }
+        Componant -
+        Delegate {
+          my keyword.Annotation info $commentblock delegate [lindex $thisline 1] [lindex $thisline 2]
+          set commentblock {}
+        }
+        method -
+        Ensemble {
+          my keyword.class_method info $commentblock  {*}[lrange $thisline 1 end-1]
+          set commentblock {}
+        }
+      }
+      set thisline {}
+    }
+    dict set result class $name $info
+  }
+  method keyword.class {resultvar commentblock name body} {
+    upvar 1 $resultvar result
+    set name [string trim $name :]
+    if {[dict exists $result class $name]} {
+      set info [dict get $result class $name]
+    } else {
+      set info [my comment $commentblock]
+    }
+    set commentblock {}
+    foreach line [split $body \n] {
+      append thisline $line \n
+      if {![info complete $thisline]} continue
+      set thisline [string trim $thisline]
+      if {[string index $thisline 0] eq "#"} {
+        append commentblock [string trimleft $thisline #] \n
+        set thisline {}
+        continue
+      }
+      set cmd [string trim [lindex $thisline 0] ":"]
+      switch $cmd {
+        Option -
+        option {
+          puts [list keyword.Annotation $cmd $thisline]
+          my keyword.Annotation info $commentblock option [lindex $thisline 1] [lindex $thisline 2]
+          set commentblock {}
+        }
+        variable -
+        Variable {
+          my keyword.Annotation info $commentblock variable [lindex $thisline 1] [list default [lindex $thisline 2]]
+          set commentblock {}
+        }
+        Dict -
+        Array {
+          set iinfo [lindex $thisline 2]
+          dict set iinfo type [string tolower $cmd]
+          my keyword.Annotation info $commentblock variable [lindex $thisline 1] $iinfo
+          set commentblock {}
+        }
+        Componant -
+        Delegate {
+          my keyword.Annotation info $commentblock delegate [lindex $thisline 1] [lindex $thisline 2]
+          set commentblock {}
+        }
+        superclass {
+          dict set info ancestors [lrange $thisline 1 end]
+          set commentblock {}
+        }
+        class_method {
+          my keyword.class_method info $commentblock  {*}[lrange $thisline 1 end-1]
+          set commentblock {}
+        }
+        destructor -
+        constructor {
+          my keyword.method info $commentblock {*}[lrange $thisline 0 end-1]
+          set commentblock {}
+        }
+        method -
+        Ensemble {
+          my keyword.method info $commentblock  {*}[lrange $thisline 1 end-1]
+          set commentblock {}
+        }
+      }
+      set thisline {}
+    }
+    dict set result class $name $info
+  }
+  method keyword.class_method {resultvar commentblock name args} {
+    upvar 1 $resultvar result
+    set info [my comment $commentblock]
+    if {[dict exists $info show_body] && [dict get $info show_body]} {
+      dict set info internals [lindex $args end]
+    }
+    if {[dict exists $info ensemble]} {
+      dict for {method minfo} [dict get $info ensemble] {
+        dict set result class_method "${name} $method" $minfo
+      }
+    } else {
+      switch [llength $args] {
+        1 {
+          set arglist [lindex $args 0]
+        }
+        0 {
+          set arglist dictargs
+          #set body [lindex $args 0]
+        }
+        default {error "could not interpret method $name {*}$args"}
+      }
+      if {![dict exists $info arglist]} {
+        dict set info arglist [my arglist $arglist]
+      }
+      dict set result class_method [string trim $name :] $info
+    }
+  }
+  method keyword.method {resultvar commentblock name args} {
+    upvar 1 $resultvar result
+    set info [my comment $commentblock]
+    if {[dict exists $info show_body] && [dict get $info show_body]} {
+      dict set info internals [lindex $args end]
+    }
+    if {[dict exists $info ensemble]} {
+      dict for {method minfo} [dict get $info ensemble] {
+        dict set result method "\"${name} $method\"" $minfo
+      }
+    } else {
+      switch [llength $args] {
+        1 {
+          set arglist [lindex $args 0]
+        }
+        0 {
+          set arglist dictargs
+          #set body [lindex $args 0]
+        }
+        default {error "could not interpret method $name {*}$args"}
+      }
+      if {![dict exists $info arglist]} {
+        dict set info arglist [my arglist $arglist]
+      }
+      dict set result method "\"[split [string trim $name :] ::]\"" $info
+    }
+  }
+  method keyword.proc {commentblock name arglist} {
+    set info [my comment $commentblock]
+    if {![dict exists $info arglist]} {
+      dict set info arglist [my arglist $arglist]
+    }
+    return $info
+  }
+  method reset {} {
+    my variable coro
+    set coro [info object namespace [self]]::coro
+    oo::objdefine [self] forward coro $coro
+    if {[info command $coro] ne {}} {
+      rename $coro {}
+    }
+    coroutine $coro {*}[namespace code {my Main}]
+  }
+  method Main {} {
+
+    my variable info
+    set info [dict create]
+    yield [info coroutine]
+    set thisline {}
+    set commentblock {}
+    set linec 0
+    while 1 {
+      set line [yield]
+      append thisline $line \n
+      if {![info complete $thisline]} continue
+      set thisline [string trim $thisline]
+      if {[string index $thisline 0] eq "#"} {
+        append commentblock [string trimleft $thisline #] \n
+        set thisline {}
+        continue
+      }
+      set cmd [string trim [lindex $thisline 0] ":"]
+      switch $cmd {
+        dictargs::proc {
+          set procinfo [my keyword.proc $commentblock [lindex $thisline 1] [list args [list dictargs [lindex $thisline 2]]]]
+          if {[dict exists $procinfo show_body] && [dict get $procinfo show_body]} {
+            dict set procinfo internals [lindex $thisline end]
+          }
+          dict set info proc [string trim [lindex $thisline 1] :] $procinfo
+          set commentblock {}
+        }
+        tcllib::PROC -
+        PROC -
+        Proc -
+        proc {
+          set procinfo [my keyword.proc $commentblock {*}[lrange $thisline 1 2]]
+          if {[dict exists $procinfo show_body] && [dict get $procinfo show_body]} {
+            dict set procinfo internals [lindex $thisline end]
+          }
+          dict set info proc [string trim [lindex $thisline 1] :] $procinfo
+          set commentblock {}
+        }
+        oo::objdefine {
+          if {[llength $thisline]==3} {
+            lassign $thisline tcmd name body
+            my keyword.Class info $commentblock $name $body
+          } else {
+            puts "Warning: bare oo::define in library"
+          }
+        }
+        oo::define {
+          if {[llength $thisline]==3} {
+            lassign $thisline tcmd name body
+            my keyword.class info $commentblock $name $body
+          } else {
+            puts "Warning: bare oo::define in library"
+          }
+        }
+        tao::define -
+        clay::define -
+        tool::define {
+          lassign $thisline tcmd name body
+          my keyword.class info $commentblock $name $body
+          set commentblock {}
+        }
+        oo::class {
+          lassign $thisline tcmd mthd name body
+          my keyword.class info $commentblock $name $body
+          set commentblock {}
+        }
+        default {
+          if {[lindex [split $cmd ::] end] eq "define"} {
+            lassign $thisline tcmd name body
+            my keyword.class info $commentblock $name $body
+            set commentblock {}
+          }
+          set commentblock {}
+        }
+      }
+      set thisline {}
+    }
+  }
+  method section.method {keyword method minfo} {
+    set result {}
+    set line "\[call $keyword \[cmd $method\]"
+    if {[dict exists $minfo arglist]} {
+      dict for {argname arginfo} [dict get $minfo arglist] {
+        set positional 1
+        set mandatory  1
+        set repeating 0
+        dict with arginfo {}
+        if {$mandatory==0} {
+          append line " \[opt \""
+        } else {
+          append line " "
+        }
+        if {$positional} {
+          append line "\[arg $argname"
+        } else {
+          append line "\[option \"$argname"
+          if {[dict exists $arginfo type]} {
+            append line " \[emph [dict get $arginfo type]\]"
+          } else {
+            append line " \[emph value\]"
+          }
+          append line "\""
+        }
+        append line "\]"
+        if {$mandatory==0} {
+          if {[dict exists $arginfo default]} {
+            append line " \[const \"[dict get $arginfo default]\"\]"
+          }
+          append line "\"\]"
+        }
+        if {$repeating} {
+          append line " \[opt \[option \"$argname...\"\]\]"
+        }
+      }
+    }
+    append line \]
+    putb result $line
+    if {[dict exists $minfo description]} {
+      putb result [dict get $minfo description]
+    }
+    if {[dict exists $minfo example]} {
+      putb result "\[para\]Example: \[example [list [dict get $minfo example]]\]"
+    }
+    if {[dict exists $minfo internals]} {
+      putb result "\[para\]Internals: \[example [list [dict get $minfo internals]]\]"
+    }
+    return $result
+  }
+  method section.annotation {type name iinfo} {
+    set result "\[call $type \[cmd $name\]\]"
+    if {[dict exists $iinfo description]} {
+      putb result [dict get $iinfo description]
+    }
+    if {[dict exists $iinfo example]} {
+      putb result "\[para\]Example: \[example [list [dict get $minfo example]]\]"
+    }
+    return $result
+  }
+  method section.class {class_name class_info} {
+    set result {}
+    putb result "\[subsection \{Class  $class_name\}\]"
+    if {[dict exists $class_info ancestors]} {
+      set line "\[emph \"ancestors\"\]:"
+      foreach {c} [dict get $class_info ancestors] {
+        append line " \[class [string trim $c :]\]"
+      }
+      putb result $line
+      putb result {[para]}
+    }
+    dict for {f v} $class_info {
+      if {$f in {class_method method description ancestors example option variable delegate}} continue
+      putb result "\[emph \"$f\"\]: $v"
+      putb result {[para]}
+    }
+    if {[dict exists $class_info example]} {
+      putb result "\[example \{[list [dict get $class_info example]]\}\]"
+      putb result {[para]}
+    }
+    if {[dict exists $class_info description]} {
+      putb result [dict get $class_info description]
+      putb result {[para]}
+    }
+    dict for {f v} $class_info {
+      if {$f ni {option variable delegate}} continue
+      putb result "\[class \{[string totitle $f]\}\]"
+      #putb result "Methods on the class object itself."
+      putb result {[list_begin definitions]}
+      dict for {item iinfo} [dict get $class_info $f] {
+        putb result [my section.annotation $f $item $iinfo]
+      }
+      putb result {[list_end]}
+      putb result {[para]}
+    }
+    if {[dict exists $class_info class_method]} {
+      putb result "\[class \{Class Methods\}\]"
+      #putb result "Methods on the class object itself."
+      putb result {[list_begin definitions]}
+      dict for {method minfo} [dict get $class_info class_method] {
+        putb result [my section.method classmethod $method $minfo]
+      }
+      putb result {[list_end]}
+      putb result {[para]}
+    }
+    if {[dict exists $class_info method]} {
+      putb result "\[class {Methods}\]"
+      putb result {[list_begin definitions]}
+      dict for {method minfo} [dict get $class_info method] {
+        putb result [my section.method method $method $minfo]
+      }
+      putb result {[list_end]}
+      putb result {[para]}
+    }
+    return $result
+  }
+  method section.command {procinfo} {
+    set result {}
+    putb result "\[section \{Commands\}\]"
+    putb result {[list_begin definitions]}
+    dict for {method minfo} $procinfo {
+      putb result [my section.method proc $method $minfo]
+    }
+    putb result {[list_end]}
+    return $result
+  }
+  method manpage args {
+    my variable info
+    set map {%version% 0.0 %module% {Your_Module_Here}}
+    set result {}
+    set header {}
+    set footer {}
+    set authors {}
+    dict with args {}
+    dict set map %keyword% comment
+    putb result $map {[%keyword% {-*- tcl -*- doctools manpage}]
+[vset PACKAGE_VERSION %version%]
+[manpage_begin %module% n [vset PACKAGE_VERSION]]}
+    putb result $map $header
+
+    dict for {sec_type sec_info} $info {
+      switch $sec_type {
+        proc {
+          putb result [my section.command $sec_info]
+        }
+        class {
+          putb result "\[section Classes\]"
+          dict for {class_name class_info} $sec_info {
+            putb result [my section.class $class_name $class_info]
+          }
+        }
+        default {
+          putb result "\[section [list $sec_type $sec_name]\]"
+          if {[dict exists $sec_info description]} {
+            putb result [dict get $sec_info description]
+          }
+        }
+      }
+    }
+    if {[llength $authors]} {
+      putb result {[section AUTHORS]}
+      foreach {name email} $authors {
+        putb result "$name \[uri mailto:$email\]\[para\]"
+      }
+    }
+    putb result $footer
+    putb result {[manpage_end]}
+    return $result
+  }
+  method scan_text {text} {
+    my variable linecount coro
+    set linecount 0
+    foreach line [split $text \n] {
+      incr linecount
+      $coro $line
+    }
+  }
+  method scan_file {filename} {
+    my variable linecount coro
+    set fin [open $filename r]
+    set linecount 0
+    while {[gets $fin line]>=0} {
+      incr linecount
+      $coro $line
+    }
+    close $fin
+  }
+}
 
 ###
-# END: docbuild.tcl
+# END: doctool.tcl
 ###
 ###
 # START: buildutil.tcl
@@ -1735,28 +3129,19 @@ proc ::practcl::de_shell {data} {
 ###
 # START: fileutil.tcl
 ###
-proc ::practcl::cat fname {
-    if {![file exists $fname]} {
-       return
-    }
-    set fin [open $fname r]
-    set data [read $fin]
-    close $fin
-    return $data
-}
 proc ::practcl::grep {pattern {files {}}} {
     set result [list]
     if {[llength $files] == 0} {
-	      # read from stdin
-    	  set lnum 0
-	      while {[gets stdin line] >= 0} {
-	          incr lnum
-    	      if {[regexp -- $pattern $line]} {
-		            lappend result "${lnum}:${line}"
-	          }
-    	  }
+            # read from stdin
+            set lnum 0
+            while {[gets stdin line] >= 0} {
+                incr lnum
+                if {[regexp -- $pattern $line]} {
+                        lappend result "${lnum}:${line}"
+                }
+            }
     } else {
-	      foreach filename $files {
+            foreach filename $files {
             set file [open $filename r]
             set lnum 0
             while {[gets $file line] >= 0} {
@@ -1766,7 +3151,7 @@ proc ::practcl::grep {pattern {files {}}} {
                 }
             }
             close $file
-    	  }
+            }
     }
     return $result
 }
@@ -1776,11 +3161,11 @@ proc ::practcl::file_lexnormalize {sp} {
     # Resolution of embedded relative modifiers (., and ..).
 
     if {
-	([lsearch -exact $spx . ] < 0) &&
-	([lsearch -exact $spx ..] < 0)
+      ([lsearch -exact $spx . ] < 0) &&
+      ([lsearch -exact $spx ..] < 0)
     } {
-	# Quick path out if there are no relative modifiers
-	return $sp
+      # Quick path out if there are no relative modifiers
+      return $sp
     }
 
     set absolute [expr {![string equal [file pathtype $sp] relative]}]
@@ -1791,30 +3176,30 @@ proc ::practcl::file_lexnormalize {sp} {
     set noskip 1
 
     while {[llength $sp]} {
-	set ele    [lindex $sp 0]
-	set sp     [lrange $sp 1 end]
-	set islast [expr {[llength $sp] == 0}]
+      set ele    [lindex $sp 0]
+      set sp     [lrange $sp 1 end]
+      set islast [expr {[llength $sp] == 0}]
 
-	if {[string equal $ele ".."]} {
-	    if {
-		($absolute  && ([llength $np] >  1)) ||
-		(!$absolute && ([llength $np] >= 1))
-	    } {
-		# .. : Remove the previous element added to the
-		# new path, if there actually is enough to remove.
-		set np [lrange $np 0 end-1]
-	    }
-	} elseif {[string equal $ele "."]} {
-	    # Ignore .'s, they stay at the current location
-	    continue
-	} else {
-	    # A regular element.
-	    lappend np $ele
-	}
+      if {[string equal $ele ".."]} {
+          if {
+            ($absolute  && ([llength $np] >  1)) ||
+            (!$absolute && ([llength $np] >= 1))
+          } {
+            # .. : Remove the previous element added to the
+            # new path, if there actually is enough to remove.
+            set np [lrange $np 0 end-1]
+          }
+      } elseif {[string equal $ele "."]} {
+          # Ignore .'s, they stay at the current location
+          continue
+      } else {
+          # A regular element.
+          lappend np $ele
+      }
     }
     if {[llength $np] > 0} {
-	return [eval [linsert $np 0 file join]]
-	# 8.5: return [file join {*}$np]
+      return [eval [linsert $np 0 file join]]
+      # 8.5: return [file join {*}$np]
     }
     return {}
 }
@@ -1823,7 +3208,7 @@ proc ::practcl::file_relative {base dst} {
     # the directory 'base'.
 
     if {![string equal [file pathtype $base] [file pathtype $dst]]} {
-	return -code error "Unable to compute relation for paths of different pathtypes: [file pathtype $base] vs. [file pathtype $dst], ($base vs. $dst)"
+      return -code error "Unable to compute relation for paths of different pathtypes: [file pathtype $base] vs. [file pathtype $dst], ($base vs. $dst)"
     }
 
     set base [file_lexnormalize [file join [pwd] $base]]
@@ -1834,36 +3219,58 @@ proc ::practcl::file_relative {base dst} {
     set dst  [file split $dst]
 
     while {[string equal [lindex $dst 0] [lindex $base 0]]} {
-	set dst  [lrange $dst  1 end]
-	set base [lrange $base 1 end]
-	if {![llength $dst]} {break}
+      set dst  [lrange $dst  1 end]
+      set base [lrange $base 1 end]
+      if {![llength $dst]} {break}
     }
 
     set dstlen  [llength $dst]
     set baselen [llength $base]
 
     if {($dstlen == 0) && ($baselen == 0)} {
-	# Cases:
-	# (a) base == dst
+      # Cases:
+      # (a) base == dst
 
-	set dst .
+      set dst .
     } else {
-	# Cases:
-	# (b) base is: base/sub = sub
-	#     dst  is: base     = {}
+      # Cases:
+      # (b) base is: base/sub = sub
+      #     dst  is: base     = {}
 
-	# (c) base is: base     = {}
-	#     dst  is: base/sub = sub
+      # (c) base is: base     = {}
+      #     dst  is: base/sub = sub
 
-	while {$baselen > 0} {
-	    set dst [linsert $dst 0 ..]
-	    incr baselen -1
-	}
-	# 8.5: set dst [file join {*}$dst]
-	set dst [eval [linsert $dst 0 file join]]
+      while {$baselen > 0} {
+          set dst [linsert $dst 0 ..]
+          incr baselen -1
+      }
+      # 8.5: set dst [file join {*}$dst]
+      set dst [eval [linsert $dst 0 file join]]
     }
 
     return $dst
+}
+proc ::practcl::findByPattern {basedir patterns} {
+    set queue $basedir
+    set result {}
+    while {[llength $queue]} {
+      set item [lindex $queue 0]
+      set queue [lrange $queue 1 end]
+      if {[file isdirectory $item]} {
+        foreach path [glob -nocomplain [file join $item *]] {
+          lappend queue $path
+        }
+        continue
+      }
+      foreach pattern $patterns {
+        set fname [file tail $item]
+        if {[string match $pattern $fname]} {
+          lappend result $item
+          break
+        }
+      }
+    }
+    return $result
 }
 proc ::practcl::log {fname comment} {
   set fname [file normalize $fname]
@@ -1884,13 +3291,58 @@ proc ::practcl::log {fname comment} {
 ###
 # START: installutil.tcl
 ###
-proc ::practcl::_isdirectory name {
-  return [file isdirectory $name]
+proc ::practcl::_pkgindex_simpleIndex {path} {
+set buffer {}
+  set pkgidxfile    [file join $path pkgIndex.tcl]
+  set modfile       [file join $path [file tail $path].tcl]
+  set use_pkgindex  [file exists $pkgidxfile]
+  set tclfiles      {}
+  set found 0
+  set mlist [list pkgIndex.tcl index.tcl [file tail $modfile] version_info.tcl]
+  foreach file [glob -nocomplain [file join $path *.tcl]] {
+    if {[file tail $file] ni $mlist} {
+      puts [list NONMODFILE $file]
+      return {}
+    }
+  }
+  foreach file [glob -nocomplain [file join $path *.tcl]] {
+    if { [file tail $file] == "version_info.tcl" } continue
+    set fin [open $file r]
+    set dat [read $fin]
+    close $fin
+    if {![regexp "package provide" $dat]} continue
+    set fname [file rootname [file tail $file]]
+    # Look for a package provide statement
+    foreach line [split $dat \n] {
+      set line [string trim $line]
+      if { [string range $line 0 14] != "package provide" } continue
+      set package [lindex $line 2]
+      set version [lindex $line 3]
+      if {[string index $package 0] in "\$ \[ @"} continue
+      if {[string index $version 0] in "\$ \[ @"} continue
+      puts "PKGLINE $line"
+      append buffer "package ifneeded $package $version \[list source \[file join %DIR% [file tail $file]\]\]" \n
+      break
+    }
+  }
+  return $buffer
 }
 proc ::practcl::_pkgindex_directory {path} {
   set buffer {}
-  set pkgidxfile [file join $path pkgIndex.tcl]
-  if {![file exists $pkgidxfile]} {
+  set pkgidxfile    [file join $path pkgIndex.tcl]
+  set modfile       [file join $path [file tail $path].tcl]
+  set use_pkgindex  [file exists $pkgidxfile]
+  set tclfiles      {}
+  if {$use_pkgindex && [file exists $modfile]} {
+    set use_pkgindex 0
+    set mlist [list pkgIndex.tcl [file tail $modfile]]
+    foreach file [glob -nocomplain [file join $path *.tcl]] {
+      lappend tclfiles [file tail $file]
+      if {[file tail $file] in $mlist} continue
+      incr use_pkgindex
+    }
+  }
+  if {!$use_pkgindex} {
     # No pkgIndex file, read the source
     foreach file [glob -nocomplain $path/*.tm] {
       set file [file normalize $file]
@@ -2045,6 +3497,19 @@ set IDXPATH [lindex $::PATHSTACK end]
     }
     set path_indexed($base) 1
     set path_indexed([file join $base boot tcl]) 1
+    append buffer \n {# SINGLE FILE MODULES BEGIN} \n {set dir [file dirname $::PKGIDXFILE]} \n
+    foreach path $paths {
+      if {$path_indexed($path)} continue
+      set thisdir [file_relative $base $path]
+      set simpleIdx [_pkgindex_simpleIndex $path]
+      if {[string length $simpleIdx]==0} continue
+      incr path_indexed($path)
+      if {[string length $simpleIdx]} {
+        incr path_indexed($path)
+        append buffer [string map [list %DIR% "\$dir \{$thisdir\}"] [string trimright $simpleIdx]] \n
+      }
+    }
+    append buffer {# SINGLE FILE MODULES END} \n
     foreach path $paths {
       if {$path_indexed($path)} continue
       set thisdir [file_relative $base $path]
@@ -2117,6 +3582,41 @@ proc ::practcl::copyDir {d1 d2 {toplevel 1}} {
     }
   }
 }
+proc ::practcl::buildModule {modpath} {
+  set buildscript [file join $modpath build build.tcl]
+  if {![file exists $buildscript]} return
+  set pkgIndexFile [file join $modpath pkgIndex.tcl]
+  if {[file exists $pkgIndexFile]} {
+    set latest 0
+    foreach file [::practcl::findByPattern [file dirname $buildscript] *.tcl] {
+      set mtime [file mtime $file]
+      if {$mtime>$latest} {
+        set latest $mtime
+      }
+    }
+    set IdxTime [file mtime $pkgIndexFile]
+    if {$latest<$IdxTime} return
+  }
+  ::practcl::dotclexec $buildscript
+}
+proc ::practcl::installModule {modpath DEST} {
+  puts [list installModule $modpath $DEST]
+  set dpath  [file join $DEST modules [file tail $modpath]]
+  if {[file exists [file join $modpath build build.tcl]]} {
+    buildModule $modpath
+  } elseif {![file exists [file join $modpath pkgIndex.tcl]]} {
+    puts [list Reindex $modpath]
+    pkg_mkIndex $modpath
+  }
+  file delete -force $dpath
+  file mkdir $dpath
+  foreach file [glob  [file join $modpath *.tcl]] {
+    file copy $file $dpath
+  }
+  if {[file exists [file join $modpath htdocs]]} {
+    ::practcl::copyDir [file join $modpath htdocs] [file join $dpath htdocs]
+  }
+}
 
 ###
 # END: installutil.tcl
@@ -2148,8 +3648,7 @@ proc ::practcl::target {name info {action {}}} {
 ###
 # START: class metaclass.tcl
 ###
-::oo::class create ::practcl::metaclass {
-  superclass ::oo::object
+::clay::define ::practcl::metaclass {
   method _MorphPatterns {} {
     return {{@name@} {::practcl::@name@} {::practcl::*@name@} {::practcl::*@name@*}}
   }
@@ -2296,7 +3795,7 @@ proc ::practcl::target {name info {action {}}} {
         }
       }
       if {$mixinslot ne {}} {
-        my mixin $mixinslot $class
+        my clay mixinmap $mixinslot $class
       } elseif {[info command $class] ne {}} {
         if {[info object class [self]] ne $class} {
           ::oo::objdefine [self] class $class
@@ -2311,36 +3810,6 @@ proc ::practcl::target {name info {action {}}} {
       ::oo::objdefine [self] $define(oodefine)
       #unset define(oodefine)
     }
-  }
-  method mixin {slot classname} {
-    my variable mixinslot
-    set class {}
-    set map [list @slot@ $slot @name@ $classname]
-    foreach pattern [split [string map $map {
-      @name@
-      @slot@.@name@
-      ::practcl::@name@
-      ::practcl::@slot@.@name@
-      ::practcl::@slot@*@name@
-      ::practcl::*@name@*
-    }] \n] {
-      set pattern [string trim $pattern]
-      set matches [info commands $pattern]
-      if {![llength $matches]} continue
-      set class [lindex $matches 0]
-      break
-    }
-    ::practcl::debug [self] mixin $slot $class
-    dict set mixinslot $slot $class
-    set mixins {}
-    foreach {s c} $mixinslot {
-      if {$c eq {}} continue
-      lappend mixins $c
-    }
-    oo::objdefine [self] mixin {*}$mixins
-  }
-  method organ args {
-    return [my clay delegate {*}$args]
   }
   method script script {
     eval $script
@@ -2367,7 +3836,7 @@ proc ::practcl::target {name info {action {}}} {
 ###
 # START: class toolset baseclass.tcl
 ###
-oo::class create ::practcl::toolset {
+::clay::define ::practcl::toolset {
   method config.sh {} {
     return [my read_configuration]
   }
@@ -2434,6 +3903,9 @@ oo::class create ::practcl::toolset {
     ###
     # Oh man... we have to guess
     ###
+    if {![file exists [file join $builddir Makefile]]} {
+      my Configure
+    }
     set filename [file join $builddir Makefile]
     if {![file exists $filename]} {
       error "Could not locate any configuration data in $srcdir"
@@ -2485,11 +3957,9 @@ oo::class create ::practcl::toolset {
     ::practcl::dotclexec $critcl {*}$args
     cd $PWD
   }
-  method make-autodetect {} {}
 }
 oo::objdefine ::practcl::toolset {
-
-
+  # Perform the selection for the toolset mixin
   method select object {
     ###
     # Select the toolset to use for this project
@@ -2499,12 +3969,12 @@ oo::objdefine ::practcl::toolset {
     }
     set class [$object define get toolset]
     if {$class ne {}} {
-      $object mixin toolset $class
+      $object clay mixinmap toolset $class
     } else {
       if {[info exists ::env(VisualStudioVersion)]} {
-        $object mixin toolset ::practcl::toolset.msvc
+        $object clay mixinmap toolset ::practcl::toolset.msvc
       } else {
-        $object mixin toolset ::practcl::toolset.gcc
+        $object clay mixinmap toolset ::practcl::toolset.gcc
       }
     }
   }
@@ -2516,7 +3986,7 @@ oo::objdefine ::practcl::toolset {
 ###
 # START: class toolset gcc.tcl
 ###
-::oo::class create ::practcl::toolset.gcc {
+::clay::define ::practcl::toolset.gcc {
   superclass ::practcl::toolset
   method Autoconf {} {
     ###
@@ -2569,16 +4039,17 @@ oo::objdefine ::practcl::toolset {
     }
     set inside_msys [string is true -strict [my <project> define get MSYS_ENV 0]]
     lappend opts --with-tclsh=[info nameofexecutable]
-    if {![my <project> define get LOCAL 0]} {
-      set obj [my <project> tclcore]
-      if {$obj ne {}} {
-        if {$inside_msys} {
-          lappend opts --with-tcl=[::practcl::file_relative [file normalize $builddir] [$obj define get builddir]]
-        } else {
-          lappend opts --with-tcl=[file normalize [$obj define get builddir]]
+
+    if {[my define get tk 0]} {
+      if {![my <project> define get LOCAL 0]} {
+        set obj [my <project> tclcore]
+        if {$obj ne {}} {
+          if {$inside_msys} {
+            lappend opts --with-tcl=[::practcl::file_relative [file normalize $builddir] [$obj define get builddir]]
+          } else {
+            lappend opts --with-tcl=[file normalize [$obj define get builddir]]
+          }
         }
-      }
-      if {[my define get tk 0]} {
         set obj [my <project> tkcore]
         if {$obj ne {}} {
           if {$inside_msys} {
@@ -2587,11 +4058,22 @@ oo::objdefine ::practcl::toolset {
             lappend opts --with-tk=[file normalize [$obj define get builddir]]
           }
         }
+      } else {
+        lappend opts --with-tcl=[file join $PREFIX lib]
+        lappend opts --with-tk=[file join $PREFIX lib]
       }
     } else {
-      lappend opts --with-tcl=[file join $PREFIX lib]
-      if {[my define get tk 0]} {
-        lappend opts --with-tk=[file join $PREFIX lib]
+      if {![my <project> define get LOCAL 0]} {
+        set obj [my <project> tclcore]
+        if {$obj ne {}} {
+          if {$inside_msys} {
+            lappend opts --with-tcl=[::practcl::file_relative [file normalize $builddir] [$obj define get builddir]]
+          } else {
+            lappend opts --with-tcl=[file normalize [$obj define get builddir]]
+          }
+        }
+      } else {
+        lappend opts --with-tcl=[file join $PREFIX lib]
       }
     }
 
@@ -2646,9 +4128,12 @@ oo::objdefine ::practcl::toolset {
     }
     return $localsrcdir
   }
-  method make-autodetect {} {
+  Ensemble make::autodetect {} {
     set srcdir [my define get srcdir]
     set localsrcdir [my define get localsrcdir]
+    if {$localsrcdir eq {}} {
+      set localsrcdir $srcdir
+    }
     if {$srcdir eq $localsrcdir} {
       if {![file exists [file join $srcdir tclconfig install-sh]]} {
         # ensure we have tclconfig with all of the trimmings
@@ -2689,11 +4174,11 @@ oo::objdefine ::practcl::toolset {
     catch {exec sh [file join $localsrcdir configure] {*}$opts >>& [file join $builddir autoconf.log]}
     cd $::CWD
   }
-  method make-clean {} {
+  Ensemble make::clean {} {
     set builddir [file normalize [my define get builddir]]
     catch {::practcl::domake $builddir clean}
   }
-  method make-compile {} {
+  Ensemble make::compile {} {
     set name [my define get name]
     set srcdir [my define get srcdir]
     if {[my define get static 1]} {
@@ -2717,7 +4202,7 @@ oo::objdefine ::practcl::toolset {
       ::practcl::domake $builddir all
     }
   }
-  method make-install DEST {
+  Ensemble make::install DEST {
     set PWD [pwd]
     set builddir [my define get builddir]
     if {[my <project> define get LOCAL 0] || $DEST eq {}} {
@@ -2946,11 +4431,27 @@ method build-library {outfile PROJECT} {
   set includedir .
   #lappend includedir [::practcl::file_relative $path $proj(TCL_INCLUDES)]
   lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TCL_SRC_DIR) generic]]]
+  if {[$PROJECT define get TEA_PRIVATE_TCL_HEADERS 0]} {
+    if {[$PROJECT define get TEA_PLATFORM] eq "windows"} {
+      lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TCL_SRC_DIR) win]]]
+    } else {
+      lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TCL_SRC_DIR) unix]]]
+    }
+  }
+
   lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(srcdir) generic]]]
+
   if {[$PROJECT define get tk 0]} {
     lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TK_SRC_DIR) generic]]]
     lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TK_SRC_DIR) ttk]]]
     lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TK_SRC_DIR) xlib]]]
+    if {[$PROJECT define get TEA_PRIVATE_TK_HEADERS 0]} {
+      if {[$PROJECT define get TEA_PLATFORM] eq "windows"} {
+        lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TK_SRC_DIR) win]]]
+      } else {
+        lappend includedir [::practcl::file_relative $path [file normalize [file join $proj(TK_SRC_DIR) unix]]]
+      }
+    }
     lappend includedir [::practcl::file_relative $path [file normalize $proj(TK_BIN_DIR)]]
   }
   foreach include [$PROJECT toolset-include-directory] {
@@ -3017,7 +4518,25 @@ $proj(CFLAGS_WARNING) $INCLUDES $defs"
   }
 }
 method build-tclsh {outfile PROJECT} {
-  puts " BUILDING STATIC TCLSH "
+  if {[my define get tk 0] && [my define get static_tk 0]} {
+    puts " BUILDING STATIC TCL/TK EXE $PROJECT"
+    set TKOBJ  [$PROJECT tkcore]
+    if {[info command $TKOBJ] eq {}} {
+      set TKOBJ ::noop
+      $PROJECT define set static_tk 0
+    } else {
+      ::practcl::toolset select $TKOBJ
+      array set TK  [$TKOBJ read_configuration]
+      set do_tk [$TKOBJ define get static]
+      $PROJECT define set static_tk $do_tk
+      $PROJECT define set tk $do_tk
+      set TKSRCDIR [$TKOBJ define get srcdir]
+    }
+  } else {
+    puts " BUILDING STATIC TCL EXE $PROJECT"
+    set TKOBJ ::noop
+    my define set static_tk 0
+  }
   set TCLOBJ [$PROJECT tclcore]
   ::practcl::toolset select $TCLOBJ
   set PKG_OBJS {}
@@ -3032,19 +4551,6 @@ method build-tclsh {outfile PROJECT} {
     }
   }
   array set TCL [$TCLOBJ read_configuration]
-
-  set TKOBJ  [$PROJECT tkcore]
-  if {[info command $TKOBJ] eq {}} {
-    set TKOBJ ::noop
-    $PROJECT define set static_tk 0
-  } else {
-    ::practcl::toolset select $TKOBJ
-    array set TK  [$TKOBJ read_configuration]
-    set do_tk [$TKOBJ define get static]
-    $PROJECT define set static_tk $do_tk
-    $PROJECT define set tk $do_tk
-    set TKSRCDIR [$TKOBJ define get srcdir]
-  }
   set path [file dirname $outfile]
   cd $path
   ###
@@ -3239,22 +4745,22 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
 ###
 # START: class toolset msvc.tcl
 ###
-::oo::class create ::practcl::toolset.msvc {
+::clay::define ::practcl::toolset.msvc {
   superclass ::practcl::toolset
   method BuildDir {PWD} {
     set srcdir [my define get srcdir]
     return $srcdir
   }
-  method make-autodetect {} {
+  Ensemble make::autodetect {} {
   }
-  method make-clean {} {
+  Ensemble make::clean {} {
     set PWD [pwd]
     set srcdir [my define get srcdir]
     cd $srcdir
     catch {::practcl::doexec nmake -f makefile.vc clean}
     cd $PWD
   }
-  method make-compile {} {
+  Ensemble make::compile {} {
     set srcdir [my define get srcdir]
     if {[my define get static 1]} {
       puts "BUILDING Static $name $srcdir"
@@ -3279,7 +4785,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
       }
     }
   }
-  method make-install DEST {
+  Ensemble make::install DEST {
     set PWD [pwd]
     set srcdir [my define get srcdir]
     cd $srcdir
@@ -3350,7 +4856,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
 ###
 # START: class target.tcl
 ###
-::oo::class create ::practcl::make_obj {
+::clay::define ::practcl::make_obj {
   superclass ::practcl::metaclass
   constructor {module_object name info {action_body {}}} {
     my variable define triggered domake
@@ -3453,7 +4959,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
 ###
 # START: class object.tcl
 ###
-::oo::class create ::practcl::object {
+::clay::define ::practcl::object {
   superclass ::practcl::metaclass
   constructor {parent args} {
     my variable links define
@@ -3497,7 +5003,7 @@ $TCL(cflags_warning) $TCL(extra_cflags)"
 ###
 # START: class dynamic.tcl
 ###
-::oo::class create ::practcl::dynamic {
+::clay::define ::practcl::dynamic {
   method cstructure {name definition {argdat {}}} {
     my variable cstruct
     dict set cstruct $name body $definition
@@ -4041,7 +5547,7 @@ const static Tcl_ObjectMetadataType @NAME@DataType = {
 ###
 # START: class product.tcl
 ###
-::oo::class create ::practcl::product {
+::clay::define ::practcl::product {
   method code {section body} {
     my variable code
     ::practcl::cputs code($section) $body
@@ -4532,6 +6038,7 @@ package provide @PKG_NAME@ @PKG_VERSION@
   }
 }
 oo::objdefine ::practcl::product {
+
   method select {object} {
     set class [$object define get class]
     set mixin [$object define get product]
@@ -4568,19 +6075,19 @@ oo::objdefine ::practcl::product {
       }
     }
     if {$class ne {}} {
-      $object morph $class
+      $object clay mixinmap core $class
     }
     if {$mixin ne {}} {
-      $object mixin product $mixin
+      $object clay mixinmap product $mixin
     }
   }
 }
-::oo::class create ::practcl::product.cheader {
+::clay::define ::practcl::product.cheader {
   superclass ::practcl::product
   method project-compile-products {} {}
   method generate-loader-module {} {}
 }
-::oo::class create ::practcl::product.csource {
+::clay::define ::practcl::product.csource {
   superclass ::practcl::product
   method project-compile-products {} {
     set result {}
@@ -4601,13 +6108,13 @@ oo::objdefine ::practcl::product {
     return $result
   }
 }
-::oo::class create ::practcl::product.clibrary {
+::clay::define ::practcl::product.clibrary {
   superclass ::practcl::product
   method linker-products {configdict} {
     return [my define get filename]
   }
 }
-::oo::class create ::practcl::product.dynamic {
+::clay::define ::practcl::product.dynamic {
   superclass ::practcl::dynamic ::practcl::product
   method initialize {} {
     set filename [my define get filename]
@@ -4633,7 +6140,7 @@ oo::objdefine ::practcl::product {
     }
   }
 }
-::oo::class create ::practcl::product.critcl {
+::clay::define ::practcl::product.critcl {
   superclass ::practcl::dynamic ::practcl::product
 }
 
@@ -4643,7 +6150,7 @@ oo::objdefine ::practcl::product {
 ###
 # START: class module.tcl
 ###
-::oo::class create ::practcl::module {
+::clay::define ::practcl::module {
   superclass ::practcl::object ::practcl::product.dynamic
   method _MorphPatterns {} {
     return {{@name@} {::practcl::module.@name@} ::practcl::module}
@@ -4656,137 +6163,128 @@ oo::objdefine ::practcl::product {
     }
     return $object
   }
+  Dict make_object {}
   method install-headers args {}
-  method make {command args} {
+  Ensemble make::_preamble {} {
     my variable make_object
-    if {![info exists make_object]} {
-      set make_object {}
+  }
+  Ensemble make::pkginfo {} {
+    ###
+    # Build local variables needed for install
+    ###
+    package require platform
+    set result {}
+    set dat [my define dump]
+    set PKG_DIR [dict get $dat name][dict get $dat version]
+    dict set result PKG_DIR $PKG_DIR
+    dict with dat {}
+    if {![info exists DESTDIR]} {
+      set DESTDIR {}
     }
-    switch $command {
-      pkginfo {
-        ###
-        # Build local variables needed for install
-        ###
-        package require platform
-        set result {}
-        set dat [my define dump]
-        set PKG_DIR [dict get $dat name][dict get $dat version]
-        dict set result PKG_DIR $PKG_DIR
-        dict with dat {}
-        if {![info exists DESTDIR]} {
-          set DESTDIR {}
+    dict set result profile [::platform::identify]
+    dict set result os $::tcl_platform(os)
+    dict set result platform $::tcl_platform(platform)
+    foreach {field value} $dat {
+      switch $field {
+        includedir -
+        mandir -
+        datadir -
+        libdir -
+        libfile -
+        name -
+        output_tcl -
+        version -
+        authors -
+        license -
+        requires {
+          dict set result $field $value
         }
-        dict set result profile [::platform::identify]
-        dict set result os $::tcl_platform(os)
-        dict set result platform $::tcl_platform(platform)
-        foreach {field value} $dat {
-          switch $field {
-            includedir -
-            mandir -
-            datadir -
-            libdir -
-            libfile -
-            name -
-            output_tcl -
-            version -
-            authors -
-            license -
-            requires {
-              dict set result $field $value
-            }
-            TEA_PLATFORM {
-              dict set result platform $value
-            }
-            TEACUP_OS {
-              dict set result os $value
-            }
-            TEACUP_PROFILE {
-              dict set result profile $value
-            }
-            TEACUP_ZIPFILE {
-              dict set result zipfile $value
-            }
-          }
+        TEA_PLATFORM {
+          dict set result platform $value
         }
-        if {![dict exists $result zipfile]} {
-          dict set result zipfile "[dict get $result name]-[dict get $result version]-[dict get $result profile].zip"
+        TEACUP_OS {
+          dict set result os $value
         }
-        return $result
-      }
-      objects {
-        return $make_object
-      }
-      object {
-        set name [lindex $args 0]
-        if {[dict exists $make_object $name]} {
-          return [dict get $make_object $name]
+        TEACUP_PROFILE {
+          dict set result profile $value
         }
-        return {}
-      }
-      reset {
-        foreach {name obj} $make_object {
-          $obj reset
+        TEACUP_ZIPFILE {
+          dict set result zipfile $value
         }
       }
-      trigger {
-        foreach {name obj} $make_object {
-          if {$name in $args} {
-            $obj triggers
-          }
+    }
+    if {![dict exists $result zipfile]} {
+      dict set result zipfile "[dict get $result name]-[dict get $result version]-[dict get $result profile].zip"
+    }
+    return $result
+  }
+  Ensemble make::objects {} {
+    return $make_object
+  }
+  Ensemble make::object name {
+    if {[dict exists $make_object $name]} {
+      return [dict get $make_object $name]
+    }
+    return {}
+  }
+  Ensemble make::reset {} {
+    foreach {name obj} $make_object {
+      $obj reset
+    }
+  }
+  Ensemble make::trigger args {
+    foreach {name obj} $make_object {
+      if {$name in $args} {
+        $obj triggers
+      }
+    }
+  }
+  Ensemble make::depends args {
+    foreach {name obj} $make_object {
+      if {$name in $args} {
+        $obj check
+      }
+    }
+  }
+  Ensemble make::filename name {
+    if {[dict exists $make_object $name]} {
+      return [[dict get $make_object $name] define get filename]
+    }
+  }
+  Ensemble make::target {name Info body} {
+    set info [uplevel #0 [list subst $Info]]
+    set nspace [namespace current]
+    if {[dict exist $make_object $name]} {
+      set obj [dict get $$make_object $name]
+    } else {
+      set obj [::practcl::make_obj new [self] $name $info $body]
+      dict set make_object $name $obj
+      dict set target_make $name 0
+      dict set target_trigger $name 0
+    }
+    if {[dict exists $info aliases]} {
+      foreach item [dict get $info aliases] {
+        if {![dict exists $make_object $item]} {
+          dict set make_object $item $obj
         }
       }
-      depends {
-        foreach {name obj} $make_object {
-          if {$name in $args} {
-            $obj check
-          }
-        }
+    }
+    return $obj
+  }
+  clay set method_ensemble make target aliases {task add}
+  Ensemble make::todo {} {
+    foreach {name obj} $make_object {
+      if {[$obj do]} {
+        lappend result $name
       }
-      filename {
-        set name [lindex $args 0]
-        if {[dict exists $make_object $name]} {
-          return [[dict get $make_object $name] define get filename]
-        }
-      }
-      task -
-      target -
-      add {
-        set name [lindex $args 0]
-        set info [uplevel #0 [list subst [lindex $args 1]]]
-        set body [lindex $args 2]
-
-        set nspace [namespace current]
-        if {[dict exist $make_object $name]} {
-          set obj [dict get $$make_object $name]
-        } else {
-          set obj [::practcl::make_obj new [self] $name $info $body]
-          dict set make_object $name $obj
-          dict set target_make $name 0
-          dict set target_trigger $name 0
-        }
-        if {[dict exists $info aliases]} {
-          foreach item [dict get $info aliases] {
-            if {![dict exists $make_object $item]} {
-              dict set make_object $item $obj
-            }
-          }
-        }
-        return $obj
-      }
-      todo {
-         foreach {name obj} $make_object {
-          if {[$obj do]} {
-            lappend result $name
-          }
-        }
-      }
-      do {
-        global CWD SRCDIR project SANDBOX
-        foreach {name obj} $make_object {
-          if {[$obj do]} {
-            eval [$obj define get action]
-          }
-        }
+    }
+    return $result
+  }
+  Ensemble make::todo {} {
+    global CWD SRCDIR project SANDBOX
+    foreach {name obj} $make_object {
+      if {[$obj do]} {
+        eval [$obj define get action]
       }
     }
   }
@@ -4849,6 +6347,14 @@ oo::objdefine ::practcl::product {
   method generate-h {} {
     ::practcl::debug [list [self] [self method] [self class] -- [my define get filename] [info object class [self]]]
     set result {}
+    foreach method {
+      generate-hfile-public-define
+      generate-hfile-public-macro
+    } {
+      ::practcl::cputs result "/* BEGIN SECTION $method */"
+      ::practcl::cputs result [my $method]
+      ::practcl::cputs result "/* END SECTION $method */"
+    }
     set includes [my generate-hfile-public-includes]
     foreach inc $includes {
       if {[string index $inc 0] ni {< \"}} {
@@ -4857,10 +6363,7 @@ oo::objdefine ::practcl::product {
         ::practcl::cputs result "#include $inc"
       }
     }
-
     foreach method {
-      generate-hfile-public-define
-      generate-hfile-public-macro
       generate-hfile-public-typedef
       generate-hfile-public-structure
     } {
@@ -4995,7 +6498,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
 ###
 # START: class project baseclass.tcl
 ###
-::oo::class create ::practcl::project {
+::clay::define ::practcl::project {
   superclass ::practcl::module
   method _MorphPatterns {} {
     return {{@name@} {::practcl::@name@} {::practcl::project.@name@} {::practcl::project}}
@@ -5101,15 +6604,16 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
 
     set _TclSrcDir [$tclobj define get localsrcdir]
     my define set tclsrcdir $_TclSrcDir
-
-    set tkobj [my tkcore]
-    lappend tk_config_opts --with-tcl=[::practcl::file_relative [$tkobj define get builddir]  [$tclobj define get builddir]]
-    if {[my define get debug 0]} {
-      $tkobj define set debug 1
-      lappend tk_config_opts --enable-symbols=true
+    if {[my define get tk 0]} {
+      set tkobj [my tkcore]
+      lappend tk_config_opts --with-tcl=[::practcl::file_relative [$tkobj define get builddir]  [$tclobj define get builddir]]
+      if {[my define get debug 0]} {
+        $tkobj define set debug 1
+        lappend tk_config_opts --enable-symbols=true
+      }
+      $tkobj define set config_opts $tk_config_opts
+      $tkobj compile
     }
-    $tkobj define set config_opts $tk_config_opts
-    $tkobj compile
   }
   method child which {
     switch $which {
@@ -5132,7 +6636,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     ${obj} {*}$args
   }
   method tclcore {} {
-    if {[info commands [set obj [my organ tclcore]]] ne {}} {
+    if {[info commands [set obj [my clay delegate tclcore]]] ne {}} {
       return $obj
     }
     if {[info commands [set obj [my project TCLCORE]]] ne {}} {
@@ -5156,7 +6660,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
     return $obj
   }
   method tkcore {} {
-    if {[set obj [my organ tkcore]] ne {}} {
+    if {[set obj [my clay delegate tkcore]] ne {}} {
       return $obj
     }
     if {[set obj [my project tk]] ne {}} {
@@ -5190,7 +6694,7 @@ extern int DLLEXPORT [my define get initfunc]( Tcl_Interp *interp ) \{"
 ###
 # START: class project library.tcl
 ###
-::oo::class create ::practcl::library {
+::clay::define ::practcl::library {
   superclass ::practcl::project
   method clean {PATH} {
     set objext [my define get OBJEXT o]
@@ -5451,7 +6955,7 @@ char *
     set output_tcl [my define get output_tcl]
     if {$output_tcl ne {}} {
       set script "\[list source \[file join \$dir $output_tcl\]\]"
-    } elseif {[string is true -strict [my define get SHARED_BUILD]]} {
+    } elseif {[my define get SHARED_BUILD 0]} {
       set script "\[list load \[file join \$dir [my define get libfile]\] $name\]"
     } else {
       # Provide a null passthrough
@@ -5496,7 +7000,7 @@ char *
 ###
 # START: class project tclkit.tcl
 ###
-::oo::class create ::practcl::tclkit {
+::clay::define ::practcl::tclkit {
   superclass ::practcl::library
   method build-tclkit_main {PROJECT PKG_OBJS} {
     ###
@@ -5690,10 +7194,11 @@ foreach path {
       }
     }
     append main_init_script \n {
-if {[file exists [file join $::SRCDIR packages.tcl]]} {
+puts [list SRCDIR IS $::SRCDIR]
+if {[file exists [file join $::SRCDIR pkgIndex.tcl]]} {
   #In a wrapped exe, we don't go out to the environment
   set dir $::SRCDIR
-  source [file join $::SRCDIR packages.tcl]
+  source [file join $::SRCDIR pkgIndex.tcl]
 }
 # Specify a user-specific startup file to invoke if the application
 # is run interactively.  Typically the startup file is "~/.apprc"
@@ -5720,7 +7225,7 @@ if {[file exists [file join $::SRCDIR packages.tcl]]} {
     }
     set PROJECT [self]
     set os [$PROJECT define get TEACUP_OS]
-    if {[my define get SHARED_BUILD]} {
+    if {[my define get SHARED_BUILD 0]} {
       puts [list BUILDING TCLSH FOR OS $os]
     } else {
       puts [list BUILDING KIT FOR OS $os]
@@ -5743,7 +7248,7 @@ if {[file exists [file join $::SRCDIR packages.tcl]]} {
     # Arrange to build an main.c that utilizes TCL_LOCAL_APPINIT and TCL_LOCAL_MAIN_HOOK
     if {$os eq "windows"} {
       set PLATFORM_SRC_DIR win
-      if {[my define get SHARED_BUILD]} {
+      if {[my define get SHARED_BUILD 0]} {
         my add class csource filename [file join $TCLSRCDIR win tclWinReg.c] initfunc Registry_Init pkg_name registry pkg_vers 1.3.1 autoload 1
         my add class csource filename [file join $TCLSRCDIR win tclWinDde.c] initfunc Dde_Init pkg_name dde pkg_vers 1.4.0 autoload 1
       }
@@ -5753,7 +7258,7 @@ if {[file exists [file join $::SRCDIR packages.tcl]]} {
       my add class csource ofile [my define get name]_appinit.o filename [file join $TCLSRCDIR unix tclAppInit.c] extra [list -DTCL_LOCAL_MAIN_HOOK=[my define get TCL_LOCAL_MAIN_HOOK Tclkit_MainHook] -DTCL_LOCAL_APPINIT=[my define get TCL_LOCAL_APPINIT Tclkit_AppInit]]
     }
 
-    if {[my define get SHARED_BUILD]} {
+    if {[my define get SHARED_BUILD 0]} {
       ###
       # Add local static Zlib implementation
       ###
@@ -5813,7 +7318,7 @@ if {[file exists [file join $::SRCDIR packages.tcl]]} {
        ::practcl::copyDir $arg $vfspath
     }
 
-    set fout [open [file join $vfspath packages.tcl] w]
+    set fout [open [file join $vfspath pkgIndex.tcl] w]
     puts $fout [string map [list %platform% [my define get TEACUP_PROFILE]] {set ::tcl_teapot_profile {%platform%}}]
     puts $fout {
 set ::PKGIDXFILE [info script]
@@ -5864,7 +7369,7 @@ foreach teapath [glob -nocomplain [file join $dir teapot $::tcl_teapot_profile *
 ###
 # START: class distro baseclass.tcl
 ###
-oo::class create ::practcl::distribution {
+::clay::define ::practcl::distribution {
   method scm_info {} {
     return {
       scm  None
@@ -5881,7 +7386,7 @@ oo::class create ::practcl::distribution {
     if {[my define exists sandbox]} {
       return [my define get sandbox]
     }
-    if {[my organ project] ni {::noop {}}} {
+    if {[my clay delegate project] ni {::noop {}}} {
       set sandbox [my <project> define get sandbox]
       if {$sandbox ne {}} {
         my define set sandbox $sandbox
@@ -5925,12 +7430,11 @@ oo::class create ::practcl::distribution {
   }
 }
 oo::objdefine ::practcl::distribution {
-
   method Sandbox {object} {
     if {[$object define exists sandbox]} {
       return [$object define get sandbox]
     }
-    if {[$object organ project] ni {::noop {}}} {
+    if {[$object clay delegate project] ni {::noop {}}} {
       set sandbox [$object <project> define get sandbox]
       if {$sandbox ne {}} {
         $object define set sandbox $sandbox
@@ -5960,32 +7464,40 @@ oo::objdefine ::practcl::distribution {
     if {[file exists $srcdir]} {
       foreach class [::info commands ${classprefix}*] {
         if {[$class claim_path $srcdir]} {
-          $object mixin distribution $class
-          $object define set scm [string range $class [string length ::practcl::distribution.] end]
-          return [$object define get scm]
+          $object clay mixinmap distribution $class
+          set name [$class claim_option]
+          $object define set scm $name
+          return $name
         }
       }
     }
     foreach class [::info commands ${classprefix}*] {
       if {[$class claim_object $object]} {
-        $object mixin distribution $class
-        $object define set scm [string range $class [string length ::practcl::distribution.] end]
-        return [$object define get scm]
+        $object clay mixinmap distribution $class
+        set name [$class claim_option]
+        $object define set scm $name
+        return $name
       }
     }
     if {[$object define get scm] eq {} && [$object define exists file_url]} {
       set class ::practcl::distribution.snapshot
-      $object define set scm snapshot
-      $object mixin distribution $class
-      return [$object define get scm]
+      set name [$class claim_option]
+      $object define set scm $name
+      $object clay mixinmap distribution $class
+      return $name
     }
     error "Cannot determine source distribution method"
   }
 
-  method claim_path path {
+  method claim_option {} {
+    return Unknown
+  }
+
+  method claim_object object {
     return false
   }
-  method claim_object object {
+
+  method claim_path path {
     return false
   }
 }
@@ -5996,7 +7508,7 @@ oo::objdefine ::practcl::distribution {
 ###
 # START: class distro snapshot.tcl
 ###
-oo::class create ::practcl::distribution.snapshot {
+::clay::define ::practcl::distribution.snapshot {
   superclass ::practcl::distribution
   method ScmUnpack {} {
     set srcdir [my SrcDir]
@@ -6037,13 +7549,19 @@ oo::class create ::practcl::distribution.snapshot {
   }
 }
 oo::objdefine ::practcl::distribution.snapshot {
+
+  method claim_object object {
+    return false
+  }
+
+  method claim_option {} {
+    return snapshot
+  }
+
   method claim_path path {
     if {[file exists [file join $path .download]]} {
       return true
     }
-    return false
-  }
-  method claim_object object {
     return false
   }
 }
@@ -6054,7 +7572,7 @@ oo::objdefine ::practcl::distribution.snapshot {
 ###
 # START: class distro fossil.tcl
 ###
-oo::class create ::practcl::distribution.fossil {
+::clay::define ::practcl::distribution.fossil {
   superclass ::practcl::distribution
   method scm_info {} {
     set info [next]
@@ -6160,17 +7678,6 @@ oo::class create ::practcl::distribution.fossil {
 }
 oo::objdefine ::practcl::distribution.fossil {
 
-  # Check for markers in the source root
-  method claim_path path {
-    if {[file exists [file join $path .fslckout]]} {
-      return true
-    }
-    if {[file exists [file join $path _FOSSIL_]]} {
-      return true
-    }
-    return false
-  }
-
   # Check for markers in the metadata
   method claim_object obj {
     set path [$obj define get srcdir]
@@ -6178,6 +7685,21 @@ oo::objdefine ::practcl::distribution.fossil {
       return true
     }
     if {[$obj define get fossil_url] ne {}} {
+      return true
+    }
+    return false
+  }
+
+  method claim_option {} {
+    return fossil
+  }
+
+  # Check for markers in the source root
+  method claim_path path {
+    if {[file exists [file join $path .fslckout]]} {
+      return true
+    }
+    if {[file exists [file join $path _FOSSIL_]]} {
       return true
     }
     return false
@@ -6190,7 +7712,7 @@ oo::objdefine ::practcl::distribution.fossil {
 ###
 # START: class distro git.tcl
 ###
-oo::class create ::practcl::distribution.git {
+::clay::define ::practcl::distribution.git {
   superclass ::practcl::distribution
   method ScmTag {} {
     if {[my define exists scm_tag]} {
@@ -6231,18 +7753,24 @@ oo::class create ::practcl::distribution.git {
   }
 }
 oo::objdefine ::practcl::distribution.git {
-  method claim_path path {
-   if {[file exists [file join $path .git]]} {
-      return true
-    }
-    return false
-  }
+
   method claim_object obj {
     set path [$obj define get srcdir]
     if {[my claim_path $path]} {
       return true
     }
     if {[$obj define get git_url] ne {}} {
+      return true
+    }
+    return false
+  }
+
+  method claim_option {} {
+    return git
+  }
+
+  method claim_path path {
+   if {[file exists [file join $path .git]]} {
       return true
     }
     return false
@@ -6255,7 +7783,7 @@ oo::objdefine ::practcl::distribution.git {
 ###
 # START: class subproject baseclass.tcl
 ###
-oo::class create ::practcl::subproject {
+::clay::define ::practcl::subproject {
   superclass ::practcl::module
   method _MorphPatterns {} {
     return {{::practcl::subproject.@name@} {::practcl::@name@} {@name@} {::practcl::subproject}}
@@ -6338,7 +7866,7 @@ oo::class create ::practcl::subproject {
     cd $::CWD
   }
 }
-oo::class create ::practcl::subproject.source {
+::clay::define ::practcl::subproject.source {
   superclass ::practcl::subproject ::practcl::library
   method env-bootstrap {} {
     set LibraryRoot [file join [my define get srcdir] [my define get module_root modules]]
@@ -6354,7 +7882,7 @@ oo::class create ::practcl::subproject.source {
     return {subordinate package source}
   }
 }
-oo::class create ::practcl::subproject.teapot {
+::clay::define ::practcl::subproject.teapot {
   superclass ::practcl::subproject
   method env-bootstrap {} {
     set pkg [my define get pkg_name [my define get name]]
@@ -6384,7 +7912,7 @@ oo::class create ::practcl::subproject.teapot {
     ::zipfile::decode::unzipfile [file join $download $pkg.zip] [file join $DEST $prefix lib $pkg]
   }
 }
-oo::class create ::practcl::subproject.kettle {
+::clay::define ::practcl::subproject.kettle {
   superclass ::practcl::subproject
   method kettle {path args} {
     my variable kettle
@@ -6399,7 +7927,7 @@ oo::class create ::practcl::subproject.kettle {
     my kettle reinstall --prefix $DEST
   }
 }
-oo::class create ::practcl::subproject.critcl {
+::clay::define ::practcl::subproject.critcl {
   superclass ::practcl::subproject
   method install DEST {
     my critcl -pkg [my define get name]
@@ -6407,7 +7935,7 @@ oo::class create ::practcl::subproject.critcl {
     ::practcl::copyDir [file join $srcdir [my define get name]] [file join $DEST lib [my define get name]]
   }
 }
-oo::class create ::practcl::subproject.sak {
+::clay::define ::practcl::subproject.sak {
   superclass ::practcl::subproject
   method env-bootstrap {} {
     set LibraryRoot [file join [my define get srcdir] [my define get module_root modules]]
@@ -6447,12 +7975,53 @@ oo::class create ::practcl::subproject.sak {
       -no-wait -no-gui -no-apps
   }
   method install-module {DEST args} {
-    set pkg [my define get pkg_name [my define get name]]
-    set prefix [my <project> define get prefix [file normalize [file join ~ tcl]]]
-    set pkgpath [file join $prefix lib $pkg]
-    foreach module $args {
-      ::practcl::installDir [file join $pkgpath $module] [file join $DEST $module]
+    set srcdir [my define get srcdir]
+    if {[llength $args]==1 && [lindex $args 0] in {* all}} {
+      set pkg [my define get pkg_name [my define get name]]
+      ::practcl::dotclexec [file join $srcdir installer.tcl] \
+        -pkg-path [file join $DEST $pkg]  \
+        -no-examples -no-html -no-nroff \
+        -no-wait -no-gui -no-apps
+    } else {
+      foreach module $args {
+        ::practcl::installModule [file join $srcdir modules $module] [file join $DEST $module]
+      }
     }
+  }
+}
+::clay::define ::practcl::subproject.practcl {
+  superclass ::practcl::subproject
+  method env-bootstrap {} {
+    set LibraryRoot [file join [my define get srcdir] [my define get module_root modules]]
+    if {[file exists $LibraryRoot] && $LibraryRoot ni $::auto_path} {
+      set ::auto_path [linsert $::auto_path 0 $LibraryRoot]
+    }
+  }
+  method env-install {} {
+    ###
+    # Handle teapot installs
+    ###
+    set pkg [my define get pkg_name [my define get name]]
+    my unpack
+    set prefix [my <project> define get prefix [file normalize [file join ~ tcl]]]
+    set srcdir [my define get srcdir]
+    ::practcl::dotclexec [file join $srcdir make.tcl] install [file join $prefix lib $pkg]
+  }
+  method install DEST {
+    ###
+    # Handle teapot installs
+    ###
+    set pkg [my define get pkg_name [my define get name]]
+    my unpack
+    set prefix [string trimleft [my <project> define get prefix] /]
+    set srcdir [my define get srcdir]
+    puts [list INSTALLING  [my define get name] to [file join $DEST $prefix lib $pkg]]
+    ::practcl::dotclexec [file join $srcdir make.tcl] install [file join $DEST $prefix lib $pkg]
+  }
+  method install-module {DEST args} {
+    set pkg [my define get pkg_name [my define get name]]
+    set srcdir [my define get srcdir]
+    ::practcl::dotclexec [file join $srcdir make.tcl] install-module $DEST {*}$args
   }
 }
 
@@ -6462,7 +8031,7 @@ oo::class create ::practcl::subproject.sak {
 ###
 # START: class subproject binary.tcl
 ###
-oo::class create ::practcl::subproject.binary {
+::clay::define ::practcl::subproject.binary {
   superclass ::practcl::subproject
   method clean {} {
     set builddir [file normalize [my define get builddir]]
@@ -6488,7 +8057,7 @@ oo::class create ::practcl::subproject.binary {
     my go
     my clean
     my compile
-    my make-install {}
+    my make install {}
   }
   method project-compile-products {} {}
   method ComputeInstall {} {
@@ -6597,7 +8166,7 @@ oo::class create ::practcl::subproject.binary {
     } else {
       puts "BUILDING Dynamic $name $srcdir"
     }
-    my make-compile
+    my make compile
     cd $PWD
   }
   method Configure {} {
@@ -6607,7 +8176,7 @@ oo::class create ::practcl::subproject.binary {
     set srcdir [file normalize [my define get srcdir]]
     set builddir [file normalize [my define get builddir]]
     file mkdir $builddir
-    my make-autodetect
+    my make autodetect
   }
   method install DEST {
     set PWD [pwd]
@@ -6629,20 +8198,20 @@ oo::class create ::practcl::subproject.binary {
       }
     }
     my compile
-    my make-install $DEST
+    my make install $DEST
     cd $PWD
   }
 }
-oo::class create ::practcl::subproject.tea {
+::clay::define ::practcl::subproject.tea {
   superclass ::practcl::subproject.binary
 }
-oo::class create ::practcl::subproject.library {
+::clay::define ::practcl::subproject.library {
   superclass ::practcl::subproject.binary ::practcl::library
   method install DEST {
     my compile
   }
 }
-oo::class create ::practcl::subproject.external {
+::clay::define ::practcl::subproject.external {
   superclass ::practcl::subproject.binary
   method install DEST {
     my compile
@@ -6655,7 +8224,7 @@ oo::class create ::practcl::subproject.external {
 ###
 # START: class subproject core.tcl
 ###
-oo::class create ::practcl::subproject.core {
+::clay::define ::practcl::subproject.core {
   superclass ::practcl::subproject.binary
   method env-bootstrap {} {}
   method env-present {} {
@@ -6674,7 +8243,7 @@ oo::class create ::practcl::subproject.core {
     puts [list [self] OS [dict get $os TEACUP_OS] options $options]
     my go
     my compile
-    my make-install {}
+    my make install {}
   }
   method go {} {
     my define set core_binary 1

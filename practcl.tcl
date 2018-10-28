@@ -6152,6 +6152,7 @@ oo::objdefine ::practcl::product {
 ###
 ::clay::define ::practcl::module {
   superclass ::practcl::object ::practcl::product.dynamic
+  Dict make_object {}
   method _MorphPatterns {} {
     return {{@name@} {::practcl::module.@name@} ::practcl::module}
   }
@@ -6163,10 +6164,12 @@ oo::objdefine ::practcl::product {
     }
     return $object
   }
-  Dict make_object {}
   method install-headers args {}
   Ensemble make::_preamble {} {
     my variable make_object
+    if {![info exists make_object]} {
+      set make_object {}
+    }
   }
   Ensemble make::pkginfo {} {
     ###
@@ -6280,7 +6283,7 @@ oo::objdefine ::practcl::product {
     }
     return $result
   }
-  Ensemble make::todo {} {
+  Ensemble make::do {} {
     global CWD SRCDIR project SANDBOX
     foreach {name obj} $make_object {
       if {[$obj do]} {

@@ -883,14 +883,6 @@ AC_DEFUN([TEA_ENABLE_THREADS], [
     that IS thread-enabled.  It is recommended to use --enable-threads.])
 	    fi
 	    ;;
-	*)
-	    if test "${TCL_THREADS}" = "1"; then
-		AC_MSG_WARN([
-    --enable-threads requested, but building against a Tcl that is NOT
-    thread-enabled.  This is an OK configuration that will also run in
-    a thread-enabled core.])
-	    fi
-	    ;;
     esac
     AC_SUBST(TCL_THREADS)
 ])

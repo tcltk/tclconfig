@@ -1150,6 +1150,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 
     # TEA specific: Cross-compiling options for Windows/CE builds?
 
+    doWince=${enable_wince-no}
     AS_IF([test "${TEA_PLATFORM}" = windows], [
 	AC_MSG_CHECKING([if Windows/CE build is requested])
 	AC_ARG_ENABLE(wince,

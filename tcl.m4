@@ -440,7 +440,8 @@ AC_DEFUN([TEA_LOAD_TCLCONFIG], [
 		#error win32
 	    #endif
 	], [
-	    TEA_PLATFORM="unix"
+	    # first test we've already retrieved platform (cross-compile), fallback to unix otherwise:
+	    TEA_PLATFORM="${TEA_PLATFORM-unix}"
 	    CYGPATH=echo
 	], [
 	    TEA_PLATFORM="windows"

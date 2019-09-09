@@ -3470,7 +3470,7 @@ set buffer {}
   set mlist [list pkgIndex.tcl index.tcl [file tail $modfile] version_info.tcl]
   foreach file [glob -nocomplain [file join $path *.tcl]] {
     if {[file tail $file] ni $mlist} {
-      puts [list NONMODFILE $file]
+      #puts [list NONMODFILE $file]
       return {}
     }
   }
@@ -3489,7 +3489,7 @@ set buffer {}
       set version [lindex $line 3]
       if {[string index $package 0] in "\$ \[ @"} continue
       if {[string index $version 0] in "\$ \[ @"} continue
-      puts "PKGLINE $line"
+      #puts "PKGLINE $line"
       append buffer "package ifneeded $package $version \[list source \[file join %DIR% [file tail $file]\]\]" \n
       break
     }
@@ -3770,7 +3770,7 @@ proc ::practcl::buildModule {modpath} {
 }
 proc ::practcl::installModule {modpath DEST} {
   set dpath  [file join $DEST modules [file tail $modpath]]
-  puts [list ::practcl::installModule $modpath -> $dpath]
+  #puts [list ::practcl::installModule $modpath -> $dpath]
   if {[file exists [file join $modpath index.tcl]]} {
     # IRM/Tao style modules non-amalgamated
     ::practcl::installDir $modpath $dpath
@@ -7272,7 +7272,8 @@ char *
     } {
       dict set map %${var}% [set $var]
     }
-
+    set thread_init_script {namespace eval ::starkit {}}
+    append thread_init_script \n [list set ::starkit::topdir $vfsroot]
     set preinitscript {
 set ::odie(boot_vfs) %vfsroot%
 set ::SRCDIR $::odie(boot_vfs)
@@ -7287,32 +7288,6 @@ if {[file exists [file join %vfsroot% tk_library tk.tcl]]} {
 }
 } ; # Preinitscript
 
-    set main_init_script {}
-    set thread_init_script {}
-    append preinitscript \n {namespace eval ::starkit {}}
-    append preinitscript \n [list set ::starkit::topdir $vfsroot]
-
-    foreach {statpkg info} $statpkglist {
-      set script [list package ifneeded $statpkg [dict get $info version] [list ::load {} $statpkg]]
-      append preinitscript \n $script
-      if {[dict get $info autoload]} {
-        append main_init_script \n [list ::load {} $statpkg]
-      }
-    }
-    append main_init_script \n {
-# Specify a user-specific startup file to invoke if the application
-# is run interactively.  Typically the startup file is "~/.apprc"
-# where "app" is the name of the application.  If this line is deleted
-# then no user-specific startup file will be run under any conditions.
-}
-    append main_init_script \n {if {[file exists [file join $::starkit::topdir pkgIndex.tcl]]} {
-  #In a wrapped exe, we don't go out to the environment
-  set dir $::starkit::topdir
-  source [file join $::starkit::topdir pkgIndex.tcl]
-}}
-    append main_init_script \n [list set tcl_rcFileName [$PROJECT define get tcl_rcFileName ~/.tclshrc]]
-    append preinitscript \n [list set ::starkit::thread_init $thread_init_script]
-    append preinitscript \n {eval $::starkit::thread_init}
     set zvfsboot {
 /*
  * %mainhook% --
@@ -7399,6 +7374,8 @@ foreach path {
     if {![$PROJECT define get tip_430 0]} {
       ::practcl::cputs appinit {  TclZipfs_Init(interp);}
     }
+    set main_init_script {}
+
     foreach {statpkg info} $statpkglist {
       set initfunc {}
       if {[dict exists $info initfunc]} {
@@ -7413,15 +7390,36 @@ foreach path {
       # We employ a NULL to prevent the package system from thinking the
       # package is actually loaded into the interpreter
       $PROJECT code header "extern Tcl_PackageInitProc $initfunc\;\n"
+      set script [list package ifneeded $statpkg [dict get $info version] [list ::load {} $statpkg]]
+      append main_init_script \n [list set ::starkit::static_packages(${statpkg}) $script]
+
       if {[dict get $info autoload]} {
         ::practcl::cputs appinit "  if(${initfunc}(interp)) return TCL_ERROR\;"
         ::practcl::cputs appinit "  Tcl_StaticPackage(interp,\"$statpkg\",$initfunc,NULL)\;"
       } else {
         ::practcl::cputs appinit "\n  Tcl_StaticPackage(NULL,\"$statpkg\",$initfunc,NULL)\;"
+        append main_init_script \n $script
       }
     }
+    append main_init_script \n {
+if {[file exists [file join $::starkit::topdir pkgIndex.tcl]]} {
+  #In a wrapped exe, we don't go out to the environment
+  set dir $::starkit::topdir
+  source [file join $::starkit::topdir pkgIndex.tcl]
+}}
+    append thread_init_script $main_init_script
+    append main_init_script \n {
+# Specify a user-specific startup file to invoke if the application
+# is run interactively.  Typically the startup file is "~/.apprc"
+# where "app" is the name of the application.  If this line is deleted
+# then no user-specific startup file will be run under any conditions.
+}
+    append thread_init_script \n [list set ::starkit::thread_init $thread_init_script]
+    append main_init_script \n [list set ::starkit::thread_init $thread_init_script]
+    append main_init_script \n [list set tcl_rcFileName [$PROJECT define get tcl_rcFileName ~/.tclshrc]]
 
-    practcl::cputs appinit "  Tcl_Eval(interp,[::practcl::tcl_to_c  $main_init_script]);"
+
+    practcl::cputs appinit "  Tcl_Eval(interp,[::practcl::tcl_to_c  $thread_init_script]);"
     practcl::cputs appinit {  return TCL_OK;}
     $PROJECT c_function [string map $map "int %mainfunc%(Tcl_Interp *interp)"] [string map $map $appinit]
   }

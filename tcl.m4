@@ -1191,36 +1191,16 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
     case $system in
 	# TEA specific:
 	windows)
-	    # This is a 2-stage check to make sure we have the 64-bit SDK
-	    # We have to know where the SDK is installed.
-	    # This magic is based on MS Platform SDK for Win2003 SP1 - hobbs
-	    # MACHINE is IX86 for LINK, but this is used by the manifest,
-	    # which requires x86|amd64|ia64.
 	    MACHINE="X86"
 	    if test "$do64bit" != "no" ; then
-		if test "x${MSSDK}x" = "xx" ; then
-		    MSSDK="C:/Progra~1/Microsoft Platform SDK"
-		fi
-		MSSDK=`echo "$MSSDK" | sed -e  's!\\\!/!g'`
-		PATH64=""
 		case "$do64bit" in
 		    amd64|x64|yes)
 			MACHINE="AMD64" ; # default to AMD64 64-bit build
-			PATH64="${MSSDK}/Bin/Win64/x86/AMD64"
 			;;
 		    ia64)
 			MACHINE="IA64"
-			PATH64="${MSSDK}/Bin/Win64"
 			;;
 		esac
-		if test "$GCC" != "yes" -a ! -d "${PATH64}" ; then
-		    AC_MSG_WARN([Could not find 64-bit $MACHINE SDK to enable 64bit mode])
-		    AC_MSG_WARN([Ensure latest Platform SDK is installed])
-		    do64bit="no"
-		else
-		    AC_MSG_RESULT([   Using 64-bit $MACHINE mode])
-		    do64bit_ok="yes"
-		fi
 	    fi
 
 	    if test "$GCC" != "yes" ; then
@@ -1239,12 +1219,10 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	        esac
 
                 if test "$do64bit" != "no" ; then
-		    # All this magic is necessary for the Win64 SDK RC1 - hobbs
-		    CC="\"${PATH64}/cl.exe\""
-		    CFLAGS="${CFLAGS} -I\"${MSSDK}/Include\" -I\"${MSSDK}/Include/crt\" -I\"${MSSDK}/Include/crt/sys\""
-		    RC="\"${MSSDK}/bin/rc.exe\""
-		    lflags="${lflags} -nologo -MACHINE:${MACHINE} -LIBPATH:\"${MSSDK}/Lib/${MACHINE}\""
-		    LINKBIN="\"${PATH64}/link.exe\""
+		    CC="cl.exe"
+		    RC="rc.exe"
+		    lflags="${lflags} -nologo -MACHINE:${MACHINE} "
+		    LINKBIN="link.exe"
 		    CFLAGS_DEBUG="-nologo -Zi -Od -W3 ${runtime}d"
 		    CFLAGS_OPTIMIZE="-nologo -O2 -W2 ${runtime}"
 		    # Avoid 'unresolved external symbol __security_cookie'

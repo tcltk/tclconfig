@@ -1533,7 +1533,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	        ])
 	    ])
 	    ;;
-	Linux*|GNU*|NetBSD-Debian)
+	Linux*|GNU*|NetBSD-Debian|DragonFly-*|FreeBSD-*)
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_SUFFIX=".so"
 
@@ -1543,6 +1543,17 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
 	    SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS_DEFAULT} -shared'
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
+
+	    case $system in
+	    DragonFly-*|FreeBSD-*)
+		AS_IF([test "${TCL_THREADS}" = "1"], [
+		    # The -pthread needs to go in the LDFLAGS, not LIBS
+		    LIBS=`echo $LIBS | sed s/-pthread//`
+		    CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+		    LDFLAGS="$LDFLAGS $PTHREAD_LIBS"])
+	    ;;
+            esac
+
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -1616,30 +1627,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    LIBS=`echo $LIBS | sed s/-pthread//`
 	    CFLAGS="$CFLAGS -pthread"
 	    LDFLAGS="$LDFLAGS -pthread"
-	    ;;
-	DragonFly-*|FreeBSD-*)
-	    # This configuration from FreeBSD Ports.
-	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD="${CC} -shared"
-	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} -Wl,-soname,\$[@]"
-	    SHLIB_SUFFIX=".so"
-	    LDFLAGS=""
-	    AS_IF([test $doRpath = yes], [
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
-		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
-	    # The -pthread needs to go in the LDFLAGS, not LIBS
-	    LIBS=`echo $LIBS | sed s/-pthread//`
-	    CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-	    LDFLAGS="$LDFLAGS $PTHREAD_LIBS"
-	    case $system in
-	    FreeBSD-3.*)
-		# Version numbers are dot-stripped by system policy.
-		TCL_TRIM_DOTS=`echo ${PACKAGE_VERSION} | tr -d .`
-		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
-		SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}\$\{DBGX\}.so.1'
-		TCL_LIB_VERSIONS_OK=nodots
-		;;
-	    esac
 	    ;;
 	Darwin-*)
 	    CFLAGS_OPTIMIZE="-Os"

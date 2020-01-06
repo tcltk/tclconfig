@@ -1591,7 +1591,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'])
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    SHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.so${SHLIB_VERSION}'
-	    LDFLAGS="-Wl,-export-dynamic"
+	    LDFLAGS="$LDFLAGS -Wl,-export-dynamic"
 	    CFLAGS_OPTIMIZE="-O2"
 	    # On OpenBSD:	Compile with -pthread
 	    #		Don't link with -lpthread

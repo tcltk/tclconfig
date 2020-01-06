@@ -1260,14 +1260,14 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		      if test "$ac_cv_cross" = "yes"; then
 			case "$do64bit" in
 			    amd64|x64|yes)
-				CC="x86_64-w64-mingw32-gcc"
+				CC="x86_64-w64-mingw32-${CC}"
 				LD="x86_64-w64-mingw32-ld"
 				AR="x86_64-w64-mingw32-ar"
 				RANLIB="x86_64-w64-mingw32-ranlib"
 				RC="x86_64-w64-mingw32-windres"
 			    ;;
 			    *)
-				CC="i686-w64-mingw32-gcc"
+				CC="i686-w64-mingw32-${CC}"
 				LD="i686-w64-mingw32-ld"
 				AR="i686-w64-mingw32-ar"
 				RANLIB="i686-w64-mingw32-ranlib"
@@ -1385,19 +1385,6 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    SHLIB_LD='${CC} -shared'
 	    SHLIB_SUFFIX=".dll"
 	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} -Wl,--out-implib,\$[@].a"
-	    AC_CACHE_CHECK(for Cygwin version of gcc,
-		ac_cv_cygwin,
-		AC_TRY_COMPILE([
-		#ifdef __CYGWIN__
-		    #error cygwin
-		#endif
-		], [],
-		ac_cv_cygwin=no,
-		ac_cv_cygwin=yes)
-	    )
-	    if test "$ac_cv_cygwin" = "no"; then
-		AC_MSG_ERROR([${CC} is not a cygwin compiler.])
-	    fi
 	    EXEEXT=".exe"
 	    do64bit_ok=yes
 	    CC_SEARCH_FLAGS=""

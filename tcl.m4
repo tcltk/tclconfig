@@ -1158,6 +1158,16 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
     STLIB_LD='${AR} cr'
     LD_LIBRARY_PATH_VAR="LD_LIBRARY_PATH"
     AS_IF([test "x$SHLIB_VERSION" = x],[SHLIB_VERSION=""],[SHLIB_VERSION=".$SHLIB_VERSION"])
+
+    # if the compiler is used for linking,
+    # choose the C++ compiler if CXX is enabled
+    if test x"$TEA_CXX" != "x"; then
+	CCLD=$CXX
+    else
+	CCLD=$CC
+    fi
+    AC_SUBST(CCLD)
+
     case $system in
 	# TEA specific:
 	windows)
@@ -1212,7 +1222,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		AC_CHECK_TOOL(RC, windres)
 		CFLAGS_DEBUG="-g"
 		CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
-		SHLIB_LD='${CC} -shared'
+		SHLIB_LD='${CCLD} -shared'
 		UNSHARED_LIB_SUFFIX='${TCL_TRIM_DOTS}.a'
 		LDFLAGS_CONSOLE="-wl,--subsystem,console ${lflags}"
 		LDFLAGS_WINDOW="-wl,--subsystem,windows ${lflags}"
@@ -1313,7 +1323,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		LD_SEARCH_FLAGS='-R "${LIB_RUNTIME_DIR}"'
 	    ], [
 		AS_IF([test "$GCC" = yes], [
-		    SHLIB_LD='${CC} -shared -Wl,-bexpall'
+		    SHLIB_LD='${CCLD} -shared -Wl,-bexpall'
 		], [
 		    SHLIB_LD="/bin/ld -bhalt:4 -bM:SRE -bexpall -H512 -T512 -bnoentry"
 		    LDFLAGS="$LDFLAGS -brtl"
@@ -1325,7 +1335,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    ;;
 	BeOS*)
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD='${CC} -nostart'
+	    SHLIB_LD='${CCLD} -nostart'
 	    SHLIB_SUFFIX=".so"
 
 	    #-----------------------------------------------------------
@@ -1344,7 +1354,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    ;;
 	BSD/OS-4.*)
 	    SHLIB_CFLAGS="-export-dynamic -fPIC"
-	    SHLIB_LD='${CC} -shared'
+	    SHLIB_LD='${CCLD} -shared'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    CC_SEARCH_FLAGS=""
@@ -1352,7 +1362,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    ;;
 	CYGWIN_*)
 	    SHLIB_CFLAGS=""
-	    SHLIB_LD='${CC} -shared'
+	    SHLIB_LD='${CCLD} -shared'
 	    SHLIB_SUFFIX=".dll"
 	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} -Wl,--out-implib,\$[@].a"
 	    EXEEXT=".exe"
@@ -1362,7 +1372,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    ;;
 	dgux*)
 	    SHLIB_CFLAGS="-K PIC"
-	    SHLIB_LD='${CC} -G'
+	    SHLIB_LD='${CCLD} -G'
 	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
 	    CC_SEARCH_FLAGS=""
@@ -1372,7 +1382,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_SUFFIX=".so"
-	    SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS} -shared'
+	    SHLIB_LD='${CCLD} ${CFLAGS} ${LDFLAGS} -shared'
 	    AC_CHECK_LIB(network, inet_ntoa, [LIBS="$LIBS -lnetwork"])
 	    ;;
 	HP-UX-*.11.*)
@@ -1397,7 +1407,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		LD_LIBRARY_PATH_VAR="SHLIB_PATH"
 	    ])
 	    AS_IF([test "$GCC" = yes], [
-		SHLIB_LD='${CC} -shared'
+		SHLIB_LD='${CCLD} -shared'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    ], [
 		CFLAGS="$CFLAGS -z"
@@ -1410,7 +1420,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 			hppa64*)
 			    # 64-bit gcc in use.  Fix flags for GNU ld.
 			    do64bit_ok=yes
-			    SHLIB_LD='${CC} -shared'
+			    SHLIB_LD='${CCLD} -shared'
 			    AS_IF([test $doRpath = yes], [
 				CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'])
 			    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -1498,7 +1508,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    CFLAGS_OPTIMIZE="-O2 -fomit-frame-pointer"
 
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
-	    SHLIB_LD='${CC} ${CFLAGS} ${LDFLAGS_DEFAULT} -shared'
+	    SHLIB_LD='${CCLD} ${CFLAGS} ${LDFLAGS_DEFAULT} -shared'
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 
 	    case $system in
@@ -1540,7 +1550,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    SHLIB_CFLAGS="-fPIC"
 	    SHLIB_SUFFIX=".so"
 	    CFLAGS_OPTIMIZE=-02
-	    SHLIB_LD='${CC} -shared'
+	    SHLIB_LD='${CCLD} -shared'
 	    LD_FLAGS="-Wl,--export-dynamic"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
@@ -1556,7 +1566,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		SHLIB_CFLAGS="-fpic"
 		;;
 	    esac
-	    SHLIB_LD='${CC} ${SHLIB_CFLAGS} -shared'
+	    SHLIB_LD='${CCLD} ${SHLIB_CFLAGS} -shared'
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test $doRpath = yes], [
 		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'])
@@ -1575,7 +1585,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	NetBSD-*)
 	    # NetBSD has ELF and can use 'cc -shared' to build shared libs
 	    SHLIB_CFLAGS="-fPIC"
-	    SHLIB_LD='${CC} ${SHLIB_CFLAGS} -shared'
+	    SHLIB_LD='${CCLD} ${SHLIB_CFLAGS} -shared'
 	    SHLIB_SUFFIX=".so"
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    AS_IF([test $doRpath = yes], [
@@ -1634,7 +1644,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		    fat_32_64=yes])
 	    ])
 	    # TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
-	    SHLIB_LD='${CC} -dynamiclib ${CFLAGS} ${LDFLAGS_DEFAULT}'
+	    SHLIB_LD='${CCLD} -dynamiclib ${CFLAGS} ${LDFLAGS_DEFAULT}'
 	    AC_CACHE_CHECK([if ld accepts -single_module flag], tcl_cv_ld_single_module, [
 		hold_ldflags=$LDFLAGS
 		LDFLAGS="$LDFLAGS -dynamiclib -Wl,-single_module"
@@ -1772,7 +1782,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    SHLIB_CFLAGS="-KPIC"
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test "$GCC" = yes], [
-		SHLIB_LD='${CC} -shared'
+		SHLIB_LD='${CCLD} -shared'
 		CC_SEARCH_FLAGS='"-Wl,-R,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 	    ], [
@@ -1842,7 +1852,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 
 	    SHLIB_SUFFIX=".so"
 	    AS_IF([test "$GCC" = yes], [
-		SHLIB_LD='${CC} -shared'
+		SHLIB_LD='${CCLD} -shared'
 		CC_SEARCH_FLAGS='"-Wl,-R,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
 		AS_IF([test "$do64bit_ok" = yes], [
@@ -1866,7 +1876,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 		case $system in
 		    SunOS-5.[[1-9]][[0-9]]*)
 			# TEA specific: use LDFLAGS_DEFAULT instead of LDFLAGS
-			SHLIB_LD='${CC} -G -z text ${LDFLAGS_DEFAULT}';;
+			SHLIB_LD='${CCLD} -G -z text ${LDFLAGS_DEFAULT}';;
 		    *)
 			SHLIB_LD='/usr/ccs/bin/ld -G -z text';;
 		esac
@@ -1876,7 +1886,7 @@ AC_DEFUN([TEA_CONFIG_CFLAGS], [
 	    ;;
 	UNIX_SV* | UnixWare-5*)
 	    SHLIB_CFLAGS="-KPIC"
-	    SHLIB_LD='${CC} -G'
+	    SHLIB_LD='${CCLD} -G'
 	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
 	    # Some UNIX_SV* systems (unixware 1.1.2 for example) have linkers
@@ -2675,6 +2685,11 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 #	a compiler.
 #------------------------------------------------------------------------
 
+AC_DEFUN([TEA_INIT_CXX], [
+    # request setup for C++ compilation
+    TEA_CXX="yes"
+])
+
 AC_DEFUN([TEA_INIT], [
     TEA_VERSION="3.13"
 
@@ -2747,6 +2762,7 @@ The PACKAGE_NAME variable must be defined by your TEA configure.ac])
     AC_SUBST(PKG_INCLUDES)
     AC_SUBST(PKG_LIBS)
     AC_SUBST(PKG_CFLAGS)
+    AC_SUBST(SWIG_WRAP)
 
     # Configure the installer.
     TEA_INSTALLER
@@ -2966,6 +2982,8 @@ AC_DEFUN([TEA_ADD_LIBS], [
 AC_DEFUN([TEA_ADD_CFLAGS], [
     PKG_CFLAGS="$PKG_CFLAGS $@"
     AC_SUBST(PKG_CFLAGS)
+    AC_SUBST(CCLD)
+    AC_SUBST(INSTALL_FLAGS)
 ])
 
 #------------------------------------------------------------------------
@@ -2982,6 +3000,66 @@ AC_DEFUN([TEA_ADD_CFLAGS], [
 #------------------------------------------------------------------------
 AC_DEFUN([TEA_ADD_CLEANFILES], [
     CLEANFILES="$CLEANFILES $@"
+])
+
+#------------------------------------------------------------------------
+# TEA_ADD_SWIGINTERFACE --
+#
+#	Specify one interface file which is processed by SWIG.
+#	It is not important to specify the directory, as long as it is
+#	in the generic, win or unix subdirectory of $(srcdir).
+#
+# Arguments:
+#	one or more file names
+#
+# Results:
+#
+#	Defines and substs the following vars:
+#		PKG_SOURCES
+#		PKG_OBJECTS
+#		SWIGINTERFACE
+#		SWIGOUTPUT
+#		SWIGOBJECT
+#------------------------------------------------------------------------
+AC_DEFUN([TEA_ADD_SWIGINTERFACE], [
+	# check for SWIG
+	AC_CHECK_PROG(SWIG_CHECK,swig,yes)
+	AS_IF([test x"$SWIG_CHECK" != x"yes"], [AC_MSG_ERROR([Swig is requred to compile this.])])
+	SWIG="swig"
+
+	# check for existence - allows for generic/win/unix VPATH
+	# To add more dirs here (like 'src'), you have to update VPATH
+	# in Makefile.in as well
+
+	SWIGINTERFACE=${srcdir}/$1
+	if ! test -f "${SWIGINTERFACE}"; then
+	  # check in generic
+	  SWIGINTERFACE=${srcdir}/generic/$1
+	  if ! test -f "${SWIGINTERFACE}"; then
+	    # error
+	    AC_MSG_ERROR([could not find SWIG interface file '$1'])
+	  fi
+	fi
+	PKG_SOURCES="$PKG_SOURCES $1"
+	# this assumes it is in a VPATH dir
+	SWIGBASE=${PACKAGE_NAME}_wrap
+	SWIGOUTPUT=${srcdir}/generic/${SWIGBASE}.cpp
+	# handle user calling this before or after TEA_SETUP_COMPILER
+	if test x"${OBJEXT}" != x ; then
+	    SWIGOBJECT="${SWIGBASE}.${OBJEXT}"
+	else
+	    SWIGOBJECT="${SWIGBASE}.\${OBJEXT}"
+	fi
+	PKG_OBJECTS="$PKG_OBJECTS $SWIGOBJECT"
+	SWIG_WRAP="wrap"
+	TEA_ADD_CLEANFILES([$SWIGOUTPUT])
+    AC_SUBST(PKG_SOURCES)
+    AC_SUBST(PKG_OBJECTS)
+    AC_SUBST(SWIGOBJECT)
+    AC_SUBST(SWIGOUTPUT)
+    AC_SUBST(SWIGINTERFACE)
+    AC_SUBST(SWIG_WRAP)
+    AC_SUBST(SWIG)
 ])
 
 #------------------------------------------------------------------------
@@ -3021,6 +3099,65 @@ AC_DEFUN([TEA_PREFIX], [
     fi
 ])
 
+# ===========================================================================
+#    https://www.gnu.org/software/autoconf-archive/ax_check_link_flag.html
+# ===========================================================================
+#
+# SYNOPSIS
+#
+#   AX_CHECK_LINK_FLAG(FLAG, [ACTION-SUCCESS], [ACTION-FAILURE], [EXTRA-FLAGS], [INPUT])
+#
+# DESCRIPTION
+#
+#   Check whether the given FLAG works with the linker or gives an error.
+#   (Warnings, however, are ignored)
+#
+#   ACTION-SUCCESS/ACTION-FAILURE are shell commands to execute on
+#   success/failure.
+#
+#   If EXTRA-FLAGS is defined, it is added to the linker's default flags
+#   when the check is done.  The check is thus made with the flags: "LDFLAGS
+#   EXTRA-FLAGS FLAG".  This can for example be used to force the linker to
+#   issue an error when a bad flag is given.
+#
+#   INPUT gives an alternative input source to AC_LINK_IFELSE.
+#
+#   NOTE: Implementation based on AX_CFLAGS_GCC_OPTION. Please keep this
+#   macro in sync with AX_CHECK_{PREPROC,COMPILE}_FLAG.
+#
+# LICENSE
+#
+#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
+#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
+#
+#   Copying and distribution of this file, with or without modification, are
+#   permitted in any medium without royalty provided the copyright notice
+#   and this notice are preserved.  This file is offered as-is, without any
+#   warranty.
+
+#serial 6
+
+AC_DEFUN([AX_CHECK_LINK_FLAG],
+[AC_PREREQ(2.64)dnl for _AC_LANG_PREFIX and AS_VAR_IF
+AS_VAR_PUSHDEF([CACHEVAR],[ax_cv_check_ldflags_$4_$1])dnl
+AC_CACHE_CHECK([whether the linker accepts $1], CACHEVAR, [
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS $4 $1"
+  AC_LINK_IFELSE([m4_default([$5],[AC_LANG_PROGRAM()])],
+    [AS_VAR_SET(CACHEVAR,[yes])],
+    [AS_VAR_SET(CACHEVAR,[no])])
+  LDFLAGS=$ax_check_save_flags])
+AS_VAR_IF(CACHEVAR,yes,
+  [m4_default([$2], :)],
+  [m4_default([$3], :)])
+AS_VAR_POPDEF([CACHEVAR])dnl
+])dnl AX_CHECK_LINK_FLAGS
+
+# use AX_CHECK_LINK_FLAG to add a linker flag if it is available
+AC_DEFUN([AX_ADDTO_LINK_FLAGS],
+[AX_CHECK_LINK_FLAG([$1], [LDFLAGS="$LDFLAGS $1"], [])
+])
+
 #------------------------------------------------------------------------
 # TEA_SETUP_COMPILER_CC --
 #
@@ -3039,6 +3176,11 @@ AC_DEFUN([TEA_SETUP_COMPILER_CC], [
     # in this macro, they need to go into TEA_SETUP_COMPILER instead.
 
     AC_PROG_CC
+
+    if test "x$TEA_CXX" != "x"; then
+	AC_PROG_CXX
+    fi
+
     AC_PROG_CPP
 
     #--------------------------------------------------------------------
@@ -3094,6 +3236,13 @@ AC_DEFUN([TEA_SETUP_COMPILER], [
 	fi
     fi
 
+    if test "x$TEA_CXX" != "x"; then
+	# try to link the C++ libraries statically
+	AC_LANG_PUSH([C++])
+	AX_ADDTO_LINK_FLAGS([-static-libgcc])
+	AX_ADDTO_LINK_FLAGS([-static-libstdc++])
+	AC_LANG_POP([C++])
+    fi
     #--------------------------------------------------------------------
     # Common compiler flag setup
     #--------------------------------------------------------------------

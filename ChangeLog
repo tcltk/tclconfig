@@ -327,7 +327,7 @@
 
 2007-09-15  Daniel Steffen  <das@users.sourceforge.net>
 
-	* tcl.m4: 	replace all direct references to compiler by ${CC} to
+	* tcl.m4:	replace all direct references to compiler by ${CC} to
 			enable CC overriding at configure & make time.
 	(SunOS-5.1x):	replace direct use of '/usr/ccs/bin/ld' in SHLIB_LD by
 			'cc' compiler driver.

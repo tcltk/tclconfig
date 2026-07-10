@@ -2748,7 +2748,7 @@ AC_DEFUN([TEA_TCL_64BIT_FLAGS], [
 #------------------------------------------------------------------------
 
 AC_DEFUN([TEA_INIT], [
-    TEA_VERSION="3.13"
+    TEA_VERSION="3.14"
 
     AC_MSG_CHECKING([TEA configuration])
     if test x"${PACKAGE_NAME}" = x ; then
@@ -4061,7 +4061,7 @@ AC_DEFUN([TEA_INSTALLER], [
 
     TEA_CONFIG_SYSTEM
     case $system in
-	HP-UX-*) INSTALL_LIBRARY='${INSTALL} -m 755' ;;
+	CYGWIN_*|MINGW32_*|MINGW64_*|MSYS_*|HP-UX-*) INSTALL_LIBRARY='${INSTALL} -m 755' ;;
 	      *) INSTALL_LIBRARY='${INSTALL} -m 644' ;;
     esac
 
